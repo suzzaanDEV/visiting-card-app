@@ -1,0 +1,27 @@
+{
+  "dashboard": {
+    "title": "Cardly Backend Monitoring",
+    "panels": [
+      {
+        "title": "API Response Time",
+        "type": "graph",
+        "target": "api.response.time"
+      },
+      {
+        "title": "Error Rate",
+        "type": "graph", 
+        "target": "api.errors.rate"
+      },
+      {
+        "title": "Database Connections",
+        "type": "graph",
+        "target": "db.connections.active"
+      },
+      {
+        "title": "Memory Usage",
+        "type": "graph",
+        "target": "system.memory.usage"
+      }
+    ]
+  }
+}
