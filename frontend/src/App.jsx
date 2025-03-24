@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 
 // Layout Components
@@ -39,6 +39,14 @@ import AdminRoute from './components/Admin/AdminRoute';
 
 function App() {
   console.log('App component is rendering');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Add loading state management
+  useEffect(() => {
+    setIsLoading(true);
+    // Simulate loading time
+    setTimeout(() => setIsLoading(false), 1000);
+  }, []);
   
   return (
     <AuthInitializer>
