@@ -1,6 +1,16 @@
 const authService = require('../services/authService');
 const logger = require('../utils/logger');
 
+// Add input validation
+const validateEmail = (email) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+const validatePassword = (password) => {
+  return password.length >= 6;
+};
+
 exports.register = async (req, res, next) => {
   try {
     const { username, email, password, name } = req.body;
