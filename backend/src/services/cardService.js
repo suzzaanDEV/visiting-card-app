@@ -7,6 +7,18 @@ const logger = require('../utils/logger');
 const qrCodeGenerator = require('../algorithms/qrCodeGenerator');
 const shortLinkGenerator = require('../algorithms/shortLinkGenerator');
 
+// Add caching mechanism
+const cardCache = new Map();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+const getCachedCard = (cardId) => {
+  const cached = cardCache.get(cardId);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+  return null;
+};
+
 class CardService {
   async createCard(userId, { 
     title, 
