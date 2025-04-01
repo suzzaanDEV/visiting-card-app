@@ -17,6 +17,7 @@ const CardViewer = ({ card, onLove, onShare, onDownload, isLoved = false }) => {
   const { items: savedCards } = useSelector(state => state.library);
   const [isImageLoaded, setIsImageLoaded] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  // Add animation state
   const [isAnimating, setIsAnimating] = useState(false);
   const [qrCodeRef, setQrCodeRef] = useState(null);
 
