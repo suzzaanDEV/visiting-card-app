@@ -50,6 +50,8 @@ const AdminDashboard = () => {
     deviceAnalytics: {},
     geographicAnalytics: {}
   });
+  // Add auto-refresh functionality
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -57,6 +59,15 @@ const AdminDashboard = () => {
     const interval = setInterval(fetchRealTimeData, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (autoRefresh) {
+      const interval = setInterval(() => {
+        fetchDashboardData();
+      }, 30000); // Refresh every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [autoRefresh]);
 
   const fetchDashboardData = async () => {
     try {
