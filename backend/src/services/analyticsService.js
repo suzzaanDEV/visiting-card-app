@@ -79,6 +79,24 @@ class AnalyticsService {
     }
   }
 
+  // Add data aggregation functions
+  const aggregateUserData = async (startDate, endDate) => {
+    const aggregation = await User.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: startDate, $lte: endDate }
+        }
+      },
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+    return aggregation;
+  };
+
   // Get comprehensive card analytics
   async getCardAnalytics(cardId, period = '30d') {
     try {
