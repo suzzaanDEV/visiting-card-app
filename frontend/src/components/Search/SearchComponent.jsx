@@ -15,10 +15,10 @@ const SearchComponent = ({
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [filters, setFilters] = useState({
+  const [searchFilters, setSearchFilters] = useState({
     category: 'all',
-    sortBy: 'relevance',
-    searchType: 'hybrid'
+    dateRange: 'all',
+    sortBy: 'relevance'
   });
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
@@ -40,7 +40,7 @@ const SearchComponent = ({
   }, []);
 
   // Handle search
-  const handleSearch = useCallback(async (searchQuery = query, searchFilters = filters) => {
+  const handleSearch = useCallback(async (searchQuery = query, searchFilters = searchFilters) => {
     if (!searchQuery.trim()) {
       onSearch({ results: [], total: 0 });
       return;
@@ -65,7 +65,7 @@ const SearchComponent = ({
     } finally {
       setIsLoading(false);
     }
-  }, [query, filters, onSearch]);
+  }, [query, searchFilters, onSearch]);
 
   // Handle suggestion click
   const handleSuggestionClick = (suggestion) => {
@@ -80,9 +80,9 @@ const SearchComponent = ({
     try {
       const response = await apiService.post('/api/search/advanced', {
         query,
-        category: filters.category !== 'all' ? filters.category : undefined,
-        sortBy: filters.sortBy,
-        searchType: filters.searchType,
+        category: searchFilters.category !== 'all' ? searchFilters.category : undefined,
+        sortBy: searchFilters.sortBy,
+        searchType: searchFilters.searchType,
         limit: 20,
         page: 1
       });
@@ -93,6 +93,14 @@ const SearchComponent = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Add advanced search filters
+  const handleFilterChange = (filterType, value) => {
+    setSearchFilters(prev => ({
+      ...prev,
+      [filterType]: value
+    }));
   };
 
   // Effects
@@ -169,8 +177,8 @@ const SearchComponent = ({
                   Search Algorithm
                 </label>
                 <select
-                  value={filters.searchType}
-                  onChange={(e) => setFilters(prev => ({ ...prev, searchType: e.target.value }))}
+                  value={searchFilters.searchType}
+                  onChange={(e) => handleFilterChange('searchType', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="hybrid">Hybrid (Recommended)</option>
@@ -187,8 +195,8 @@ const SearchComponent = ({
                   Sort By
                 </label>
                 <select
-                  value={filters.sortBy}
-                  onChange={(e) => setFilters(prev => ({ ...prev, sortBy: e.target.value }))}
+                  value={searchFilters.sortBy}
+                  onChange={(e) => handleFilterChange('sortBy', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="relevance">Relevance</option>
@@ -206,8 +214,8 @@ const SearchComponent = ({
                   Category
                 </label>
                 <select
-                  value={filters.category}
-                  onChange={(e) => setFilters(prev => ({ ...prev, category: e.target.value }))}
+                  value={searchFilters.category}
+                  onChange={(e) => handleFilterChange('category', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="all">All Categories</option>
