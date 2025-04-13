@@ -85,6 +85,15 @@ const deleteFromCloudinary = async (publicId) => {
   }
 };
 
+// Add image optimization settings
+const optimizationSettings = {
+  quality: 'auto',
+  fetch_format: 'auto',
+  crop: 'scale',
+  width: 800,
+  height: 600
+};
+
 // Get optimized URL
 const getOptimizedUrl = (publicId, options = {}) => {
   const defaultOptions = {
@@ -94,6 +103,12 @@ const getOptimizedUrl = (publicId, options = {}) => {
   };
   
   return cloudinary.url(publicId, defaultOptions);
+};
+
+// Get optimized Image URL
+const getOptimizedImageUrl = (publicId, options = {}) => {
+  const settings = { ...optimizationSettings, ...options };
+  return cloudinary.url(publicId, settings);
 };
 
 module.exports = {
