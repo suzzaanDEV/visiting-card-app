@@ -27,8 +27,19 @@ const AdminLayout = ({ children, title = 'Admin Dashboard' }) => {
   const { user } = useSelector(state => state.auth);
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Add notification system
   const [notifications, setNotifications] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const addNotification = (message, type = 'info') => {
+    const newNotification = {
+      id: Date.now(),
+      message,
+      type,
+      timestamp: new Date()
+    };
+    setNotifications(prev => [...prev, newNotification]);
+  };
 
   const navigation = [
     {
