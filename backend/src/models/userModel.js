@@ -55,12 +55,18 @@ const userSchema = new mongoose.Schema({
   avatar: { 
     type: String 
   },
-  isActive: { 
-    type: Boolean, 
-    default: true 
+  // Add activity tracking fields
+  lastLoginAt: {
+    type: Date,
+    default: null
   },
-  lastLoginAt: { 
-    type: Date 
+  loginCount: {
+    type: Number,
+    default: 0
+  },
+  isActive: {
+    type: Boolean,
+    default: true
   },
   createdAt: { 
     type: Date, 
