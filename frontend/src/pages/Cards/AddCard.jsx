@@ -204,6 +204,21 @@ const AddCard = () => {
   const [cardImage, setCardImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
 
+  // Add form validation
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = 'Full name is required';
+    }
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   // Fetch templates on component mount
   useEffect(() => {
     dispatch(fetchCardTemplates());
