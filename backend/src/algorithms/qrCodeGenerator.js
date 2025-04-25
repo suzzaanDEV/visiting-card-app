@@ -62,3 +62,19 @@ exports.generateWithLogo = async (url, logoPath, options = {}) => {
     throw new Error('Failed to generate QR code with logo');
   }
 };  
+
+// Add QR code customization options
+const generateCustomQRCode = async (data, options = {}) => {
+  const defaultOptions = {
+    width: 256,
+    margin: 2,
+    color: {
+      dark: '#000000',
+      light: '#FFFFFF'
+    },
+    errorCorrectionLevel: 'M',
+    ...options
+  };
+  
+  return QRCode.toDataURL(data, defaultOptions);
+};  
