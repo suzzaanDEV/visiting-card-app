@@ -35,6 +35,20 @@ const LibraryPage = () => {
   const [cardToQuickView, setCardToQuickView] = useState(null);
   const [showQuickViewModal, setShowQuickViewModal] = useState(false);
 
+  // Add sorting and filtering options
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [filterBy, setFilterBy] = useState('all');
+
+  const handleSort = (field) => {
+    if (sortBy === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortOrder('desc');
+    }
+  };
+
   useEffect(() => {
     dispatch(fetchSavedCards({}));
     dispatch(fetchLibraryStats());
