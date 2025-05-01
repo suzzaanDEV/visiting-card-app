@@ -239,6 +239,25 @@ class UserService {
       throw error;
     }
   }
+
+  // Add user preferences management
+  async updateUserPreferences(userId, preferences) {
+    try {
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { 
+          $set: { 
+            preferences: { ...preferences },
+            updatedAt: new Date()
+          }
+        },
+        { new: true }
+      );
+      return updatedUser;
+    } catch (error) {
+      throw new Error('Failed to update user preferences');
+    }
+  }
 }
 
 module.exports = new UserService(); 
