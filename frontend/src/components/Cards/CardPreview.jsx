@@ -7,6 +7,20 @@ const CardPreview = ({ card, template, className = "", showActions = true }) => 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Add card preview customization
+  const [previewSettings, setPreviewSettings] = useState({
+    showQR: true,
+    showSocial: true,
+    theme: 'default'
+  });
+
+  const updatePreviewSettings = (setting, value) => {
+    setPreviewSettings(prev => ({
+      ...prev,
+      [setting]: value
+    }));
+  };
+
   useEffect(() => {
     if (card) {
       setIsLoading(false);
