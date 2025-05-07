@@ -5,6 +5,23 @@ const templateService = require('../services/templateService');
 const logger = require('../utils/logger');
 const Template = require('../models/templateModel');
 
+// Add admin activity logging
+const logAdminActivity = async (adminId, action, details) => {
+  try {
+    const logEntry = {
+      adminId,
+      action,
+      details,
+      timestamp: new Date(),
+      ipAddress: req.ip || 'unknown'
+    };
+    // Store in admin activity log
+    console.log('Admin Activity:', logEntry);
+  } catch (error) {
+    console.error('Failed to log admin activity:', error);
+  }
+};
+
 // Admin login
 exports.adminLogin = async (req, res, next) => {
   try {
