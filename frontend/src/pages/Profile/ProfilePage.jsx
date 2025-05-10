@@ -26,6 +26,19 @@ const ProfilePage = () => {
     totalShares: 0,
     memberSince: ''
   });
+  // Add profile customization features
+  const [profileSettings, setProfileSettings] = useState({
+    theme: 'light',
+    notifications: true,
+    privacy: 'public'
+  });
+
+  const updateProfileSettings = (setting, value) => {
+    setProfileSettings(prev => ({
+      ...prev,
+      [setting]: value
+    }));
+  };
 
   useEffect(() => {
     fetchUserProfile();
