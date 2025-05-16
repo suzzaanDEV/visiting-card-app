@@ -18,6 +18,14 @@ const UnifiedNavigation = ({ variant = 'default' }) => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  // Add navigation state management
+  const [activeSection, setActiveSection] = useState('home');
+  const [navigationHistory, setNavigationHistory] = useState([]);
+
+  const updateActiveSection = (section) => {
+    setActiveSection(section);
+    setNavigationHistory(prev => [...prev, section]);
+  };
 
   // Handle scroll effect
   useEffect(() => {
