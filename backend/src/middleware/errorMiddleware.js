@@ -24,3 +24,17 @@ module.exports = (err, req, res, next) => {
     error: process.env.NODE_ENV === 'production' ? 'Something went wrong' : err.message 
   });
 };
+
+// Add detailed error logging
+const logError = (error, req) => {
+  const errorLog = {
+    timestamp: new Date(),
+    error: error.message,
+    stack: error.stack,
+    url: req.url,
+    method: req.method,
+    userAgent: req.headers['user-agent'],
+    ip: req.ip
+  };
+  console.error('Detailed Error Log:', errorLog);
+};
