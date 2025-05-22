@@ -24,6 +24,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
   const [selectedBackground, setSelectedBackground] = useState('gradient-blue');
   const [selectedImage, setSelectedImage] = useState(null);
   const [previewMode, setPreviewMode] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
   const fileInputRef = useRef(null);
 
   const backgrounds = [
@@ -77,6 +78,11 @@ const CardCreator = ({ onSubmit, loading = false }) => {
       backgroundColor: backgrounds.find(bg => bg.id === selectedBackground)?.class || 'bg-gradient-to-br from-blue-500 to-blue-700'
     };
     await onSubmit(cardData);
+  };
+
+  const handleTemplateSelect = (template) => {
+    setSelectedTemplate(template);
+    setPreviewMode(true);
   };
 
   const CardPreview = () => (
