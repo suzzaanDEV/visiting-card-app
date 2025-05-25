@@ -264,6 +264,32 @@ class TemplateService {
       throw error;
     }
   }
+
+  // Add template versioning system
+  async createTemplateVersion(templateId, versionData) {
+    try {
+      const template = await Template.findOne({ id: templateId });
+      if (!template) {
+        throw new Error('Template not found');
+      }
+      
+      const version = {
+        version: template.versions ? template.versions.length + 1 : 1,
+        data: versionData,
+        createdAt: new Date()
+      };
+      
+      if (!template.versions) {
+        template.versions = [];
+      }
+      template.versions.push(version);
+      await template.save();
+      return template;
+    } catch (error) {
+      logger.error(`Create template version error: ${error.message}`);
+      throw error;
+    }
+  }
 }
 
 module.exports = new TemplateService(); 
