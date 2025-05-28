@@ -31,6 +31,9 @@ const TemplateManagement = () => {
       elements: []
     }
   });
+  // Add template bulk operations
+  const [selectedTemplates, setSelectedTemplates] = useState([]);
+  const [bulkAction, setBulkAction] = useState('');
 
   useEffect(() => {
     fetchTemplates();
