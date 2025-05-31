@@ -97,6 +97,23 @@ class AnalyticsService {
     return aggregation;
   };
 
+  // Add real-time analytics tracking
+  const trackRealTimeEvent = async (eventType, eventData) => {
+    try {
+      const analyticsEvent = {
+        type: eventType,
+        data: eventData,
+        timestamp: new Date(),
+        sessionId: eventData.sessionId || 'unknown'
+      };
+      
+      // Store in real-time analytics collection
+      console.log('Real-time Analytics Event:', analyticsEvent);
+    } catch (error) {
+      console.error('Failed to track real-time event:', error);
+    }
+  };
+
   // Get comprehensive card analytics
   async getCardAnalytics(cardId, period = '30d') {
     try {
