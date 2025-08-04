@@ -80,7 +80,7 @@ class AnalyticsService {
   }
 
   // Add data aggregation functions
-  const aggregateUserData = async (startDate, endDate) => {
+  async aggregateUserData  (startDate, endDate)  {
     const aggregation = await User.aggregate([
       {
         $match: {
@@ -98,7 +98,7 @@ class AnalyticsService {
   };
 
   // Add real-time analytics tracking
-  const trackRealTimeEvent = async (eventType, eventData) => {
+   async trackRealTimeEvent (eventType, eventData) {
     try {
       const analyticsEvent = {
         type: eventType,

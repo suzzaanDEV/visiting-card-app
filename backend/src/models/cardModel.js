@@ -9,57 +9,40 @@ const cardSchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
-    trim: true,
-    maxlength: 100
+    trim: true
   },
-  // Card Details
   fullName: {
     type: String,
     required: true,
-    trim: true,
-    maxlength: 100
+    trim: true
   },
   jobTitle: {
     type: String,
-    trim: true,
-    maxlength: 100
+    trim: true
   },
   company: {
     type: String,
-    trim: true,
-    maxlength: 100
+    trim: true
   },
   email: {
     type: String,
-    trim: true,
-    maxlength: 100
+    trim: true
   },
   phone: {
     type: String,
-    trim: true,
-    maxlength: 20
+    trim: true
   },
   website: {
     type: String,
-    trim: true,
-    maxlength: 200
+    trim: true
   },
   address: {
     type: String,
-    trim: true,
-    maxlength: 200
+    trim: true
   },
   bio: {
     type: String,
-    trim: true,
-    maxlength: 500
-  },
-  // Card Design
-  cardImage: {
-    type: String // URL to uploaded image
-  },
-  designJson: {
-    type: String // JSON string of card design
+    trim: true
   },
   backgroundColor: {
     type: String,
@@ -73,38 +56,31 @@ const cardSchema = new mongoose.Schema({
     type: String,
     default: 'Arial'
   },
-  // Card Status
   shortLink: {
     type: String,
     required: true,
-    unique: true,
-    index: true
-  },
-  qrCode: {
-    type: String
+    unique: true
   },
   isPublic: {
     type: Boolean,
     default: true
   },
-  templateId: {
+  isPrivate: {
+    type: Boolean,
+    default: false
+  },
+  privacy: {
     type: String,
-    ref: 'Template'
+    enum: ['public', 'private', 'shared'],
+    default: 'public'
+  },
+  templateId: {
+    type: String
   },
   featured: {
     type: Boolean,
     default: false
   },
-  loves: [{
-    userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    lovedAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
   loveCount: {
     type: Number,
     default: 0
@@ -125,74 +101,25 @@ const cardSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
-}, { timestamps: { updatedAt: 'updatedAt' } });
-
-// Indexes for performance
-cardSchema.index({ ownerUserId: 1, isActive: 1 });
-cardSchema.index({ shortLink: 1 });
-cardSchema.index({ loveCount: -1 });
-cardSchema.index({ views: -1 });
-cardSchema.index({ createdAt: -1 });
-
-// Text index for search functionality
-cardSchema.index({
-  title: 'text',
-  fullName: 'text',
-  jobTitle: 'text',
-  company: 'text',
-  email: 'text',
-  bio: 'text'
+  loves: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }]
 }, {
-  weights: {
-    title: 10,
-    fullName: 8,
-    jobTitle: 6,
-    company: 6,
-    email: 4,
-    bio: 2
-  },
-  name: 'card_text_search'
+  timestamps: true
 });
 
-// Virtual for love status
-cardSchema.virtual('isLoved').get(function() {
-  return this.loves.length > 0;
-});
-
-// Method to add love
-cardSchema.methods.addLove = function(userId) {
-  const existingLove = this.loves.find(love => love.userId.toString() === userId.toString());
-  if (!existingLove) {
-    this.loves.push({ userId });
-    this.loveCount = this.loves.length;
-    return true;
-  }
-  return false;
-};
-
-// Method to remove love
-cardSchema.methods.removeLove = function(userId) {
-  const loveIndex = this.loves.findIndex(love => love.userId.toString() === userId.toString());
-  if (loveIndex > -1) {
-    this.loves.splice(loveIndex, 1);
-    this.loveCount = this.loves.length;
-    return true;
-  }
-  return false;
-};
-
-// Method to check if user loved this card
-cardSchema.methods.isLovedByUser = function(userId) {
-  return this.loves.some(love => love.userId.toString() === userId.toString());
-};
+// Index for better query performance
+cardSchema.index({ isPublic: 1, isActive: 1 });
+cardSchema.index({ shortLink: 1 });
+cardSchema.index({ ownerUserId: 1 });
+cardSchema.index({ privacy: 1, isActive: 1 });
 
 // Method to increment views
 cardSchema.methods.incrementViews = function() {
@@ -210,6 +137,25 @@ cardSchema.methods.incrementShares = function() {
 cardSchema.methods.incrementDownloads = function() {
   this.downloads += 1;
   return this.save();
+};
+
+// Method to check if user has loved this card
+cardSchema.methods.isLovedByUser = function(userId) {
+  return this.loves.some(love => love.userId.toString() === userId.toString());
+};
+
+// Method to add love
+cardSchema.methods.addLove = function(userId) {
+  if (!this.isLovedByUser(userId)) {
+    this.loves.push({ userId });
+    this.loveCount = this.loves.length;
+  }
+};
+
+// Method to remove love
+cardSchema.methods.removeLove = function(userId) {
+  this.loves = this.loves.filter(love => love.userId.toString() !== userId.toString());
+  this.loveCount = this.loves.length;
 };
 
 module.exports = mongoose.model('Card', cardSchema);

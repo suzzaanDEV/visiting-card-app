@@ -8,6 +8,7 @@ const savedCardRoutes = require('./routes/savedCardRoutes');
 const searchRoutes = require('./routes/searchRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const errorMiddleware = require('./middleware/errorMiddleware');
 const multer = require('multer');
 const cors = require('cors');
@@ -78,6 +79,7 @@ app.use('/api/library', savedCardRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/templates', templateRoutes);
 
 app.use(errorMiddleware);
