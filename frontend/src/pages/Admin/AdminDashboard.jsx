@@ -8,7 +8,7 @@ import {
   FiCheckCircle, FiAlertCircle, FiClock, FiStar, FiEdit, FiLayers,
   FiBarChart2, FiPieChart, FiTrendingUp, FiTrendingDown, FiUserPlus,
   FiFileText, FiSettings, FiGrid, FiMonitor, FiCpu, FiHardDrive,
-  FiTrello, FiWifi, FiZap as FiZapIcon
+  FiTrello, FiWifi
 } from 'react-icons/fi';
 import { 
   FaChartLine, FaUsers, FaCreditCard, FaEye, FaHeart, FaShareAlt,

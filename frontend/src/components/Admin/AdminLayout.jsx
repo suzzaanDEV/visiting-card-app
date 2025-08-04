@@ -67,6 +67,14 @@ const AdminLayout = ({ children, title = 'Admin Dashboard' }) => {
       description: 'Manage visiting cards'
     },
     {
+      id: 'access-requests',
+      label: 'Access Requests',
+      icon: FiShield,
+      path: '/admin/access-requests',
+      color: 'yellow',
+      description: 'Manage private card access'
+    },
+    {
       id: 'templates',
       label: 'Templates',
       icon: FiLayers,

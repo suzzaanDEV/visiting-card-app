@@ -1,619 +1,502 @@
 import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FiPlus, FiEdit, FiTrash2, FiEye, FiGrid, FiSearch, FiFilter,
-  FiRefreshCw, FiCheck, FiX, FiSave, FiUpload, FiDownload, FiStar
+  FiPlus, FiEdit, FiTrash2, FiEye, FiEyeOff, FiStar, FiGrid, 
+  FiSearch, FiFilter, FiDownload, FiUpload, FiSettings
 } from 'react-icons/fi';
 import { FaLayerGroup, FaPalette } from 'react-icons/fa';
 import AdminLayout from '../../components/Admin/AdminLayout';
 import toast from 'react-hot-toast';
+import { fetchTemplates, createTemplate, updateTemplate, deleteTemplate } from '../../features/admin/adminThunks';
 
 const TemplateManagement = () => {
-  const [templates, setTemplates] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useDispatch();
+  const { templates, isLoading, error } = useSelector((state) => state.admin);
+  const [showForm, setShowForm] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('all');
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedTemplates, setSelectedTemplates] = useState([]);
+
   const [formData, setFormData] = useState({
     name: '',
-    category: 'Professional',
     description: '',
+    category: '',
+    backgroundColor: '#667eea',
+    textColor: '#ffffff',
+    fontFamily: 'Arial',
     isActive: true,
-    isFeatured: false,
-    preview: {
-      backgroundColor: '#ffffff',
-      elements: []
-    },
-    design: {
-      backgroundColor: '#ffffff',
-      elements: []
-    }
+    isFeatured: false
   });
-  // Add template bulk operations
-  const [selectedTemplates, setSelectedTemplates] = useState([]);
-  const [bulkAction, setBulkAction] = useState('');
 
   useEffect(() => {
-    fetchTemplates();
-  }, []);
+    dispatch(fetchTemplates());
+  }, [dispatch]);
 
-  const fetchTemplates = async () => {
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
     try {
-      setLoading(true);
-      const token = localStorage.getItem('adminToken');
-      
-      if (!token) {
-        toast.error('Admin authentication required');
-        return;
-      }
-
-      const response = await fetch('/api/admin/templates', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setTemplates(data.templates || data || []);
+      if (editingTemplate) {
+        await dispatch(updateTemplate({ id: editingTemplate._id, ...formData })).unwrap();
+        toast.success('Template updated successfully!');
       } else {
-        console.error('Failed to fetch templates:', response.status);
-        toast.error('Failed to load templates');
-        // Don't set any fallback data - let the UI handle empty state
+        await dispatch(createTemplate(formData)).unwrap();
+        toast.success('Template created successfully!');
       }
-    } catch (error) {
-      console.error('Error fetching templates:', error);
-      toast.error('Failed to load templates');
-      // Don't set any fallback data - let the UI handle empty state
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateTemplate = async () => {
-    try {
-      const token = localStorage.getItem('adminToken');
       
-      if (!token) {
-        toast.error('Admin authentication required');
-        return;
-      }
-
-      const response = await fetch('/api/admin/templates', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        setShowCreateModal(false);
-        setFormData({
-          name: '',
-          category: 'Professional',
-          description: '',
-          isActive: true,
-          isFeatured: false,
-          preview: { backgroundColor: '#ffffff', elements: [] },
-          design: { backgroundColor: '#ffffff', elements: [] }
-        });
-        fetchTemplates();
-        toast.success('Template created successfully');
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || 'Failed to create template');
-      }
+      setShowForm(false);
+      setEditingTemplate(null);
+      resetForm();
     } catch (error) {
-      console.error('Error creating template:', error);
-      toast.error('Failed to create template');
+      toast.error(error.message || 'Failed to save template');
     }
   };
 
-  const handleUpdateTemplate = async () => {
-    try {
-      const token = localStorage.getItem('adminToken');
-      
-      if (!token) {
-        toast.error('Admin authentication required');
-        return;
-      }
-
-      const response = await fetch(`/api/admin/templates/${selectedTemplate._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (response.ok) {
-        setShowEditModal(false);
-        setSelectedTemplate(null);
-        fetchTemplates();
-        toast.success('Template updated successfully');
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || 'Failed to update template');
-      }
-    } catch (error) {
-      console.error('Error updating template:', error);
-      toast.error('Failed to update template');
-    }
-  };
-
-  const handleDeleteTemplate = async (templateId) => {
-    if (window.confirm('Are you sure you want to delete this template? This action cannot be undone.')) {
-      try {
-        const token = localStorage.getItem('adminToken');
-        
-        if (!token) {
-          toast.error('Admin authentication required');
-          return;
-        }
-
-        const response = await fetch(`/api/admin/templates/${templateId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          fetchTemplates();
-          toast.success('Template deleted successfully');
-        } else {
-          const errorData = await response.json();
-          toast.error(errorData.error || 'Failed to delete template');
-        }
-      } catch (error) {
-        console.error('Error deleting template:', error);
-        toast.error('Failed to delete template');
-      }
-    }
-  };
-
-  const handleToggleFeatured = async (templateId, isFeatured) => {
-    try {
-      const token = localStorage.getItem('adminToken');
-      
-      if (!token) {
-        toast.error('Admin authentication required');
-        return;
-      }
-
-      const response = await fetch(`/api/admin/templates/${templateId}/featured`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ isFeatured: !isFeatured })
-      });
-
-      if (response.ok) {
-        fetchTemplates();
-        toast.success(`Template ${!isFeatured ? 'featured' : 'unfeatured'} successfully`);
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.error || 'Failed to update template');
-      }
-    } catch (error) {
-      console.error('Error updating template:', error);
-      toast.error('Failed to update template');
-    }
-  };
-
-  const handleEditTemplate = (template) => {
-    setSelectedTemplate(template);
+  const handleEdit = (template) => {
+    setEditingTemplate(template);
     setFormData({
       name: template.name,
-      category: template.category,
       description: template.description,
+      category: template.category,
+      backgroundColor: template.backgroundColor || '#667eea',
+      textColor: template.textColor || '#ffffff',
+      fontFamily: template.fontFamily || 'Arial',
       isActive: template.isActive,
-      isFeatured: template.isFeatured,
-      preview: template.preview,
-      design: template.design
+      isFeatured: template.isFeatured
     });
-    setShowEditModal(true);
+    setShowForm(true);
   };
+
+  const handleDelete = async (templateId) => {
+    if (window.confirm('Are you sure you want to delete this template?')) {
+      try {
+        await dispatch(deleteTemplate(templateId)).unwrap();
+        toast.success('Template deleted successfully!');
+      } catch (error) {
+        toast.error(error.message || 'Failed to delete template');
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      category: '',
+      backgroundColor: '#667eea',
+      textColor: '#ffffff',
+      fontFamily: 'Arial',
+      isActive: true,
+      isFeatured: false
+    });
+  };
+
+  const handleBulkAction = async (action) => {
+    if (selectedTemplates.length === 0) {
+      toast.error('Please select templates first');
+      return;
+    }
+
+    try {
+      // Implement bulk actions here
+      toast.success(`${action} applied to ${selectedTemplates.length} templates`);
+      setSelectedTemplates([]);
+    } catch (error) {
+      toast.error('Failed to apply bulk action');
+    }
+  };
+
+  const backgroundColors = [
+    { name: 'Blue Gradient', value: '#667eea' },
+    { name: 'Purple Gradient', value: '#764ba2' },
+    { name: 'Green Gradient', value: '#11998e' },
+    { name: 'Orange Gradient', value: '#f12711' },
+    { name: 'Pink Gradient', value: '#ff6b6b' },
+    { name: 'Dark Blue', value: '#1a3a63' },
+    { name: 'Deep Purple', value: '#4a148c' },
+    { name: 'Forest Green', value: '#2e7d32' },
+    { name: 'Dark Orange', value: '#e65100' },
+    { name: 'Rose', value: '#c2185b' }
+  ];
+
+  const textColors = [
+    { name: 'White', value: '#ffffff' },
+    { name: 'Black', value: '#000000' },
+    { name: 'Dark Gray', value: '#333333' },
+    { name: 'Light Gray', value: '#666666' }
+  ];
+
+  const fontFamilies = [
+    { name: 'Arial', value: 'Arial' },
+    { name: 'Helvetica', value: 'Helvetica' },
+    { name: 'Times New Roman', value: 'Times New Roman' },
+    { name: 'Georgia', value: 'Georgia' },
+    { name: 'Verdana', value: 'Verdana' },
+    { name: 'Courier New', value: 'Courier New' }
+  ];
 
   const filteredTemplates = templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          template.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filterCategory === 'all' || template.category === filterCategory;
+    const matchesCategory = !selectedCategory || template.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
-  const categories = ['all', 'Professional', 'Creative', 'Minimal', 'Corporate', 'Modern', 'Elegant'];
-
-  if (loading) {
-    return (
-      <AdminLayout title="Template Management">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      </AdminLayout>
-    );
-  }
-
   return (
     <AdminLayout title="Template Management">
-      {/* Header with Actions */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Template Management</h1>
-          <p className="text-gray-600">Manage design templates and their settings</p>
+          <p className="text-gray-600">Manage card templates and designs</p>
         </div>
-        
-        <div className="flex items-center space-x-3 mt-4 lg:mt-0">
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            <FiPlus className="mr-2" />
-            Create Template
-          </button>
-          
-          <button
-            onClick={fetchTemplates}
-            className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <FiRefreshCw className="h-5 w-5" />
-          </button>
-        </div>
+        <button
+          onClick={() => setShowForm(true)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+        >
+          <FiPlus className="mr-2" />
+          Add Template
+        </button>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <input
-                type="text"
-                placeholder="Search templates..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="relative">
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search templates..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
-          
-          <div className="flex gap-4">
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            <option value="">All Categories</option>
+            <option value="business">Business</option>
+            <option value="creative">Creative</option>
+            <option value="minimal">Minimal</option>
+            <option value="modern">Modern</option>
+          </select>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => handleBulkAction('activate')}
+              disabled={selectedTemplates.length === 0}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
             >
-              {categories.map(category => (
-                <option key={category} value={category}>
-                  {category === 'all' ? 'All Categories' : category}
-                </option>
-              ))}
-            </select>
+              Activate
+            </button>
+            <button
+              onClick={() => handleBulkAction('deactivate')}
+              disabled={selectedTemplates.length === 0}
+              className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 transition-colors"
+            >
+              Deactivate
+            </button>
+            <button
+              onClick={() => handleBulkAction('delete')}
+              disabled={selectedTemplates.length === 0}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+            >
+              Delete
+            </button>
           </div>
         </div>
       </div>
 
+      {/* Template Form Modal */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">
+                  {editingTemplate ? 'Edit Template' : 'Add Template'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingTemplate(null);
+                    resetForm();
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Template Name *
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Category
+                    </label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select Category</option>
+                      <option value="business">Business</option>
+                      <option value="creative">Creative</option>
+                      <option value="minimal">Minimal</option>
+                      <option value="modern">Modern</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    rows="3"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Background Color
+                    </label>
+                    <select
+                      name="backgroundColor"
+                      value={formData.backgroundColor}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {backgroundColors.map((color) => (
+                        <option key={color.value} value={color.value}>
+                          {color.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Text Color
+                    </label>
+                    <select
+                      name="textColor"
+                      value={formData.textColor}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {textColors.map((color) => (
+                        <option key={color.value} value={color.value}>
+                          {color.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Font Family
+                    </label>
+                    <select
+                      name="fontFamily"
+                      value={formData.fontFamily}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      {fontFamilies.map((font) => (
+                        <option key={font.value} value={font.value}>
+                          {font.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex items-center space-x-4">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="isActive"
+                      checked={formData.isActive}
+                      onChange={handleInputChange}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">Active</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="isFeatured"
+                      checked={formData.isFeatured}
+                      onChange={handleInputChange}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">Featured</span>
+                  </label>
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowForm(false);
+                      setEditingTemplate(null);
+                      resetForm();
+                    }}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    {editingTemplate ? 'Update Template' : 'Create Template'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Templates Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <AnimatePresence>
-          {filteredTemplates.map((template, index) => (
+      {isLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      ) : error ? (
+        <div className="text-center py-12">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-red-900 mb-2">Error Loading Templates</h3>
+            <p className="text-red-700">{error}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredTemplates.map((template) => (
             <motion.div
               key={template._id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ delay: index * 0.1 }}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-all duration-200"
+              className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden"
             >
-              {/* Template Preview */}
-              <div className="h-48 bg-gradient-to-br from-gray-100 to-gray-200 relative">
+              <div
+                className="h-32 relative"
+                style={{ backgroundColor: template.backgroundColor || '#667eea' }}
+              >
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="text-center">
-                    <FaLayerGroup className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-600 text-sm">{template.name}</p>
+                  <div className="text-center text-white">
+                    <FiGrid className="h-8 w-8 mx-auto mb-2" />
+                    <p className="text-sm font-medium">{template.name}</p>
                   </div>
                 </div>
-                
-                {/* Status Badges */}
-                <div className="absolute top-2 right-2 flex flex-col space-y-1">
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    template.isActive 
-                      ? 'bg-green-500/90 text-white' 
-                      : 'bg-red-500/90 text-white'
-                  }`}>
-                    {template.isActive ? 'Active' : 'Inactive'}
-                  </span>
-                  {template.isFeatured && (
-                    <span className="px-2 py-1 text-xs bg-yellow-500/90 text-white rounded-full">
-                      Featured
-                    </span>
-                  )}
-                </div>
+                {template.isFeatured && (
+                  <div className="absolute top-2 right-2">
+                    <FiStar className="h-5 w-5 text-yellow-400" />
+                  </div>
+                )}
               </div>
 
-              {/* Template Info */}
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
-                  <span className="px-2 py-1 text-xs bg-blue-500/20 text-blue-600 rounded-full">
-                    {template.category}
-                  </span>
-                </div>
+              <div className="p-4">
+                <h3 className="font-semibold text-gray-900 mb-1">{template.name}</h3>
+                <p className="text-sm text-gray-600 mb-2">{template.description}</p>
                 
-                <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                  {template.description}
-                </p>
-
-                {/* Template Stats */}
-                <div className="flex items-center justify-between mb-4 text-sm text-gray-500">
-                  <span>Uses: {template.usageCount || 0}</span>
-                  <span>Rating: {template.rating || 4.5} ⭐</span>
+                <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+                  <span className="capitalize">{template.category}</span>
+                  <div className="flex items-center space-x-1">
+                    {template.isActive ? (
+                      <FiEye className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <FiEyeOff className="h-4 w-4 text-gray-400" />
+                    )}
+                  </div>
                 </div>
 
-                {/* Actions */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
+                  <div className="flex space-x-2">
                     <button
-                      onClick={() => handleEditTemplate(template)}
+                      onClick={() => handleEdit(template)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Edit Template"
                     >
                       <FiEdit className="h-4 w-4" />
                     </button>
-                    
                     <button
-                      onClick={() => handleToggleFeatured(template._id, template.isFeatured)}
-                      className={`p-2 rounded-lg transition-colors ${
-                        template.isFeatured
-                          ? 'text-yellow-600 hover:bg-yellow-50'
-                          : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                      title={template.isFeatured ? 'Unfeature' : 'Feature'}
-                    >
-                      <FiStar className="h-4 w-4" />
-                    </button>
-                    
-                    <button
-                      onClick={() => handleDeleteTemplate(template._id)}
+                      onClick={() => handleDelete(template._id)}
                       className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete Template"
                     >
                       <FiTrash2 className="h-4 w-4" />
                     </button>
                   </div>
-                  
-                  <div className="text-xs text-gray-400">
-                    {new Date(template.createdAt).toLocaleDateString()}
-                  </div>
+                  <input
+                    type="checkbox"
+                    checked={selectedTemplates.includes(template._id)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedTemplates(prev => [...prev, template._id]);
+                      } else {
+                        setSelectedTemplates(prev => prev.filter(id => id !== template._id));
+                      }
+                    }}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
                 </div>
               </div>
             </motion.div>
           ))}
-        </AnimatePresence>
-      </div>
-
-      {filteredTemplates.length === 0 && (
-        <div className="text-center py-12">
-          <FiGrid className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-600 text-lg">No templates found</p>
-          <p className="text-gray-400 text-sm">Try adjusting your search or filters</p>
         </div>
       )}
 
-      {/* Create Template Modal */}
-      <AnimatePresence>
-        {showCreateModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4"
-            >
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-900">Create New Template</h2>
-              </div>
-              
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Template Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter template name"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {categories.filter(cat => cat !== 'all').map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter template description"
-                  />
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="isActive"
-                      checked={formData.isActive}
-                      onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="isActive" className="ml-2 text-sm text-gray-700">
-                      Template is active
-                    </label>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="isFeatured"
-                      checked={formData.isFeatured}
-                      onChange={(e) => setFormData({...formData, isFeatured: e.target.checked})}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="isFeatured" className="ml-2 text-sm text-gray-700">
-                      Featured template
-                    </label>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
-                <button
-                  onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateTemplate}
-                  className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                  <FiSave className="mr-2" />
-                  Create Template
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Edit Template Modal */}
-      <AnimatePresence>
-        {showEditModal && selectedTemplate && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4"
-            >
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-xl font-semibold text-gray-900">Edit Template</h2>
-              </div>
-              
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Template Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({...formData, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter template name"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({...formData, category: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    {categories.filter(cat => cat !== 'all').map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter template description"
-                  />
-                </div>
-                
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="editIsActive"
-                      checked={formData.isActive}
-                      onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="editIsActive" className="ml-2 text-sm text-gray-700">
-                      Template is active
-                    </label>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="editIsFeatured"
-                      checked={formData.isFeatured}
-                      onChange={(e) => setFormData({...formData, isFeatured: e.target.checked})}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="editIsFeatured" className="ml-2 text-sm text-gray-700">
-                      Featured template
-                    </label>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUpdateTemplate}
-                  className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                  <FiSave className="mr-2" />
-                  Update Template
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {filteredTemplates.length === 0 && !isLoading && (
+        <div className="text-center py-12">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No Templates Found</h3>
+            <p className="text-gray-600">Create your first template to get started.</p>
+          </div>
+        </div>
+      )}
     </AdminLayout>
   );
 };

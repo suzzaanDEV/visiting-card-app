@@ -18,7 +18,7 @@ root.render(
     <BrowserRouter>
       <App />
       <Toaster 
-        position="top-right"
+        position="bottom-right"
         toastOptions={{
           duration: 4000,
           style: {
@@ -31,6 +31,7 @@ root.render(
             fontWeight: '500',
             padding: '16px 20px',
             minWidth: '300px',
+            marginBottom: '20px',
           },
           success: {
             iconTheme: {

@@ -1,6 +1,7 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { IoQrCodeSharp } from "react-icons/io5";
-import { FiGrid, FiExternalLink, FiClock, FiEye, FiHeart } from 'react-icons/fi';
+import { FiGrid, FiExternalLink, FiClock, FiEye, FiHeart, FiLock, FiGlobe, FiUsers } from 'react-icons/fi';
 
 /**
  * Component to display a single Discover Card Item
@@ -12,17 +13,20 @@ import { FiGrid, FiExternalLink, FiClock, FiEye, FiHeart } from 'react-icons/fi'
  * @param {boolean} props.showTimeAgo - Whether to show time ago
  * @param {string} props.timeAgo - Time ago string
  */
-const DiscoverCardItem = ({ card, cardDesign, onSave, viewMode = 'grid', showTimeAgo = false, timeAgo }) => {
+const DiscoverCardItem = ({ card, cardDesign, onSave, viewMode = 'grid', showTimeAgo = false, timeAgo, isAuthenticated = false }) => {
   // Basic check: If card data is missing, don't render anything for this item
   if (!card) {
     return null;
   }
 
   return (
-    // Card container with styling for appearance and hover effects
-    <div className={`bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden transition-shadow duration-300 hover:shadow-lg flex flex-col h-full ${
-      viewMode === 'list' ? 'flex-row' : ''
-    }`}>
+    <motion.div
+      whileHover={{ y: -5, scale: 1.02 }}
+      transition={{ duration: 0.2 }}
+      className={`bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden transition-all duration-300 hover:shadow-xl flex flex-col h-full ${
+        viewMode === 'list' ? 'flex-row' : ''
+      }`}
+    >
       {/* Display card image from cardDesign if available */}
       <div className={viewMode === 'list' ? 'w-48 flex-shrink-0' : ''}>
         {cardDesign?.cardImageUrl ? (
@@ -33,16 +37,44 @@ const DiscoverCardItem = ({ card, cardDesign, onSave, viewMode = 'grid', showTim
              onError={(e) => { e.target.style.display = 'none'; }}
            />
         ) : (
-          <div className={`${viewMode === 'list' ? 'w-full h-full' : 'w-full h-36'} bg-gradient-to-br from-indigo-100 to-purple-200 flex items-center justify-center text-indigo-400`}>
+          <div className={`${viewMode === 'list' ? 'w-full h-full' : 'w-full h-36'} bg-gradient-to-br from-blue-100 via-purple-100 to-indigo-100 flex items-center justify-center text-blue-400`}>
                <FiGrid size={40} />
           </div>
         )}
       </div>
 
       {/* Card content area */}
-      <div className={`p-5 flex flex-col flex-grow ${viewMode === 'list' ? 'justify-between' : ''}`}>
+      <div className={`p-6 flex flex-col flex-grow ${viewMode === 'list' ? 'justify-between' : ''}`}>
         {/* Section for title and metadata */}
         <div className="flex-grow mb-4">
+            {/* Privacy Badge */}
+            <div className="flex items-center justify-between mb-3">
+              <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${
+                card.privacy === 'public' 
+                  ? 'bg-green-100 text-green-700' 
+                  : 'bg-orange-100 text-orange-700'
+              }`}>
+                {card.privacy === 'public' ? (
+                  <>
+                    <FiGlobe className="w-3 h-3 mr-1" />
+                    Public
+                  </>
+                ) : (
+                  <>
+                    <FiLock className="w-3 h-3 mr-1" />
+                    Private
+                  </>
+                )}
+              </div>
+              
+              {/* QR Code Icon for Private Cards */}
+              {card.privacy === 'private' && (
+                <div className="text-orange-500">
+                  <IoQrCodeSharp size={16} />
+                </div>
+              )}
+            </div>
+
             {/* Card Title */}
             <h3 className="text-lg font-semibold text-gray-800 mb-2 truncate" title={card.title}>
                 {card.title || card.fullName || 'Untitled Card'}
@@ -55,15 +87,60 @@ const DiscoverCardItem = ({ card, cardDesign, onSave, viewMode = 'grid', showTim
             
             {/* Company */}
             {card.company && (
-              <p className="text-sm text-gray-500 mb-2">{card.company}</p>
+              <p className="text-sm text-gray-500 mb-3">{card.company}</p>
             )}
+
+            {/* Contact Info (masked for privacy) */}
+            <div className="space-y-1 mb-3">
+              {card.email && (
+                <div className="flex items-center text-xs text-gray-500">
+                  <span className="mr-2">📧</span>
+                  <span className="truncate">
+                    {isAuthenticated ? card.email : (
+                      card.email.includes('@') ? 
+                        card.email.split('@')[0].charAt(0) + '*'.repeat(card.email.split('@')[0].length - 2) + card.email.split('@')[0].charAt(card.email.split('@')[0].length - 1) + '@' + card.email.split('@')[1]
+                        : '***@***.com'
+                    )}
+                  </span>
+                </div>
+              )}
+              
+              {card.phone && (
+                <div className="flex items-center text-xs text-gray-500">
+                  <span className="mr-2">📞</span>
+                  <span>
+                    {isAuthenticated ? card.phone : `***-***-${card.phone.slice(-4)}`}
+                  </span>
+                </div>
+              )}
+
+              {isAuthenticated && card.website && (
+                <div className="flex items-center text-xs text-gray-500">
+                  <span className="mr-2">🌐</span>
+                  <span className="truncate">{card.website}</span>
+                </div>
+              )}
+
+              {isAuthenticated && card.address && (
+                <div className="flex items-center text-xs text-gray-500">
+                  <span className="mr-2">📍</span>
+                  <span className="truncate">{card.address}</span>
+                </div>
+              )}
+
+              {isAuthenticated && card.bio && (
+                <div className="text-xs text-gray-500 mt-2">
+                  <span className="line-clamp-2">{card.bio}</span>
+                </div>
+              )}
+            </div>
 
             {/* Stats and Time Ago */}
             <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
-              {card.viewCount && (
+              {card.views && (
                 <span className="flex items-center gap-1">
                   <FiEye className="h-3 w-3" />
-                  {card.viewCount} views
+                  {card.views} views
                 </span>
               )}
               {card.loveCount && (
@@ -93,28 +170,33 @@ const DiscoverCardItem = ({ card, cardDesign, onSave, viewMode = 'grid', showTim
             href={`/c/${card.shortLink}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 bg-[#1a3a63] hover:bg-[#132a4a] text-white text-sm font-medium py-2.5 px-4 rounded-lg text-center transition duration-300 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+            className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white text-sm font-medium py-3 px-4 rounded-lg text-center transition-all duration-300 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
           >
             View Card <FiExternalLink />
           </a>
           
-          {/* Save to Library Button */}
-          {onSave && (
+          {/* QR Code Button for Private Cards */}
+          {card.privacy === 'private' && (
             <button
-              onClick={() => onSave(card._id)}
-              disabled={card.isSaved}
-              className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                card.isSaved
-                  ? 'bg-green-100 text-green-700 cursor-not-allowed'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className="px-4 py-3 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg transition-colors flex items-center justify-center"
+              title="Private card - QR code access only"
             >
-              {card.isSaved ? 'Saved' : 'Save'}
+              <IoQrCodeSharp size={16} />
             </button>
           )}
         </div>
+
+        {/* Privacy Notice for Private Cards */}
+        {card.privacy === 'private' && (
+          <div className="mt-3 p-2 bg-orange-50 rounded-lg">
+            <p className="text-xs text-orange-700 flex items-center">
+              <FiLock className="w-3 h-3 mr-1" />
+              Private card - only accessible via QR code
+            </p>
+          </div>
+        )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 

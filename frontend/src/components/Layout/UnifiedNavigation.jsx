@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast';
 import { 
   FaBars, FaTimes, FaUserCircle, FaSignOutAlt, FaSignInAlt, 
   FaUserPlus, FaSearch, FaCompass, FaBookmark, FaChartBar,
-  FaBell, FaCog, FaHome, FaPlus, FaEye
+  FaBell, FaCog, FaHome, FaPlus, FaEye, FaShield
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from './Logo';
@@ -217,6 +217,13 @@ const UnifiedNavigation = ({ variant = 'default' }) => {
                       >
                         <FaUserCircle className="w-4 h-4" />
                         <span>Profile</span>
+                      </NavLink>
+                      <NavLink 
+                        to="/access-requests" 
+                        className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200"
+                      >
+                        <FaShield className="w-4 h-4" />
+                        <span>Access Requests</span>
                       </NavLink>
                       <div className="border-t border-gray-100 my-1"></div>
                       <button 
@@ -440,6 +447,21 @@ const UnifiedNavigation = ({ variant = 'default' }) => {
                     >
                       <FaUserCircle className="w-5 h-5" />
                       <span>Profile</span>
+                    </NavLink>
+                    
+                    <NavLink 
+                      to="/access-requests" 
+                      className={({ isActive }) => `
+                        flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
+                        ${isActive 
+                          ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
+                          : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
+                        }
+                      `}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <FaShield className="w-5 h-5" />
+                      <span>Access Requests</span>
                     </NavLink>
                     
                     <button 
