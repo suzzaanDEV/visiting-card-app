@@ -16,15 +16,15 @@ const validateCloudinaryConfig = () => {
   const { cloud_name, api_key, api_secret } = cloudinaryConfig;
   
   if (!cloud_name || cloud_name === 'demo') {
-    console.warn('⚠️  Cloudinary cloud_name not configured, using demo mode');
+    console.warn('  Cloudinary cloud_name not configured, using demo mode');
   }
   
   if (!api_key || api_key === 'demo') {
-    console.warn('⚠️  Cloudinary api_key not configured, using demo mode');
+    console.warn('  Cloudinary api_key not configured, using demo mode');
   }
   
   if (!api_secret || api_secret === 'demo') {
-    console.warn('⚠️  Cloudinary api_secret not configured, using demo mode');
+    console.warn('  Cloudinary api_secret not configured, using demo mode');
   }
   
   return cloud_name !== 'demo' && api_key !== 'demo' && api_secret !== 'demo';

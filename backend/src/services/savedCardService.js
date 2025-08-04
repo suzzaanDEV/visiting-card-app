@@ -1,5 +1,6 @@
 const SavedCard = require('../models/savedCardModel');
 const Card = require('../models/cardModel');
+const cardAccessService = require('./cardAccessService');
 const logger = require('../utils/logger');
 
 class SavedCardService {
@@ -60,7 +61,7 @@ class SavedCardService {
       const savedCards = await SavedCard.find({ userId })
         .populate({
           path: 'cardId',
-          select: 'title shortLink qrCode loveCount views shares downloads createdAt ownerUserId templateId',
+          select: 'title shortLink qrCode loveCount views shares downloads createdAt ownerUserId templateId privacy fullName jobTitle company email phone website address bio',
           populate: {
             path: 'ownerUserId',
             select: 'username name'
@@ -70,11 +71,64 @@ class SavedCardService {
         .skip(skip)
         .limit(limit);
 
+      // Check access permissions for each saved card
+      const cardsWithAccess = await Promise.all(
+        savedCards.map(async (savedCard) => {
+          const card = savedCard.cardId;
+          if (!card) return savedCard;
+
+          // Check if user has access to private cards
+          let hasApprovedAccess = false;
+          if (card.privacy === 'private') {
+            const accessCheck = await cardAccessService.checkAccess(card._id, userId);
+            hasApprovedAccess = accessCheck.access && (accessCheck.reason === 'approved_request' || accessCheck.reason === 'owner');
+          }
+
+          // Add access information to the card
+          const cardWithAccess = card.toObject ? card.toObject() : card;
+          cardWithAccess.hasApprovedAccess = hasApprovedAccess;
+          cardWithAccess.fullContactInfo = card.privacy === 'public' || hasApprovedAccess;
+
+          // Filter sensitive data if no access
+          if (card.privacy === 'private' && !hasApprovedAccess) {
+            if (cardWithAccess.email) {
+              const [localPart, domain] = cardWithAccess.email.split('@');
+              if (localPart && domain) {
+                const maskedLocal = localPart.charAt(0) + '*'.repeat(localPart.length - 2) + localPart.charAt(localPart.length - 1);
+                cardWithAccess.email = `${maskedLocal}@${domain}`;
+              }
+            }
+
+            if (cardWithAccess.phone) {
+              const cleaned = cardWithAccess.phone.replace(/\D/g, '');
+              if (cleaned.length >= 4) {
+                cardWithAccess.phone = `***-***-${cleaned.slice(-4)}`;
+              } else {
+                cardWithAccess.phone = '***-***-****';
+              }
+            }
+
+            if (cardWithAccess.address) {
+              cardWithAccess.address = 'Address hidden for privacy';
+            }
+
+            if (cardWithAccess.website) {
+              cardWithAccess.website = 'Website hidden for privacy';
+            }
+          }
+
+          return {
+            ...savedCard.toObject(),
+            cardId: cardWithAccess
+          };
+        })
+      );
+
       const total = await SavedCard.countDocuments({ userId });
       const totalPages = Math.ceil(total / limit);
 
       return {
-        savedCards,
+        savedCards: cardsWithAccess,
         pagination: {
           currentPage: page,
           totalPages,

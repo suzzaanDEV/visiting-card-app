@@ -1,5 +1,7 @@
 const cardService = require('../services/cardService');
 const savedCardService = require('../services/savedCardService');
+const cardAccessService = require('../services/cardAccessService');
+const notificationService = require('../services/notificationService');
 const logger = require('../utils/logger');
 
 // Create a new card
@@ -210,13 +212,75 @@ exports.deleteCard = async (req, res, next) => {
 // Get all public cards (for discovery)
 exports.getPublicCards = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, category, search } = req.query;
+    const { page = 1, limit = 10, category, search, privacy } = req.query;
     const cards = await cardService.getPublicCards({
       page: parseInt(page),
       limit: parseInt(limit),
       category,
-      search
+      search,
+      privacy
     });
+
+    // Check if user is authenticated for privacy filtering
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    let isAuthenticated = false;
+    
+    if (token) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        isAuthenticated = !!decoded.userId;
+      } catch (error) {
+        isAuthenticated = false;
+      }
+    }
+
+    // Convert Mongoose documents to plain objects and filter sensitive data for non-authenticated users
+    if (cards.cards) {
+      cards.cards = cards.cards.map(card => {
+        // Convert Mongoose document to plain object
+        const cardObj = card.toObject ? card.toObject() : card;
+        const filteredCard = { ...cardObj };
+        
+        // Only mask sensitive fields for non-authenticated users
+        if (!isAuthenticated) {
+          // Mask email
+          if (filteredCard.email) {
+            const [localPart, domain] = filteredCard.email.split('@');
+            if (localPart && domain) {
+              const maskedLocal = localPart.charAt(0) + '*'.repeat(localPart.length - 2) + localPart.charAt(localPart.length - 1);
+              filteredCard.email = `${maskedLocal}@${domain}`;
+            }
+          }
+
+          // Mask phone
+          if (filteredCard.phone) {
+            const cleaned = filteredCard.phone.replace(/\D/g, '');
+            if (cleaned.length >= 4) {
+              filteredCard.phone = `***-***-${cleaned.slice(-4)}`;
+            } else {
+              filteredCard.phone = '***-***-****';
+            }
+          }
+
+          // Hide address
+          if (filteredCard.address) {
+            filteredCard.address = 'Address hidden for privacy';
+          }
+
+          // Hide website
+          if (filteredCard.website) {
+            filteredCard.website = 'Website hidden for privacy';
+          }
+        }
+
+        return filteredCard;
+      });
+    }
+
+    // Add privacy header
+    res.setHeader('X-Privacy-Notice', 'Some contact information may be filtered for privacy');
+    
     res.status(200).json(cards);
   } catch (error) {
     logger.error(`Get public cards error: ${error.message}`);
@@ -232,6 +296,80 @@ exports.getCardByShortLink = async (req, res, next) => {
     // Increment view count
     if (result && result.card) {
       await result.card.incrementViews();
+    }
+
+    // Check if user is authenticated for privacy filtering
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    let isAuthenticated = false;
+    let userId = null;
+    
+    if (token) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        isAuthenticated = !!decoded.userId;
+        userId = decoded.userId;
+      } catch (error) {
+        isAuthenticated = false;
+      }
+    }
+
+    // Check if user has approved access for private cards
+    let hasApprovedAccess = false;
+    let isOwner = false;
+    if (isAuthenticated && result && result.card) {
+      // Check if user is the owner
+      isOwner = result.card.ownerUserId?.toString() === userId?.toString();
+      
+      // Check if user has approved access for private cards
+      if (result.card.privacy === 'private') {
+        const accessCheck = await cardAccessService.checkAccess(result.card._id, userId);
+        hasApprovedAccess = accessCheck.access && (accessCheck.reason === 'approved_request' || accessCheck.reason === 'owner');
+      }
+    }
+
+    // Filter sensitive data for users without approved access to private cards
+    // Don't filter if user is the owner or has approved access
+    if (result && result.card && result.card.privacy === 'private' && !isOwner && !hasApprovedAccess) {
+      // Convert Mongoose document to plain object
+      const cardObj = result.card.toObject ? result.card.toObject() : result.card;
+      const filteredCard = { ...cardObj };
+      
+      // Mask email
+      if (filteredCard.email) {
+        const [localPart, domain] = filteredCard.email.split('@');
+        if (localPart && domain) {
+          const maskedLocal = localPart.charAt(0) + '*'.repeat(localPart.length - 2) + localPart.charAt(localPart.length - 1);
+          filteredCard.email = `${maskedLocal}@${domain}`;
+        }
+      }
+
+      // Mask phone
+      if (filteredCard.phone) {
+        const cleaned = filteredCard.phone.replace(/\D/g, '');
+        if (cleaned.length >= 4) {
+          filteredCard.phone = `***-***-${cleaned.slice(-4)}`;
+        } else {
+          filteredCard.phone = '***-***-****';
+        }
+      }
+
+      // Hide address
+      if (filteredCard.address) {
+        filteredCard.address = 'Address hidden for privacy';
+      }
+
+      // Hide website
+      if (filteredCard.website) {
+        filteredCard.website = 'Website hidden for privacy';
+      }
+
+      result.card = filteredCard;
+    }
+
+    // Add privacy header only for private cards
+    if (result && result.card && result.card.privacy === 'private') {
+      res.setHeader('X-Privacy-Notice', 'Some contact information may be filtered for privacy');
     }
     
     res.status(200).json(result);
@@ -258,6 +396,80 @@ exports.getCardById = async (req, res, next) => {
     } catch (incrementError) {
       logger.warn(`Failed to increment views for card ${req.params.cardId}: ${incrementError.message}`);
       // Continue without incrementing views
+    }
+
+    // Check if user is authenticated for privacy filtering
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    let isAuthenticated = false;
+    let userId = null;
+    
+    if (token) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        isAuthenticated = !!decoded.userId;
+        userId = decoded.userId;
+      } catch (error) {
+        isAuthenticated = false;
+      }
+    }
+
+    // Check if user has approved access for private cards
+    let hasApprovedAccess = false;
+    let isOwner = false;
+    if (isAuthenticated && result && result.card) {
+      // Check if user is the owner
+      isOwner = result.card.ownerUserId?.toString() === userId?.toString();
+      
+      // Check if user has approved access for private cards
+      if (result.card.privacy === 'private') {
+        const accessCheck = await cardAccessService.checkAccess(result.card._id, userId);
+        hasApprovedAccess = accessCheck.access && (accessCheck.reason === 'approved_request' || accessCheck.reason === 'owner');
+      }
+    }
+
+    // Filter sensitive data for users without approved access to private cards
+    // Don't filter if user is the owner or has approved access
+    if (result && result.card && result.card.privacy === 'private' && !isOwner && !hasApprovedAccess) {
+      // Convert Mongoose document to plain object
+      const cardObj = result.card.toObject ? result.card.toObject() : result.card;
+      const filteredCard = { ...cardObj };
+      
+      // Mask email
+      if (filteredCard.email) {
+        const [localPart, domain] = filteredCard.email.split('@');
+        if (localPart && domain) {
+          const maskedLocal = localPart.charAt(0) + '*'.repeat(localPart.length - 2) + localPart.charAt(localPart.length - 1);
+          filteredCard.email = `${maskedLocal}@${domain}`;
+        }
+      }
+
+      // Mask phone
+      if (filteredCard.phone) {
+        const cleaned = filteredCard.phone.replace(/\D/g, '');
+        if (cleaned.length >= 4) {
+          filteredCard.phone = `***-***-${cleaned.slice(-4)}`;
+        } else {
+          filteredCard.phone = '***-***-****';
+        }
+      }
+
+      // Hide address
+      if (filteredCard.address) {
+        filteredCard.address = 'Address hidden for privacy';
+      }
+
+      // Hide website
+      if (filteredCard.website) {
+        filteredCard.website = 'Website hidden for privacy';
+      }
+
+      result.card = filteredCard;
+    }
+
+    // Add privacy header only for private cards
+    if (result && result.card && result.card.privacy === 'private') {
+      res.setHeader('X-Privacy-Notice', 'Some contact information may be filtered for privacy');
     }
     
     res.status(200).json(result);
@@ -420,6 +632,182 @@ exports.saveContact = async (req, res, next) => {
     res.status(200).send(vcfContent);
   } catch (error) {
     logger.error(`Save contact error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Get card with enhanced information for authenticated users
+exports.getCardWithEnhancedInfo = async (req, res, next) => {
+  try {
+    const { cardId } = req.params;
+    const userId = req.user?.userId;
+    
+    const result = await cardService.getCardById(cardId);
+    
+    if (!result || !result.card) {
+      return res.status(404).json({ error: 'Card not found' });
+    }
+
+    // Check access for private cards
+    if (result.card.privacy === 'private' && userId) {
+      const accessCheck = await cardAccessService.checkAccess(cardId, userId);
+      if (!accessCheck.access) {
+        return res.status(403).json({ 
+          error: 'Access denied', 
+          reason: accessCheck.reason,
+          requestId: accessCheck.request?._id 
+        });
+      }
+    }
+
+    // For private cards, check if user has approved access to show full information
+    let hasApprovedAccess = false;
+    let isOwner = false;
+    if (result.card.privacy === 'private' && userId) {
+      // Check if user is the owner
+      isOwner = result.card.ownerUserId?.toString() === userId;
+      
+      // Check if user has approved access
+      const accessCheck = await cardAccessService.checkAccess(cardId, userId);
+      hasApprovedAccess = accessCheck.access && (accessCheck.reason === 'approved_request' || accessCheck.reason === 'owner');
+    }
+
+    // Add enhanced information for authenticated users
+    if (userId) {
+      const enhancedCard = {
+        ...result.card.toObject(),
+        isLoved: await cardService.isLovedByUser(cardId, userId),
+        isSaved: await savedCardService.isCardSavedByUser(cardId, userId),
+        canEdit: result.card.ownerUserId?.toString() === userId,
+        fullContactInfo: isOwner || hasApprovedAccess || result.card.privacy === 'public',
+        hasApprovedAccess: hasApprovedAccess
+      };
+      
+      return res.json({ 
+        success: true, 
+        card: enhancedCard,
+        cardDesign: result.cardDesign,
+        template: result.template
+      });
+    }
+
+    // For non-authenticated users, return basic info
+    return res.json({ 
+      success: true, 
+      card: result.card,
+      cardDesign: result.cardDesign,
+      template: result.template
+    });
+  } catch (error) {
+    logger.error(`Get card with enhanced info error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Request access to private card
+exports.requestCardAccess = async (req, res, next) => {
+  try {
+    const { cardId } = req.params;
+    const { message } = req.body;
+    const userId = req.user.userId;
+
+    const result = await cardAccessService.createAccessRequest(cardId, userId, 'manual_request', message);
+    
+    // Create notification for card owner
+    if (!result.access) {
+      await notificationService.createAccessRequestNotification(cardId, userId, result.request._id);
+    }
+    
+    res.status(200).json({
+      success: true,
+      access: result.access,
+      request: result.request,
+      message: result.access ? 'Access granted' : 'Access request sent'
+    });
+  } catch (error) {
+    logger.error(`Request card access error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Grant QR access to private card
+exports.grantQRAccess = async (req, res, next) => {
+  try {
+    const { cardId } = req.params;
+    const userId = req.user.userId;
+
+    const result = await cardAccessService.grantQRAccess(cardId, userId);
+    
+    res.status(200).json({
+      success: true,
+      access: result.access,
+      request: result.request,
+      message: 'Access granted via QR code'
+    });
+  } catch (error) {
+    logger.error(`Grant QR access error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Get access requests for card owner
+exports.getAccessRequests = async (req, res, next) => {
+  try {
+    const userId = req.user.userId;
+    const requests = await cardAccessService.getOwnerRequests(userId);
+    
+    res.status(200).json({
+      success: true,
+      requests
+    });
+  } catch (error) {
+    logger.error(`Get access requests error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Approve access request (card owner can approve their requests)
+exports.approveAccessRequest = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { message } = req.body;
+    const userId = req.user.userId;
+
+    const request = await cardAccessService.approveRequest(requestId, userId, message);
+    
+    // Create notification for requester
+    await notificationService.createAccessApprovedNotification(requestId);
+    
+    res.status(200).json({
+      success: true,
+      request,
+      message: 'Access request approved'
+    });
+  } catch (error) {
+    logger.error(`Approve access request error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Reject access request (card owner can reject their requests)
+exports.rejectAccessRequest = async (req, res, next) => {
+  try {
+    const { requestId } = req.params;
+    const { message } = req.body;
+    const userId = req.user.userId;
+
+    const request = await cardAccessService.rejectRequest(requestId, userId, message);
+    
+    // Create notification for requester
+    await notificationService.createAccessRejectedNotification(requestId, message);
+    
+    res.status(200).json({
+      success: true,
+      request,
+      message: 'Access request rejected'
+    });
+  } catch (error) {
+    logger.error(`Reject access request error: ${error.message}`);
     res.status(400).json({ error: error.message });
   }
 };

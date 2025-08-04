@@ -6,6 +6,7 @@ const imageService = require('./imageService');
 const logger = require('../utils/logger');
 const qrCodeGenerator = require('../algorithms/qrCodeGenerator');
 const shortLinkGenerator = require('../algorithms/shortLinkGenerator');
+const cloudinary = require('../utils/cloudinary');
 
 // Add caching mechanism
 const cardCache = new Map();
@@ -37,124 +38,43 @@ class CardService {
     textColor, 
     fontFamily, 
     templateId, 
-    customShortLink 
+    customShortLink,
+    privacy = 'public'
   }) {
-    // Validate designJson if provided
-    if (designJson) {
-      try {
-        JSON.parse(designJson);
-      } catch (error) {
-        logger.error(`Invalid designJson: ${error.message}`);
-        throw new Error('Invalid design JSON');
-      }
-    }
-
-    let cardImageUrl = null;
-    if (cardImage) {
-      try {
-        // Validate image file
-        if (!imageService.validateImageFile(cardImage)) {
-          throw new Error('Invalid image file. Please upload a valid image (JPEG, PNG, WebP) under 5MB.');
-        }
-
-        // Upload and optimize image
-        cardImageUrl = await imageService.uploadCardBackground(cardImage.buffer);
-        logger.info(`Card image uploaded successfully: ${cardImageUrl}`);
-      } catch (error) {
-        logger.error(`Card image upload failed: ${error.message}`);
-        throw new Error(`Failed to upload card image: ${error.message}`);
-      }
-    }
-
-    // Generate short link using enhanced algorithm
-    let shortLink;
     try {
-      if (customShortLink) {
-        shortLink = await shortLinkGenerator.generateCustom(customShortLink);
-      } else {
-        shortLink = await shortLinkGenerator.generate();
-      }
+      // Generate short link
+      const shortLink = customShortLink || await shortLinkGenerator.generate();
+      
+      // Create card with privacy settings
+      const card = new Card({
+        ownerUserId: userId,
+        title,
+        fullName,
+        jobTitle,
+        company,
+        email,
+        phone,
+        website,
+        address,
+        bio,
+        backgroundColor: backgroundColor || '#ffffff',
+        textColor: textColor || '#000000',
+        fontFamily: fontFamily || 'Arial',
+        shortLink,
+        isPublic: privacy === 'public',
+        isPrivate: privacy === 'private',
+        privacy,
+        templateId
+      });
+
+      await card.save();
+      logger.info(`Card created: ${card._id} by user: ${userId}`);
+
+      return card;
     } catch (error) {
-      logger.error(`Short link generation error: ${error.message}`);
-      throw new Error('Failed to generate short link');
+      logger.error(`Create card error: ${error.message}`);
+      throw error;
     }
-
-    // Create Card
-    const card = new Card({
-      ownerUserId: userId,
-      title,
-      fullName,
-      jobTitle,
-      company,
-      email,
-      phone,
-      website,
-      address,
-      bio,
-      isPublic,
-      shortLink,
-      cardImage,
-      backgroundColor,
-      textColor,
-      fontFamily,
-      templateId: templateId || null
-    });
-
-    // Generate QR code using enhanced algorithm
-    let qrCodeUrl = null;
-    try {
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-      const cardUrl = `${frontendUrl}/c/${shortLink}`;
-      
-      logger.info(`Generating QR code for URL: ${cardUrl}`);
-      
-      const qrCodeData = await qrCodeGenerator.generate(
-        cardUrl,
-        {
-          errorCorrectionLevel: 'H',
-          width: 300,
-          color: {
-            dark: '#1a3a63',
-            light: '#ffffff'
-          }
-        }
-      );
-      
-      // Upload QR code to Cloudinary
-      try {
-        // Convert data URL to buffer
-        const base64Data = qrCodeData.replace(/^data:image\/[a-z]+;base64,/, '');
-        const qrCodeBuffer = Buffer.from(base64Data, 'base64');
-        
-        qrCodeUrl = await imageService.uploadQRCode(qrCodeBuffer);
-        logger.info(`QR code uploaded successfully: ${qrCodeUrl}`);
-      } catch (uploadError) {
-        logger.warn(`QR code upload failed, using data URL: ${uploadError.message}`);
-        // Use the data URL directly if upload fails
-        qrCodeUrl = qrCodeData;
-        logger.info(`Using QR code data URL directly`);
-      }
-      
-      card.qrCode = qrCodeUrl;
-    } catch (error) {
-      logger.error(`QR code generation error: ${error.message}`);
-      // Don't throw error, just log it and continue without QR code
-      logger.warn(`Continuing without QR code due to generation error`);
-      card.qrCode = null;
-    }
-
-    await card.save();
-
-    // Create CardDesign
-    const cardDesign = new CardDesign({
-      cardId: card._id,
-      designJson,
-      cardImageUrl
-    });
-
-    await cardDesign.save();
-    logger.info(`Card created: ${card._id} with design and QR code for user: ${userId}`);
-    return { card, cardDesign };
   }
 
   async createCardFromTemplate(userId, { 
@@ -498,35 +418,61 @@ class CardService {
     return { message: 'Card deleted successfully' };
   }
 
-  async getPublicCards({ page = 1, limit = 10, category, search }) {
-    const skip = (page - 1) * limit;
-    const query = { isPublic: true, isActive: true };
+  async getPublicCards({ page = 1, limit = 10, category, search, privacy }) {
+    try {
+      const skip = (page - 1) * limit;
+      
+      // Build query based on privacy filter
+      const query = {
+        isActive: true
+      };
 
-    if (category) {
-      query.templateId = category;
-    }
-
-    if (search) {
-      query.$text = { $search: search };
-    }
-
-    const cards = await Card.find(query)
-      .populate('ownerUserId', 'username name')
-      .sort({ loveCount: -1, createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
-
-    const total = await Card.countDocuments(query);
-
-    return {
-      cards,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
+      // Apply privacy filter
+      if (privacy && privacy !== 'all') {
+        query.privacy = privacy;
+      } else if (!privacy) {
+        // Default to public cards if no privacy filter specified
+        query.privacy = 'public';
       }
-    };
+      // If privacy === 'all', don't add any privacy filter
+
+      // Add search functionality
+      if (search) {
+        query.$or = [
+          { fullName: { $regex: search, $options: 'i' } },
+          { jobTitle: { $regex: search, $options: 'i' } },
+          { company: { $regex: search, $options: 'i' } },
+          { bio: { $regex: search, $options: 'i' } }
+        ];
+      }
+
+      // Add category filter if provided
+      if (category) {
+        query.jobTitle = { $regex: category, $options: 'i' };
+      }
+
+      const cards = await Card.find(query)
+        .populate('ownerUserId', 'username name')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit);
+
+      const total = await Card.countDocuments(query);
+      const pages = Math.ceil(total / limit);
+
+      return {
+        cards,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages
+        }
+      };
+    } catch (error) {
+      logger.error(`getPublicCards error: ${error.message}`);
+      throw error;
+    }
   }
 
   async getCardByShortLink(shortLink) {
