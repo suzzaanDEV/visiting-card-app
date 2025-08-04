@@ -34,8 +34,11 @@ import AnalyticsDashboard from './pages/Admin/AnalyticsDashboard';
 import TemplateBuilder from './pages/Admin/TemplateBuilder';
 import UserManagement from './pages/Admin/UserManagement';
 import CardManagement from './pages/Admin/CardManagement';
+import AccessRequests from './pages/Admin/AccessRequests';
 import Settings from './pages/Admin/Settings';
+import UserAccessRequests from './pages/User/AccessRequests';
 import AdminRoute from './components/Admin/AdminRoute';
+import TestCardFeatures from './components/TestCardFeatures';
 
 function App() {
   console.log('App component is rendering');
@@ -61,6 +64,7 @@ function App() {
             <Route path="register" element={<RegisterPage />} />
             <Route path="view/:cardId" element={<ViewCard />} />
             <Route path="c/:shortLink" element={<ViewCard />} />
+            <Route path="test-features" element={<TestCardFeatures />} />
             <Route path="discover" element={<DiscoverCards />} />
             <Route path="discover/popular" element={<PopularCards />} />
             <Route path="discover/recent" element={<RecentCards />} />
@@ -107,6 +111,12 @@ function App() {
               </ProtectedRoute>
             } />
 
+            <Route path="access-requests" element={
+              <ProtectedRoute>
+                <UserAccessRequests />
+              </ProtectedRoute>
+            } />
+
             <Route path="profile" element={
               <ProtectedRoute>
                 <ProfilePage />
@@ -139,6 +149,11 @@ function App() {
           <Route path="admin/cards" element={
             <AdminRoute>
               <CardManagement />
+            </AdminRoute>
+          } />
+          <Route path="admin/access-requests" element={
+            <AdminRoute>
+              <AccessRequests />
             </AdminRoute>
           } />
           <Route path="admin/analytics" element={

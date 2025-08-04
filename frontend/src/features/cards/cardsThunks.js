@@ -343,3 +343,37 @@ export const fetchCardTemplates = createAsyncThunk(
     }
   }
 );
+
+// Fetch public cards for discovery
+export const fetchPublicCards = createAsyncThunk(
+  'cards/fetchPublicCards',
+  async ({ page = 1, limit = 10, category, search, privacy }, { rejectWithValue }) => {
+    try {
+      let url = `/api/cards/public?page=${page}&limit=${limit}`;
+      
+      if (category) {
+        url += `&category=${encodeURIComponent(category)}`;
+      }
+      
+      if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+      }
+
+      if (privacy) {
+        url += `&privacy=${encodeURIComponent(privacy)}`;
+      }
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch public cards');
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);

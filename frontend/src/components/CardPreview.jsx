@@ -2,28 +2,17 @@ import React, { useEffect, useRef } from 'react';
 // Import Konva or other rendering library if needed
 // import { Stage, Layer, Text, Rect } from 'react-konva';
 
-/**
- * Component to render a static preview of a card design.
- * Props:
- * - designJson: The JSON object representing the card design.
- * - width: The desired width of the preview canvas/container.
- * - height: The desired height of the preview canvas/container.
- * - className: Additional CSS classes for the container.
- */
+
 const CardPreview = ({ designJson, width = 350, height = 200, className = '', fullScreen = false }) => {
   const containerRef = useRef(null);
 
   useEffect(() => {
-    // --- Placeholder Rendering Logic ---
-    // This is where you would integrate Konva.js or another library
-    // to parse the designJson and render the elements onto a canvas
-    // within the containerRef.
+
 
     console.log("Rendering Card Preview with design:", designJson);
     const container = containerRef.current;
     if (!container) return;
 
-    // Example: Simple rendering of background color and title
     container.innerHTML = ''; // Clear previous content
     
     if (fullScreen) {
@@ -38,7 +27,7 @@ const CardPreview = ({ designJson, width = 350, height = 200, className = '', fu
     container.style.border = '1px solid #e1ecf2';
     container.style.borderRadius = '8px';
     container.style.padding = fullScreen ? '2rem' : '1rem';
-    container.style.position = 'relative'; // For potential absolute positioning of elements
+    container.style.position = 'relative'; 
 
     let bgColor = '#ffffff'; // Default background
     let titleText = 'Card Preview'; // Default title
@@ -93,7 +82,7 @@ const CardPreview = ({ designJson, width = 350, height = 200, className = '', fu
       ref={containerRef} 
       className={`card-preview-container ${className} ${fullScreen ? 'w-full h-full min-h-screen' : ''}`}
     >
-      {/* Canvas or rendering elements will be added here by useEffect */}
+
     </div>
   );
 };

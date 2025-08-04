@@ -8,6 +8,13 @@ const initialState = {
   currentCard: null,
   // Holds the available card templates
   templates: [],
+  // Pagination data
+  pagination: {
+    page: 1,
+    limit: 10,
+    total: 0,
+    pages: 0
+  },
   isLoading: false,
   error: null,
   // Note: Removed separate userCards, publicCards, qrCode states.
@@ -263,6 +270,21 @@ const cardsSlice = createSlice({
     builder.addCase(cardsThunks.fetchUserCardStats.rejected, (state, action) => {
       state.isLoading = false;
       state.error = action.payload || 'Failed to fetch card stats';
+    });
+
+    // --- Fetch Public Cards (GET /api/cards/public) ---
+    builder.addCase(cardsThunks.fetchPublicCards.pending, (state) => {
+      state.isLoading = true;
+      state.error = null;
+    });
+    builder.addCase(cardsThunks.fetchPublicCards.fulfilled, (state, action) => {
+      state.isLoading = false;
+      state.cards = action.payload.cards || action.payload; // Handle both { cards: [...] } and [...] formats
+      state.pagination = action.payload.pagination || { page: 1, limit: 10, total: 0, pages: 0 };
+    });
+    builder.addCase(cardsThunks.fetchPublicCards.rejected, (state, action) => {
+      state.isLoading = false;
+      state.error = action.payload || 'Failed to fetch public cards';
     });
   },
 });

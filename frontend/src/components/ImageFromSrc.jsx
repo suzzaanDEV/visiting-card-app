@@ -1,19 +1,15 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Stage, Layer, Rect, Circle, Text, Transformer, Image as KonvaImage } from 'react-konva';
-import { SketchPicker } from 'react-color'; // Simple color picker
-import { FiSquare, FiCircle, FiType, FiImage, FiSave, FiTrash2, FiLoader, FiEyeOff } from 'react-icons/fi'; // Icons
-import { v4 as uuidv4 } from 'uuid'; // For generating unique IDs
-import useImage from 'use-image'; // Hook for loading images in Konva
+import { SketchPicker } from 'react-color'; 
+import { FiSquare, FiCircle, FiType, FiImage, FiSave, FiTrash2, FiLoader, FiEyeOff } from 'react-icons/fi';
+import { v4 as uuidv4 } from 'uuid'; 
+import useImage from 'use-image'; 
 
-// --- Redux Actions (Import your actual thunks) ---
-// import { createCard, updateCard } from '../../features/cards/cardsThunks'; // Adjust path
-// Placeholder for dispatch simulation
+
 const createCard = (data) => ({ type: 'cards/create/pending', payload: data }); // Example placeholder
 
-// --- Helper Component for Rendering Images from Src ---
-// This component handles loading images from a URL (like a Data URL)
-// before rendering them onto the Konva stage.
+
 const ImageFromSrc = ({ shapeProps, isSelected, onSelect, onChange }) => {
     const shapeRef = useRef();
     const [image] = useImage(shapeProps.src, 'Anonymous'); // Load image from src attribute

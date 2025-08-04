@@ -29,6 +29,14 @@ const adminSlice = createSlice({
       loading: false,
       error: null
     },
+    templates: {
+      data: [],
+      total: 0,
+      page: 1,
+      limit: 20,
+      loading: false,
+      error: null
+    },
     analytics: {
       userGrowth: [],
       cardGrowth: [],
@@ -48,6 +56,9 @@ const adminSlice = createSlice({
     },
     setCardPage: (state, action) => {
       state.cards.page = action.payload;
+    },
+    setTemplatePage: (state, action) => {
+      state.templates.page = action.payload;
     }
   },
   extraReducers: (builder) => {
@@ -92,6 +103,35 @@ const adminSlice = createSlice({
       .addCase(adminThunks.fetchAdminCards.rejected, (state, action) => {
         state.cards.loading = false;
         state.cards.error = action.payload;
+      })
+      // Fetch Templates
+      .addCase(adminThunks.fetchTemplates.pending, (state) => {
+        state.templates.loading = true;
+        state.templates.error = null;
+      })
+      .addCase(adminThunks.fetchTemplates.fulfilled, (state, action) => {
+        state.templates.loading = false;
+        state.templates.data = action.payload.templates || action.payload;
+        state.templates.total = action.payload.total || action.payload.length;
+      })
+      .addCase(adminThunks.fetchTemplates.rejected, (state, action) => {
+        state.templates.loading = false;
+        state.templates.error = action.payload;
+      })
+      // Create Template
+      .addCase(adminThunks.createTemplate.fulfilled, (state, action) => {
+        state.templates.data.push(action.payload);
+      })
+      // Update Template
+      .addCase(adminThunks.updateTemplate.fulfilled, (state, action) => {
+        const index = state.templates.data.findIndex(template => template._id === action.payload._id);
+        if (index !== -1) {
+          state.templates.data[index] = action.payload;
+        }
+      })
+      // Delete Template
+      .addCase(adminThunks.deleteTemplate.fulfilled, (state, action) => {
+        state.templates.data = state.templates.data.filter(template => template._id !== action.payload);
       })
       // Fetch Analytics
       .addCase(adminThunks.fetchAnalytics.pending, (state) => {
@@ -158,5 +198,5 @@ const adminSlice = createSlice({
   }
 });
 
-export const { clearError, setUserPage, setCardPage } = adminSlice.actions;
+export const { clearError, setUserPage, setCardPage, setTemplatePage } = adminSlice.actions;
 export default adminSlice.reducer; 
