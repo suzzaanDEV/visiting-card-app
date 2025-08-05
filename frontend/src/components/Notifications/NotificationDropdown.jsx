@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { 
-  FaBell, FaCheck, FaTimes, FaUser, FaShield, FaHeart, FaShareAlt,
+  FaBell, FaCheck, FaTimes, FaUser, FaShieldAlt, FaHeart, FaShareAlt,
   FaClock, FaEnvelope, FaTrash, FaEye, FaEyeSlash
 } from 'react-icons/fa';
 import { toast } from 'react-hot-toast';
@@ -112,7 +112,7 @@ const NotificationDropdown = () => {
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'access_request':
-        return <FaShield className="w-4 h-4 text-blue-500" />;
+        return <FaShieldAlt className="w-4 h-4 text-blue-500" />;
       case 'access_approved':
         return <FaCheck className="w-4 h-4 text-green-500" />;
       case 'access_rejected':
