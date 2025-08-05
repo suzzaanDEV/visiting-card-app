@@ -10,6 +10,7 @@ import {
 } from 'react-icons/fa';
 import { motion, AnimatePresence } from 'framer-motion';
 import Logo from './Logo';
+import NotificationDropdown from '../Notifications/NotificationDropdown';
 
 const UnifiedNavigation = ({ variant = 'default' }) => {
   const dispatch = useDispatch();
@@ -89,6 +90,8 @@ const UnifiedNavigation = ({ variant = 'default' }) => {
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center space-x-1">
+            {/* Notification Dropdown */}
+            <NotificationDropdown />
             <NavLink 
               to="/" 
               className={({ isActive }) => `
@@ -297,7 +300,9 @@ const UnifiedNavigation = ({ variant = 'default' }) => {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="lg:hidden">
+          <div className="lg:hidden flex items-center space-x-2">
+            {/* Notification Dropdown for Mobile */}
+            <NotificationDropdown />
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className={`p-2 rounded-lg transition-all duration-200 ${
