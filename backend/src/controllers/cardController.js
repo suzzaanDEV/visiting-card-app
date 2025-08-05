@@ -235,46 +235,12 @@ exports.getPublicCards = async (req, res, next) => {
       }
     }
 
-    // Convert Mongoose documents to plain objects and filter sensitive data for non-authenticated users
+    // Convert Mongoose documents to plain objects
     if (cards.cards) {
       cards.cards = cards.cards.map(card => {
         // Convert Mongoose document to plain object
         const cardObj = card.toObject ? card.toObject() : card;
-        const filteredCard = { ...cardObj };
-        
-        // Only mask sensitive fields for non-authenticated users
-        if (!isAuthenticated) {
-          // Mask email
-          if (filteredCard.email) {
-            const [localPart, domain] = filteredCard.email.split('@');
-            if (localPart && domain) {
-              const maskedLocal = localPart.charAt(0) + '*'.repeat(localPart.length - 2) + localPart.charAt(localPart.length - 1);
-              filteredCard.email = `${maskedLocal}@${domain}`;
-            }
-          }
-
-          // Mask phone
-          if (filteredCard.phone) {
-            const cleaned = filteredCard.phone.replace(/\D/g, '');
-            if (cleaned.length >= 4) {
-              filteredCard.phone = `***-***-${cleaned.slice(-4)}`;
-            } else {
-              filteredCard.phone = '***-***-****';
-            }
-          }
-
-          // Hide address
-          if (filteredCard.address) {
-            filteredCard.address = 'Address hidden for privacy';
-          }
-
-          // Hide website
-          if (filteredCard.website) {
-            filteredCard.website = 'Website hidden for privacy';
-          }
-        }
-
-        return filteredCard;
+        return cardObj;
       });
     }
 
