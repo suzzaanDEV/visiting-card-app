@@ -82,7 +82,8 @@ const filterCardData = (data) => {
 const filterSingleCard = (card) => {
   if (!card || typeof card !== 'object') return card;
 
-  // Only filter private cards
+  // Only filter private cards for non-authenticated users
+  // This middleware is only applied to non-authenticated users
   if (card.privacy !== 'private') {
     return card;
   }
