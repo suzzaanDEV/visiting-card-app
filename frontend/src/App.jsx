@@ -37,6 +37,7 @@ import CardManagement from './pages/Admin/CardManagement';
 import AccessRequests from './pages/Admin/AccessRequests';
 import Settings from './pages/Admin/Settings';
 import UserAccessRequests from './pages/User/AccessRequests';
+import Notifications from './pages/User/Notifications';
 import AdminRoute from './components/Admin/AdminRoute';
 import TestCardFeatures from './components/TestCardFeatures';
 
@@ -114,6 +115,12 @@ function App() {
             <Route path="access-requests" element={
               <ProtectedRoute>
                 <UserAccessRequests />
+              </ProtectedRoute>
+            } />
+
+            <Route path="notifications" element={
+              <ProtectedRoute>
+                <Notifications />
               </ProtectedRoute>
             } />
 
