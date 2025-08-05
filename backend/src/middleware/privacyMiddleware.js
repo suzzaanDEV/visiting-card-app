@@ -82,6 +82,11 @@ const filterCardData = (data) => {
 const filterSingleCard = (card) => {
   if (!card || typeof card !== 'object') return card;
 
+  // Only filter private cards
+  if (card.privacy !== 'private') {
+    return card;
+  }
+
   const filteredCard = { ...card };
 
   // Mask email
