@@ -12,9 +12,9 @@ console.log('🔒 Card routes loaded with privacy middleware');
 router.get('/public', addPrivacyHeaders, filterSensitiveData, cardController.getPublicCards);
 router.get('/trending', addPrivacyHeaders, filterSensitiveData, cardController.getTrendingCards);
 
-// Public card viewing routes - Apply privacy filtering for non-authenticated users
-router.get('/c/:shortLink', addPrivacyHeaders, filterSensitiveData, cardController.getCardByShortLink);
-router.get('/public/view/:cardId', addPrivacyHeaders, filterSensitiveData, cardController.getCardById);
+// Public card viewing routes - Controller handles privacy logic
+router.get('/c/:shortLink', cardController.getCardByShortLink);
+router.get('/public/view/:cardId', cardController.getCardById);
 
 // Public actions (no sensitive data)
 router.post('/:cardId/share', cardController.shareCard);
