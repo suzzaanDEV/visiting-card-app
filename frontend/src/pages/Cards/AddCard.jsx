@@ -95,6 +95,7 @@ const AddCard = () => {
     try {
       const cardData = {
         ...formData,
+        privacy: formData.privacy, // Send the privacy field
         isPublic: formData.privacy === 'public'
       };
 

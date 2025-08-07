@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  FiBell, FiCheck, FiTimes, FiUser, FiShieldAlt, FiHeart, FiShareAlt,
-  FiClock, FiEnvelope, FiTrash, FiEye, FiEyeSlash, FiRefreshCw
+  FiBell, FiCheck, FiX, FiUser, FiShield, FiHeart, FiShare2,
+  FiTrash, FiEye, FiRefreshCw
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 
@@ -119,15 +119,15 @@ const Notifications = () => {
   const getNotificationIcon = (type) => {
     switch (type) {
       case 'access_request':
-        return <FiShieldAlt className="w-4 h-4 text-blue-500" />;
+        return <FiShield className="w-4 h-4 text-blue-500" />;
       case 'access_approved':
         return <FiCheck className="w-4 h-4 text-green-500" />;
       case 'access_rejected':
-        return <FiTimes className="w-4 h-4 text-red-500" />;
+        return <FiX className="w-4 h-4 text-red-500" />;
       case 'card_loved':
         return <FiHeart className="w-4 h-4 text-red-500" />;
       case 'card_shared':
-        return <FiShareAlt className="w-4 h-4 text-blue-500" />;
+        return <FiShare2 className="w-4 h-4 text-blue-500" />;
       default:
         return <FiBell className="w-4 h-4 text-gray-500" />;
     }

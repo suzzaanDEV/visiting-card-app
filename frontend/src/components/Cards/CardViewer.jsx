@@ -26,11 +26,17 @@ const CardViewer = ({ card, onLove, onShare, onDownload, isLoved = false }) => {
   const [isSavingContact, setIsSavingContact] = useState(false);
   const [showFullInfo, setShowFullInfo] = useState(true); // Always show full info for public cards
   const [accessRequested, setAccessRequested] = useState(false);
+  const [accessStatus, setAccessStatus] = useState(null);
   const [requestMessage, setRequestMessage] = useState('');
   const [showRequestModal, setShowRequestModal] = useState(false);
 
   // Check if the current card is already in the library
   const isCardInLibrary = savedCards?.some(savedCard => savedCard.cardId?._id === card._id);
+  // Check access status when component mounts or card changes
+  useEffect(() => {
+    checkAccessStatus();
+  }, [card, isAuthenticated]);
+
 
   useEffect(() => {
     if (card?.cardImage) {
@@ -42,13 +48,45 @@ const CardViewer = ({ card, onLove, onShare, onDownload, isLoved = false }) => {
     }
   }, [card]);
 
+  // Check access status for private cards
+  const checkAccessStatus = async () => {
+    if (!isAuthenticated || !card || card.privacy !== 'private') return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/cards/access/check/${card._id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setAccessStatus(data);
+        
+        // Update accessRequested based on access status
+        if (data.access) {
+          setAccessRequested(true); // User has approved access
+        } else if (data.reason === 'pending_request') {
+          setAccessRequested(true); // User has requested access (pending)
+        } else {
+          setAccessRequested(false); // No access or request
+        }
+        
+
+      }
+    } catch (error) {
+      console.error('Failed to check access status:', error);
+    }
+  };
+
   // Check if user has access to private card
   const hasAccess = () => {
     if (card.privacy === 'public') return true;
     if (!isAuthenticated) return false;
     if (card.ownerUserId?._id === user?.id) return true;
     // Check if user has approved access request
-    return card.hasApprovedAccess || false;
+    return accessStatus?.access || card.hasApprovedAccess || false;
   };
 
   // For public cards or approved access, show full information
@@ -350,7 +388,7 @@ const CardViewer = ({ card, onLove, onShare, onDownload, isLoved = false }) => {
                   </p>
                 </div>
               </div>
-              {isAuthenticated && !accessRequested && (
+              {isAuthenticated && !accessRequested && !accessStatus?.access && (
                 <button
                   onClick={() => setShowRequestModal(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
@@ -362,7 +400,7 @@ const CardViewer = ({ card, onLove, onShare, onDownload, isLoved = false }) => {
               {accessRequested && (
                 <div className="flex items-center gap-2 px-4 py-2 bg-green-100 text-green-700 rounded-lg">
                   <FiCheck className="w-4 h-4" />
-                  Access Requested
+                  {accessStatus?.access ? 'Access Granted' : 'Access Requested'}
                 </div>
               )}
             </div>

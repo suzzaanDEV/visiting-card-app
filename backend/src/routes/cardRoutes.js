@@ -47,6 +47,7 @@ router.delete('/:cardId/save', cardController.unsaveCard);
 router.get('/saved', cardController.getSavedCards);
 
 // Access request functionality (user routes)
+router.get('/access/check/:cardId', cardController.checkCardAccess);
 router.post('/:cardId/request-access', cardController.requestCardAccess);
 router.post('/:cardId/grant-qr-access', cardController.grantQRAccess);
 

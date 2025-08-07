@@ -422,6 +422,7 @@ const NewCard = () => {
         const cardDataPayload = {
             id: cardId, // Include ID for updates
             title: cardTitle,
+            privacy: isPublic ? 'public' : 'private', // Send privacy field
             isPublic: isPublic,
             designJson: designJsonString,
             // Include card form data
