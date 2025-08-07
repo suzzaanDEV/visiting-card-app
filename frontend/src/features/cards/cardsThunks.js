@@ -80,7 +80,16 @@ export const fetchCardByShortLink = createAsyncThunk(
   'cards/fetchCardByShortLink',
   async (shortLink, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/cards/c/${shortLink}`);
+      const token = localStorage.getItem('token');
+      const headers = {};
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`/api/cards/c/${shortLink}`, {
+        headers
+      });
       
       if (!response.ok) {
         throw new Error('Card not found');

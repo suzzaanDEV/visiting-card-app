@@ -7,6 +7,7 @@ const logger = require('../utils/logger');
 const qrCodeGenerator = require('../algorithms/qrCodeGenerator');
 const shortLinkGenerator = require('../algorithms/shortLinkGenerator');
 const cloudinary = require('../utils/cloudinary');
+const cardAccessService = require('./cardAccessService');
 
 // Add caching mechanism
 const cardCache = new Map();
@@ -80,6 +81,7 @@ class CardService {
   async createCardFromTemplate(userId, { 
     title, 
     isPublic, 
+    privacy = 'public',
     templateId, 
     fullName, 
     jobTitle, 
@@ -118,7 +120,9 @@ class CardService {
         address,
         bio,
         shortLink,
-        isPublic: isPublic !== false,
+        isPublic: privacy === 'public',
+        isPrivate: privacy === 'private',
+        privacy,
         backgroundColor,
         textColor,
         fontFamily,
@@ -277,8 +281,11 @@ class CardService {
       throw new Error('Card not found');
     }
 
-    // Check if user can access this card
-    if (!card.isPublic && card.ownerUserId.toString() !== userId) {
+    // Check if user can access this card using card access service
+    const cardAccessService = require('./cardAccessService');
+    const accessCheck = await cardAccessService.checkAccess(cardId, userId);
+    
+    if (!accessCheck.access) {
       throw new Error('Unauthorized to access this card');
     }
 
@@ -302,6 +309,7 @@ class CardService {
   async updateCard(cardId, userId, { 
     title, 
     isPublic, 
+    privacy,
     designJson, 
     cardImage,
     fullName,
@@ -378,6 +386,11 @@ class CardService {
     // Update Card with all fields
     if (title !== undefined) card.title = title;
     if (isPublic !== undefined) card.isPublic = isPublic;
+    if (privacy !== undefined) {
+      card.privacy = privacy;
+      card.isPublic = privacy === 'public';
+      card.isPrivate = privacy === 'private';
+    }
     if (fullName !== undefined) card.fullName = fullName;
     if (jobTitle !== undefined) card.jobTitle = jobTitle;
     if (email !== undefined) card.email = email;
@@ -430,9 +443,29 @@ class CardService {
       // Apply privacy filter
       if (privacy && privacy !== 'all') {
         query.privacy = privacy;
+        // Also filter by isPublic for backward compatibility
+        if (privacy === 'public') {
+          query.isPublic = true;
+        } else if (privacy === 'private') {
+          query.isPublic = false;
+        }
       } else if (!privacy) {
         // Default to public cards if no privacy filter specified
-        query.privacy = 'public';
+        // Show only cards that are explicitly public
+        query.$and = [
+          {
+            $or: [
+              { privacy: 'public' },
+              { privacy: { $exists: false }, isPublic: true }
+            ]
+          },
+          {
+            $or: [
+              { isPublic: true },
+              { isPrivate: { $ne: true } }
+            ]
+          }
+        ];
       }
       // If privacy === 'all', don't add any privacy filter
 

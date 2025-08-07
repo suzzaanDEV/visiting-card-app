@@ -10,6 +10,7 @@ exports.createCard = async (req, res, next) => {
     const { 
       title, 
       isPublic, 
+      privacy,
       designJson, 
       templateId, 
       customShortLink,
@@ -35,6 +36,7 @@ exports.createCard = async (req, res, next) => {
     const result = await cardService.createCard(req.user.userId, {
       title,
       isPublic,
+      privacy,
       designJson,
       cardImage,
       templateId,
@@ -76,6 +78,7 @@ exports.createCardFromTemplate = async (req, res, next) => {
     const { 
       title, 
       isPublic, 
+      privacy,
       templateId, 
       fullName, 
       jobTitle, 
@@ -105,6 +108,7 @@ exports.createCardFromTemplate = async (req, res, next) => {
     const result = await cardService.createCardFromTemplate(req.user.userId, {
       title,
       isPublic,
+      privacy,
       templateId,
       fullName,
       jobTitle,
@@ -156,6 +160,7 @@ exports.updateCard = async (req, res, next) => {
     const { 
       title, 
       isPublic, 
+      privacy,
       designJson,
       fullName,
       jobTitle,
@@ -175,6 +180,7 @@ exports.updateCard = async (req, res, next) => {
     const result = await cardService.updateCard(req.params.cardId, req.user.userId, {
       title,
       isPublic,
+      privacy,
       designJson,
       fullName,
       jobTitle,
@@ -666,6 +672,26 @@ exports.getCardWithEnhancedInfo = async (req, res, next) => {
     });
   } catch (error) {
     logger.error(`Get card with enhanced info error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Check access status for a card
+exports.checkCardAccess = async (req, res, next) => {
+  try {
+    const { cardId } = req.params;
+    const userId = req.user.userId;
+
+    const accessCheck = await cardAccessService.checkAccess(cardId, userId);
+    
+    res.status(200).json({
+      success: true,
+      access: accessCheck.access,
+      reason: accessCheck.reason,
+      request: accessCheck.request
+    });
+  } catch (error) {
+    logger.error(`Check card access error: ${error.message}`);
     res.status(400).json({ error: error.message });
   }
 };

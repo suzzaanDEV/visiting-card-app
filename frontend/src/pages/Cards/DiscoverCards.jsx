@@ -16,7 +16,7 @@ const DiscoverCards = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [showPrivacyNotice, setShowPrivacyNotice] = useState(!isAuthenticated);
   const [viewMode, setViewMode] = useState('grid');
-  const [privacyFilter, setPrivacyFilter] = useState('all'); // 'all', 'public', 'private'
+  const [privacyFilter, setPrivacyFilter] = useState('public'); // 'all', 'public', 'private'
 
   const categories = [
     'Software Engineer',
@@ -402,7 +402,7 @@ const DiscoverCards = () => {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="mt-12 flex justify-center"
+                className="mt-12 flex justify-center" 
               >
                 <div className="flex space-x-2">
                   {Array.from({ length: pagination.pages }, (_, i) => i + 1).map((page) => (
