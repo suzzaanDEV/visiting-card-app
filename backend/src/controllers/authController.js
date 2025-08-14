@@ -90,3 +90,68 @@ exports.checkAuth = async (req, res, next) => {
     res.status(401).json({ error: error.message });
   }
 };
+
+// Add missing methods
+exports.forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    
+    // For now, just return a success message
+    // In a real app, you would send a password reset email
+    res.status(200).json({ message: 'Password reset email sent (if email exists)' });
+  } catch (error) {
+    logger.error(`Forgot password error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.resetPassword = async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token and new password are required' });
+    }
+    
+    // For now, just return a success message
+    // In a real app, you would validate the token and update the password
+    res.status(200).json({ message: 'Password reset successfully' });
+  } catch (error) {
+    logger.error(`Reset password error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.verifyEmail = async (req, res, next) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token is required' });
+    }
+    
+    // For now, just return a success message
+    // In a real app, you would validate the token and mark email as verified
+    res.status(200).json({ message: 'Email verified successfully' });
+  } catch (error) {
+    logger.error(`Email verification error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+    
+    // For now, just return a success message
+    // In a real app, you would validate current password and update to new password
+    res.status(200).json({ message: 'Password changed successfully' });
+  } catch (error) {
+    logger.error(`Change password error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};

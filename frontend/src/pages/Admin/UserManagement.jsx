@@ -85,6 +85,10 @@ const UserManagement = () => {
           url += '/ban';
           method = 'POST';
           break;
+        case 'unban':
+          url += '/unban';
+          method = 'POST';
+          break;
         case 'delete':
           method = 'DELETE';
           break;
@@ -105,7 +109,8 @@ const UserManagement = () => {
       });
 
       if (response.ok) {
-        toast.success(`User ${action}ed successfully`);
+        const responseData = await response.json();
+        toast.success(responseData.message || `User ${action}ed successfully`);
         fetchUsers();
       } else {
         const errorData = await response.json();
@@ -208,12 +213,13 @@ const UserManagement = () => {
               <FiEye className="h-4 w-4" />
             </button>
             <button
-              onClick={() => handleUserAction(user._id, 'update', { isActive: !user.isActive })}
+              onClick={() => handleUserAction(user._id, user.isActive ? 'ban' : 'unban')}
               className={`p-2 rounded-lg transition-colors ${
                 user.isActive 
                   ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
                   : 'text-green-600 hover:text-green-700 hover:bg-green-50'
               }`}
+              title={user.isActive ? 'Ban User' : 'Unban User'}
             >
               {user.isActive ? <FiUserX className="h-4 w-4" /> : <FiUserCheck className="h-4 w-4" />}
             </button>

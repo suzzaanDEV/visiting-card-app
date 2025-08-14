@@ -1,385 +1,307 @@
 import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FiUsers, FiCreditCard, FiTrendingUp, FiEye, FiDownload, FiShare2,
-  FiSettings, FiLogOut, FiPlus, FiEdit, FiTrash2, FiGrid, FiBarChart2,
-  FiAlertCircle, FiCheckCircle, FiClock, FiStar, FiZap, FiMenu, FiX,
-  FiActivity, FiDollarSign, FiGlobe, FiSmartphone, FiDatabase, FiServer,
-  FiShield, FiBell, FiSearch, FiFilter, FiRefreshCw, FiArrowRight,
-  FiCalendar, FiMapPin, FiHeart, FiMessageSquare, FiAward, FiHome,
-  FiLayers, FiFileText, FiPieChart, FiUserCheck, FiLock, FiUnlock,
-  FiTrello, FiMonitor, FiCpu, FiHardDrive, FiWifi
+  FiHome, FiUsers, FiCreditCard, FiLayers, FiBarChart2, FiSettings, 
+  FiBell, FiSearch, FiMenu, FiX, FiLogOut, FiUser, FiShield,
+  FiTrendingUp, FiActivity, FiFileText, FiGrid, FiHelpCircle
 } from 'react-icons/fi';
-import { 
-  FaChartLine, FaUsers, FaCreditCard, FaEye, FaHeart, FaShareAlt,
-  FaDownload, FaGlobe, FaMobile, FaDesktop, FaTablet, FaMapMarkedAlt,
-  FaCrown, FaUserShield, FaCog, FaTachometerAlt, FaLayerGroup, FaPalette
-} from 'react-icons/fa';
-import { logout } from '../../features/auth/authThunks';
+import { FaCrown } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
-const AdminLayout = ({ children, title = 'Admin Dashboard' }) => {
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { user } = useSelector(state => state.auth);
-  
+const AdminLayout = ({ children, title = "Admin Panel" }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  // Add notification system
+  const [adminUser, setAdminUser] = useState(null);
   const [notifications, setNotifications] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [showNotifications, setShowNotifications] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const addNotification = (message, type = 'info') => {
-    const newNotification = {
-      id: Date.now(),
-      message,
-      type,
-      timestamp: new Date()
-    };
-    setNotifications(prev => [...prev, newNotification]);
+  useEffect(() => {
+    checkAdminAuth();
+    fetchNotifications();
+  }, []);
+
+  const checkAdminAuth = () => {
+    const token = localStorage.getItem('adminToken');
+    const user = localStorage.getItem('adminUser');
+    
+    if (!token || !user) {
+      navigate('/admin/login');
+      return;
+    }
+
+    try {
+      setAdminUser(JSON.parse(user));
+    } catch (error) {
+      console.error('Error parsing admin user:', error);
+      navigate('/admin/login');
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      if (!token) return;
+
+      const response = await fetch('/api/admin/notifications', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications || []);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminUser');
+    toast.success('Logged out successfully');
+    navigate('/admin/login');
   };
 
   const navigation = [
     {
-      id: 'dashboard',
-      label: 'Dashboard',
-      icon: FaTachometerAlt,
-      path: '/admin',
-      color: 'blue',
-      description: 'Overview and analytics'
+      name: 'Dashboard',
+      href: '/admin',
+      icon: FiHome,
+      current: location.pathname === '/admin'
     },
     {
-      id: 'users',
-      label: 'User Management',
+      name: 'Users',
+      href: '/admin/users',
       icon: FiUsers,
-      path: '/admin/users',
-      color: 'green',
-      description: 'Manage users and permissions'
+      current: location.pathname === '/admin/users'
     },
     {
-      id: 'cards',
-      label: 'Card Management',
+      name: 'Cards',
+      href: '/admin/cards',
       icon: FiCreditCard,
-      path: '/admin/cards',
-      color: 'purple',
-      description: 'Manage visiting cards'
+      current: location.pathname === '/admin/cards'
     },
     {
-      id: 'access-requests',
-      label: 'Access Requests',
-      icon: FiShield,
-      path: '/admin/access-requests',
-      color: 'yellow',
-      description: 'Manage private card access'
-    },
-    {
-      id: 'templates',
-      label: 'Templates',
+      name: 'Templates',
+      href: '/admin/templates',
       icon: FiLayers,
-      path: '/admin/templates',
-      color: 'orange',
-      description: 'Design templates'
+      current: location.pathname === '/admin/templates'
     },
     {
-      id: 'analytics',
-      label: 'Analytics',
+      name: 'Analytics',
+      href: '/admin/analytics',
       icon: FiBarChart2,
-      path: '/admin/analytics',
-      color: 'indigo',
-      description: 'Detailed analytics'
+      current: location.pathname === '/admin/analytics'
     },
     {
-      id: 'settings',
-      label: 'Settings',
+      name: 'Access Requests',
+      href: '/admin/access-requests',
+      icon: FiShield,
+      current: location.pathname === '/admin/access-requests'
+    },
+    {
+      name: 'Settings',
+      href: '/admin/settings',
       icon: FiSettings,
-      path: '/admin/settings',
-      color: 'gray',
-      description: 'System configuration'
+      current: location.pathname === '/admin/settings'
     }
   ];
 
-  const handleLogout = () => {
-    // Clear admin data from localStorage
-    localStorage.removeItem('adminToken');
-    localStorage.removeItem('adminUser');
-    
-    // Navigate to admin login
-    navigate('/admin/login');
-    toast.success('Admin logged out successfully');
-  };
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    toast.info('Search functionality coming soon');
-  };
-
-  const getCurrentNavItem = () => {
-    return navigation.find(item => location.pathname.startsWith(item.path)) || navigation[0];
-  };
-
-  const getUserInfo = () => {
-    // Get admin user from localStorage
-    const adminUser = localStorage.getItem('adminUser');
-    if (adminUser) {
-      const parsedUser = JSON.parse(adminUser);
-      return {
-        name: parsedUser.name || parsedUser.username || 'Admin',
-        email: parsedUser.email || 'admin@cardly.com'
-      };
-    }
-    
-    return {
-      name: 'Admin',
-      email: 'admin@cardly.com'
-    };
-  };
-
-  const userInfo = getUserInfo();
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Mobile Sidebar Overlay */}
+      {/* Mobile sidebar overlay */}
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+            className="fixed inset-0 z-40 lg:hidden"
             onClick={() => setSidebarOpen(false)}
-          />
+          >
+            <div className="absolute inset-0 bg-gray-600 opacity-75" />
+          </motion.div>
         )}
       </AnimatePresence>
 
       {/* Sidebar */}
-      <div className="hidden lg:block w-80 bg-white shadow-xl">
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+      }`}>
         <div className="flex flex-col h-full">
           {/* Sidebar Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <FaCrown className="text-white text-lg" />
-              </div>
+              <FaCrown className="w-8 h-8 text-blue-600" />
               <div>
-                <h1 className="text-gray-900 font-bold text-lg">Admin Panel</h1>
-                <p className="text-gray-500 text-sm">Control Center</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname.startsWith(item.path);
-              
-              return (
-                <Link
-                  key={item.id}
-                  to={item.path}
-                  className={`flex items-center px-4 py-3 rounded-xl transition-all duration-200 group ${
-                    isActive
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                >
-                  <Icon className={`mr-3 h-5 w-5 ${
-                    isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'
-                  }`} />
-                  <div className="flex-1">
-                    <span className="font-medium">{item.label}</span>
-                    <p className="text-xs text-gray-500 mt-1">{item.description}</p>
-                  </div>
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeTab"
-                      className="absolute right-2 w-2 h-2 bg-blue-500 rounded-full"
-                    />
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* User Info */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-sm">
-                  {userInfo.name.charAt(0)}
-                </span>
-              </div>
-              <div className="flex-1">
-                <p className="text-gray-900 text-sm font-medium">{userInfo.name}</p>
-                <p className="text-gray-500 text-xs">{userInfo.email}</p>
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-            >
-              <FiLogOut className="mr-2 h-4 w-4" />
-              Logout
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Sidebar */}
-      <motion.div
-        initial={{ x: -320 }}
-        animate={{ x: sidebarOpen ? 0 : -320 }}
-        className={`fixed lg:hidden inset-y-0 left-0 z-50 w-80 bg-white shadow-xl ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        <div className="flex flex-col h-full">
-          {/* Sidebar Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <FaCrown className="text-white text-lg" />
-              </div>
-              <div>
-                <h1 className="text-gray-900 font-bold text-lg">Admin Panel</h1>
-                <p className="text-gray-500 text-sm">Control Center</p>
+                <h1 className="text-xl font-bold text-gray-900">Cardly</h1>
+                <p className="text-xs text-gray-500">Admin Panel</p>
               </div>
             </div>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+              className="lg:hidden p-2 text-gray-400 hover:text-gray-600"
             >
-              <FiX className="h-5 w-5" />
+              <FiX className="w-5 h-5" />
             </button>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname.startsWith(item.path);
-              
-              return (
-                <Link
-                  key={item.id}
-                  to={item.path}
-                  className={`flex items-center px-4 py-3 rounded-xl transition-all duration-200 group ${
-                    isActive
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                  }`}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  <Icon className={`mr-3 h-5 w-5 ${
-                    isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-gray-600'
-                  }`} />
-                  <div className="flex-1">
-                    <span className="font-medium">{item.label}</span>
-                    <p className="text-xs text-gray-500 mt-1">{item.description}</p>
-                  </div>
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeTab"
-                      className="absolute right-2 w-2 h-2 bg-blue-500 rounded-full"
-                    />
-                  )}
-                </Link>
-              );
-            })}
+          <nav className="flex-1 px-3 py-6 overflow-y-auto">
+            <div className="space-y-1">
+              {navigation.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                      item.current
+                        ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
+                        : 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    <Icon className={`mr-3 h-5 w-5 ${
+                      item.current ? 'text-blue-700' : 'text-gray-400 group-hover:text-gray-500'
+                    }`} />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </div>
           </nav>
 
-          {/* User Info */}
+          {/* Admin info */}
           <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-sm">
-                  {userInfo.name.charAt(0)}
-                </span>
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                <FiUser className="w-4 h-4 text-blue-600" />
               </div>
-              <div className="flex-1">
-                <p className="text-gray-900 text-sm font-medium">{userInfo.name}</p>
-                <p className="text-gray-500 text-xs">{userInfo.email}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">
+                  {adminUser?.name || adminUser?.email || 'Admin'}
+                </p>
+                <p className="text-xs text-gray-500">Administrator</p>
               </div>
+              <button
+                onClick={handleLogout}
+                className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                title="Logout"
+              >
+                <FiLogOut className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-            >
-              <FiLogOut className="mr-2 h-4 w-4" />
-              Logout
-            </button>
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        {/* Header */}
-        <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-30">
-          <div className="flex items-center justify-between px-4 py-4 lg:px-8">
-            <div className="flex items-center space-x-4">
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Top navigation */}
+        <div className="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200">
+          <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                className="lg:hidden p-2 text-gray-400 hover:text-gray-600"
               >
-                <FiMenu className="h-6 w-6" />
+                <FiMenu className="w-5 h-5" />
               </button>
-              <div>
-                <h1 className="text-xl lg:text-2xl font-bold text-gray-900">{title}</h1>
-                <p className="text-gray-500 text-sm">
-                  {getCurrentNavItem()?.label} • Admin Panel
-                </p>
-              </div>
+              <h1 className="ml-4 lg:ml-0 text-xl font-semibold text-gray-900">{title}</h1>
             </div>
-            
-            <div className="flex items-center space-x-2 lg:space-x-4">
-              {/* Search - Hidden on mobile */}
-              <form onSubmit={handleSearch} className="hidden md:block">
-                <div className="relative">
-                  <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <input
-                    type="text"
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48 lg:w-64"
-                  />
-                </div>
-              </form>
 
-              {/* Mobile Search Button */}
-              <button className="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-                <FiSearch className="h-5 w-5" />
-              </button>
+            <div className="flex items-center space-x-4">
+              {/* Search */}
+              <div className="hidden md:block relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FiSearch className="h-4 w-4 text-gray-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+              </div>
 
               {/* Notifications */}
-              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg relative">
-                <FiBell className="h-5 w-5" />
-                {notifications.length > 0 && (
-                  <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
-                )}
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(!showNotifications)}
+                  className="relative p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <FiBell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
 
-              {/* Refresh */}
-              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg">
-                <FiRefreshCw className="h-5 w-5" />
-              </button>
+                {/* Notifications dropdown */}
+                <AnimatePresence>
+                  {showNotifications && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+                    >
+                      <div className="p-4 border-b border-gray-200">
+                        <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <div className="p-4 text-center text-gray-500">
+                            <FiBell className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                            <p className="text-sm">No notifications</p>
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-gray-200">
+                            {notifications.slice(0, 5).map((notification) => (
+                              <div key={notification._id} className="p-4 hover:bg-gray-50">
+                                <p className="text-sm font-medium text-gray-900">
+                                  {notification.title}
+                                </p>
+                                <p className="text-sm text-gray-600 mt-1">
+                                  {notification.message}
+                                </p>
+                                <p className="text-xs text-gray-400 mt-2">
+                                  {new Date(notification.createdAt).toLocaleDateString()}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* Admin avatar */}
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                  <FiUser className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="hidden md:block">
+                  <p className="text-sm font-medium text-gray-900">
+                    {adminUser?.name || adminUser?.email || 'Admin'}
+                  </p>
+                  <p className="text-xs text-gray-500">Administrator</p>
+                </div>
+              </div>
             </div>
           </div>
-        </header>
+        </div>
 
-        {/* Page Content */}
-        <main className="flex-1 p-4 lg:p-8 overflow-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="max-w-7xl mx-auto"
-          >
-            {children}
-          </motion.div>
+        {/* Page content */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto">
+          {children}
         </main>
       </div>
     </div>

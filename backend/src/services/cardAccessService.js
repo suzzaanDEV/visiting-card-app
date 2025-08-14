@@ -257,6 +257,111 @@ class CardAccessService {
       throw error;
     }
   }
+
+  // Get all access requests (admin)
+  async getAllAccessRequests({ page = 1, limit = 20, status, sortBy = 'createdAt', sortOrder = 'desc' }) {
+    try {
+      const skip = (page - 1) * limit;
+      const query = {};
+
+      if (status) {
+        query.status = status;
+      }
+
+      const sortOptions = {};
+      sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+      const requests = await CardAccessRequest.find(query)
+        .populate('cardId', 'title fullName email company')
+        .populate('requesterId', 'username name email')
+        .populate('ownerId', 'username name email')
+        .sort(sortOptions)
+        .skip(skip)
+        .limit(limit);
+
+      const total = await CardAccessRequest.countDocuments(query);
+
+      return {
+        requests,
+        pagination: {
+          page,
+          limit,
+          total,
+          pages: Math.ceil(total / limit)
+        }
+      };
+    } catch (error) {
+      logger.error(`Get all access requests error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  // Approve access request (admin)
+  async approveAccessRequest(requestId, { adminId, adminNotes }) {
+    try {
+      const request = await CardAccessRequest.findById(requestId)
+        .populate('cardId', 'title fullName email')
+        .populate('requesterId', 'username name email');
+
+      if (!request) {
+        throw new Error('Access request not found');
+      }
+
+      if (request.status !== 'pending') {
+        throw new Error('Request is not pending');
+      }
+
+      request.status = 'approved';
+      request.adminId = adminId;
+      request.adminNotes = adminNotes;
+      request.approvedAt = new Date();
+      await request.save();
+
+      logger.info(`Access request approved by admin: ${requestId}`);
+      return {
+        success: true,
+        request,
+        message: 'Access request approved successfully'
+      };
+    } catch (error) {
+      logger.error(`Approve access request error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  // Reject access request (admin)
+  async rejectAccessRequest(requestId, { adminId, adminNotes, reason }) {
+    try {
+      const request = await CardAccessRequest.findById(requestId)
+        .populate('cardId', 'title fullName email')
+        .populate('requesterId', 'username name email');
+
+      if (!request) {
+        throw new Error('Access request not found');
+      }
+
+      if (request.status !== 'pending') {
+        throw new Error('Request is not pending');
+      }
+
+      request.status = 'rejected';
+      request.adminId = adminId;
+      request.adminNotes = adminNotes;
+      request.rejectionReason = reason;
+      request.rejectedAt = new Date();
+      await request.save();
+
+      logger.info(`Access request rejected by admin: ${requestId}`);
+      return {
+        success: true,
+        request,
+        message: 'Access request rejected successfully'
+      };
+    } catch (error) {
+      logger.error(`Reject access request error: ${error.message}`);
+      throw error;
+    }
+  }
 }
 
 module.exports = new CardAccessService(); 

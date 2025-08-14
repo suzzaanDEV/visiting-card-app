@@ -2,6 +2,7 @@ const Admin = require('../models/adminModel');
 const User = require('../models/userModel');
 const Card = require('../models/cardModel');
 const Template = require('../models/templateModel');
+const Analytics = require('../models/analyticsModel');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
@@ -26,9 +27,13 @@ class AdminService {
         throw new Error('Account is deactivated');
       }
 
+      // Update last login
+      admin.lastLoginAt = new Date();
+      await admin.save();
+
       // Generate JWT token
       const token = jwt.sign(
-        { userId: admin._id, email: admin.email },
+        { userId: admin._id, email: admin.email, role: 'admin' },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
       );
@@ -80,15 +85,15 @@ class AdminService {
       const newUsersToday = await User.countDocuments({ createdAt: { $gte: today } });
       const newCardsToday = await Card.countDocuments({ createdAt: { $gte: today } });
 
-      // Engagement metrics
-      const engagementStats = await Card.aggregate([
+      // Engagement metrics from analytics
+      const engagementStats = await Analytics.aggregate([
         {
           $group: {
             _id: null,
-            totalViews: { $sum: '$views' },
-            totalLoves: { $sum: '$loveCount' },
-            totalShares: { $sum: '$shares' },
-            totalDownloads: { $sum: '$downloads' }
+            totalViews: { $sum: { $cond: [{ $eq: ['$actionType', 'view'] }, 1, 0] } },
+            totalLoves: { $sum: { $cond: [{ $eq: ['$actionType', 'love'] }, 1, 0] } },
+            totalShares: { $sum: { $cond: [{ $eq: ['$actionType', 'share'] }, 1, 0] } },
+            totalDownloads: { $sum: { $cond: [{ $eq: ['$actionType', 'download'] }, 1, 0] } }
           }
         }
       ]);
@@ -112,9 +117,6 @@ class AdminService {
       // System health
       const systemHealth = await this.getSystemHealth();
 
-      // Revenue calculation (mock for now)
-      const revenue = totalUsers * 0.5; // Mock revenue calculation
-
       return {
         totalUsers,
         totalCards,
@@ -128,7 +130,6 @@ class AdminService {
         totalLoves: engagement.totalLoves,
         totalShares: engagement.totalShares,
         totalDownloads: engagement.totalDownloads,
-        revenue: Math.round(revenue * 100) / 100,
         recentActivity,
         popularTemplates,
         systemHealth: systemHealth.status,
@@ -155,13 +156,21 @@ class AdminService {
         .sort({ createdAt: -1 })
         .limit(5)
         .populate('ownerUserId', 'username name')
-        .select('title createdAt ownerUserId');
+        .select('title fullName createdAt ownerUserId');
 
       // Get recent template updates
       const recentTemplates = await Template.find()
         .sort({ updatedAt: -1 })
         .limit(5)
         .select('name updatedAt');
+
+      // Get recent analytics events
+      const recentAnalytics = await Analytics.find()
+        .sort({ timestamp: -1 })
+        .limit(10)
+        .populate('cardId', 'title fullName')
+        .populate('userId', 'username name')
+        .select('actionType timestamp cardId userId');
 
       const activities = [];
 
@@ -170,6 +179,7 @@ class AdminService {
         activities.push({
           id: `user_${user._id}`,
           type: 'user_created',
+          description: `New user registered: ${user.name || user.username}`,
           user: user.name || user.username,
           time: this.formatTimeAgo(user.createdAt),
           timestamp: user.createdAt
@@ -178,10 +188,14 @@ class AdminService {
 
       // Add card activities
       recentCards.forEach(card => {
+        const cardName = card.title || card.fullName || 'Untitled Card';
+        const ownerName = card.ownerUserId?.name || card.ownerUserId?.username || 'Unknown';
         activities.push({
           id: `card_${card._id}`,
           type: 'card_created',
-          user: card.ownerUserId?.name || card.ownerUserId?.username || 'Unknown',
+          description: `New card created: ${cardName} by ${ownerName}`,
+          user: ownerName,
+          card: cardName,
           time: this.formatTimeAgo(card.createdAt),
           timestamp: card.createdAt
         });
@@ -192,9 +206,47 @@ class AdminService {
         activities.push({
           id: `template_${template._id}`,
           type: 'template_updated',
+          description: `Template updated: ${template.name}`,
           user: 'Admin',
           time: this.formatTimeAgo(template.updatedAt),
           timestamp: template.updatedAt
+        });
+      });
+
+      // Add analytics activities with meaningful descriptions
+      recentAnalytics.forEach(analytics => {
+        const userName = analytics.userId?.name || analytics.userId?.username || 'Anonymous';
+        const cardName = analytics.cardId?.title || analytics.cardId?.fullName || 'Unknown Card';
+        
+        let description = '';
+        switch (analytics.actionType) {
+          case 'view':
+            description = `${userName} viewed ${cardName}`;
+            break;
+          case 'love':
+            description = `${userName} loved ${cardName}`;
+            break;
+          case 'share':
+            description = `${userName} shared ${cardName}`;
+            break;
+          case 'download':
+            description = `${userName} downloaded ${cardName}`;
+            break;
+          case 'contact':
+            description = `${userName} contacted owner of ${cardName}`;
+            break;
+          default:
+            description = `${userName} performed ${analytics.actionType} on ${cardName}`;
+        }
+
+        activities.push({
+          id: `analytics_${analytics._id}`,
+          type: `card_${analytics.actionType}`,
+          description: description,
+          user: userName,
+          card: cardName,
+          time: this.formatTimeAgo(analytics.timestamp),
+          timestamp: analytics.timestamp
         });
       });
 
@@ -222,24 +274,24 @@ class AdminService {
     try {
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
 
       // Active users (users who logged in today)
       const activeUsers = await User.countDocuments({
         lastLoginAt: { $gte: today }
       });
 
-      // Today's views
-      const todayViews = await Card.aggregate([
+      // Today's views from analytics
+      const todayViews = await Analytics.aggregate([
         {
           $match: {
-            updatedAt: { $gte: today }
+            actionType: 'view',
+            timestamp: { $gte: today }
           }
         },
         {
           $group: {
             _id: null,
-            totalViews: { $sum: '$views' }
+            totalViews: { $sum: 1 }
           }
         }
       ]);
@@ -249,14 +301,16 @@ class AdminService {
         createdAt: { $gte: today }
       });
 
-      // Mock revenue calculation
-      const todayRevenue = Math.round((todayCards * 0.5 + activeUsers * 0.1) * 100) / 100;
+      // Today's new users
+      const todayUsers = await User.countDocuments({
+        createdAt: { $gte: today }
+      });
 
       return {
         activeUsers,
         todayViews: todayViews[0]?.totalViews || 0,
         todayCards,
-        todayRevenue
+        todayUsers
       };
     } catch (error) {
       logger.error(`Get real-time data error: ${error.message}`);
@@ -264,7 +318,7 @@ class AdminService {
         activeUsers: 0,
         todayViews: 0,
         todayCards: 0,
-        todayRevenue: 0
+        todayUsers: 0
       };
     }
   }
@@ -306,42 +360,78 @@ class AdminService {
         }
       ]);
 
-      // Engagement metrics
-      const totalViews = await Card.aggregate([
+      // Engagement metrics from analytics
+      const totalViews = await Analytics.aggregate([
         {
           $group: {
             _id: null,
-            totalViews: { $sum: '$views' },
-            totalLoves: { $sum: '$loveCount' },
-            totalShares: { $sum: '$shares' },
-            totalDownloads: { $sum: '$downloads' }
+            totalViews: { $sum: { $cond: [{ $eq: ['$actionType', 'view'] }, 1, 0] } },
+            totalLoves: { $sum: { $cond: [{ $eq: ['$actionType', 'love'] }, 1, 0] } },
+            totalShares: { $sum: { $cond: [{ $eq: ['$actionType', 'share'] }, 1, 0] } },
+            totalDownloads: { $sum: { $cond: [{ $eq: ['$actionType', 'download'] }, 1, 0] } }
           }
         }
       ]);
 
-      // Device analytics (mock data for now)
-      const deviceAnalytics = {
-        desktop: 45,
-        mobile: 40,
-        tablet: 15
-      };
+      // Device analytics from analytics data
+      const deviceAnalytics = await Analytics.aggregate([
+        {
+          $group: {
+            _id: '$metadata.deviceType',
+            count: { $sum: 1 }
+          }
+        },
+        {
+          $project: {
+            deviceType: '$_id',
+            percentage: { $multiply: [{ $divide: ['$count', { $sum: '$count' }] }, 100] }
+          }
+        }
+      ]);
 
-      // Geographic analytics (mock data for now)
-      const geographicAnalytics = {
-        'United States': 35,
-        'India': 25,
-        'United Kingdom': 15,
-        'Canada': 10,
-        'Australia': 8,
-        'Others': 7
+      // Convert to expected format - use real data or defaults
+      const deviceBreakdown = {
+        desktop: deviceAnalytics.find(d => d.deviceType === 'desktop')?.percentage || 0,
+        mobile: deviceAnalytics.find(d => d.deviceType === 'mobile')?.percentage || 0,
+        tablet: deviceAnalytics.find(d => d.deviceType === 'tablet')?.percentage || 0
       };
 
       // Top performing cards
-      const topCards = await Card.find({ isActive: true })
-        .sort({ views: -1 })
-        .limit(5)
+      const topCards = await Analytics.aggregate([
+        {
+          $group: {
+            _id: '$cardId',
+            views: { $sum: { $cond: [{ $eq: ['$actionType', 'view'] }, 1, 0] } },
+            loves: { $sum: { $cond: [{ $eq: ['$actionType', 'love'] }, 1, 0] } },
+            shares: { $sum: { $cond: [{ $eq: ['$actionType', 'share'] }, 1, 0] } }
+          }
+        },
+        {
+          $sort: { views: -1 }
+        },
+        {
+          $limit: 5
+        }
+      ]);
+
+      // Populate card details
+      const cardIds = topCards.map(item => item._id);
+      const cards = await Card.find({ _id: { $in: cardIds } })
         .populate('ownerUserId', 'username name')
-        .select('title views loveCount shares ownerUserId');
+        .select('title fullName views loveCount shares ownerUserId');
+
+      const topCardsWithDetails = topCards.map(item => {
+        const card = cards.find(c => c._id.toString() === item._id.toString());
+        return {
+          _id: item._id,
+          title: card?.title || card?.fullName || 'Unknown Card',
+          fullName: card?.fullName || card?.title || 'Unknown Card',
+          views: item.views,
+          loves: item.loves,
+          shares: item.shares,
+          owner: card?.ownerUserId
+        };
+      });
 
       // Recent activity
       const recentActivity = await this.getRecentActivity();
@@ -351,8 +441,9 @@ class AdminService {
         totalUsers: await User.countDocuments(),
         totalCards: await Card.countDocuments(),
         totalViews: totalViews[0]?.totalViews || 0,
-        totalRevenue: Math.round((await Card.countDocuments()) * 0.5 * 100) / 100,
-        growthRate: 12.5 // Calculate based on period comparison
+        totalLoves: totalViews[0]?.totalLoves || 0,
+        totalShares: totalViews[0]?.totalShares || 0,
+        totalDownloads: totalViews[0]?.totalDownloads || 0
       };
 
       // Engagement metrics
@@ -360,19 +451,16 @@ class AdminService {
         views: totalViews[0]?.totalViews || 0,
         loves: totalViews[0]?.totalLoves || 0,
         shares: totalViews[0]?.totalShares || 0,
-        downloads: totalViews[0]?.totalDownloads || 0,
-        avgSessionTime: 4.5, // Mock for now
-        bounceRate: 23.5 // Mock for now
+        downloads: totalViews[0]?.totalDownloads || 0
       };
 
       return {
         overview,
         userGrowth,
         cardGrowth,
-        deviceAnalytics,
-        geographicAnalytics,
+        deviceAnalytics: deviceBreakdown,
         engagementMetrics,
-        topCards,
+        topCards: topCardsWithDetails,
         recentActivity
       };
     } catch (error) {

@@ -10,6 +10,7 @@ import { fetchCard, deleteCard } from '../../features/cards/cardsThunks';
 import { saveCardToLibrary, fetchSavedCards } from '../../features/library/libraryThunks';
 import { toggleCardLove } from '../../features/cards/cardsThunks';
 import TemplateCardRenderer from '../../components/TemplateCardRenderer';
+import PrivacyToggle from '../../components/Cards/PrivacyToggle';
 
 const CardDetail = () => {
   const { cardId } = useParams();
@@ -26,11 +27,7 @@ const CardDetail = () => {
   const [showQR, setShowQR] = useState(false);
   const [showTemplateView, setShowTemplateView] = useState(false);
 
-  console.log('CardDetail - cardId:', cardId);
-  console.log('CardDetail - user:', user);
-  console.log('CardDetail - currentCard:', currentCard);
-  console.log('CardDetail - isLoading:', isLoading);
-  console.log('CardDetail - error:', error);
+
 
   // Check if the current card is already in the library
   const isCardInLibrary = savedCards?.some(savedCard => savedCard.cardId?._id === cardId);
@@ -420,6 +417,22 @@ const CardDetail = () => {
 
               {isOwner && (
                 <div className="mt-6 pt-6 border-t border-gray-200">
+                  {/* Privacy Toggle for Card Owner */}
+                  <div className="mb-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700">Card Privacy</span>
+                      <PrivacyToggle
+                        cardId={cardId}
+                        initialPrivacy={card.isPublic ? 'public' : 'private'}
+                                                 onPrivacyChange={(newPrivacy) => {
+                           // Update the card state locally
+                         }}
+                        showLabel={false}
+                        size="md"
+                      />
+                    </div>
+                  </div>
+                  
                   <div className="grid grid-cols-2 gap-4">
                     <button
                       onClick={() => navigate(`/cards/edit/${cardId}`)}

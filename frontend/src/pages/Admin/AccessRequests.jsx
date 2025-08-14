@@ -42,7 +42,7 @@ const AccessRequests = () => {
         return;
       }
 
-      const response = await fetch('/api/cards/access-requests', {
+      const response = await fetch('/api/admin/access-requests', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -66,7 +66,7 @@ const AccessRequests = () => {
   const handleApproveRequest = async (requestId) => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/cards/access-requests/${requestId}/approve`, {
+      const response = await fetch(`/api/admin/access-requests/${requestId}/approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -93,7 +93,7 @@ const AccessRequests = () => {
   const handleRejectRequest = async (requestId) => {
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch(`/api/cards/access-requests/${requestId}/reject`, {
+      const response = await fetch(`/api/admin/access-requests/${requestId}/reject`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

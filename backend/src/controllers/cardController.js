@@ -803,3 +803,35 @@ exports.rejectAccessRequest = async (req, res, next) => {
     res.status(400).json({ error: error.message });
   }
 };
+
+// Update card privacy
+exports.updateCardPrivacy = async (req, res, next) => {
+  try {
+    const { cardId } = req.params;
+    const { privacy } = req.body;
+    const userId = req.user.userId;
+
+    // Validate privacy value
+    if (!privacy || !['public', 'private'].includes(privacy)) {
+      return res.status(400).json({ error: 'Privacy must be either "public" or "private"' });
+    }
+
+    const card = await cardService.updateCardPrivacy(cardId, userId, privacy);
+    
+    logger.info(`Card privacy updated: ${cardId} by user ${userId} to ${privacy}`);
+    
+    res.status(200).json({
+      success: true,
+      card: {
+        _id: card._id,
+        privacy: card.privacy,
+        isPublic: card.isPublic,
+        isPrivate: card.isPrivate
+      },
+      message: `Card is now ${privacy}`
+    });
+  } catch (error) {
+    logger.error(`Update card privacy error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};

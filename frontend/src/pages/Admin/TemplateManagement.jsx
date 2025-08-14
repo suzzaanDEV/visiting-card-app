@@ -12,7 +12,11 @@ import { fetchTemplates, createTemplate, updateTemplate, deleteTemplate } from '
 
 const TemplateManagement = () => {
   const dispatch = useDispatch();
-  const { templates, isLoading, error } = useSelector((state) => state.admin);
+  const { templates, isLoading, error } = useSelector((state) => ({
+    templates: state.admin.templates.data || [],
+    isLoading: state.admin.templates.loading,
+    error: state.admin.templates.error
+  }));
   const [showForm, setShowForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -145,12 +149,12 @@ const TemplateManagement = () => {
     { name: 'Courier New', value: 'Courier New' }
   ];
 
-  const filteredTemplates = templates.filter(template => {
+  const filteredTemplates = Array.isArray(templates) ? templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          template.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !selectedCategory || template.category === selectedCategory;
     return matchesSearch && matchesCategory;
-  });
+  }) : [];
 
   return (
     <AdminLayout title="Template Management">

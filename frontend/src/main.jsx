@@ -7,11 +7,11 @@ import { Toaster } from 'react-hot-toast';
 import App from './App';
 import store from './redux/store';
 
-console.log('main.jsx is executing');
+
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 
-console.log('Root element found:', document.getElementById('root'));
+
 
 root.render(
   <Provider store={store}>
@@ -72,4 +72,4 @@ root.render(
   </Provider>
 );
 
-console.log('App rendered successfully');
+

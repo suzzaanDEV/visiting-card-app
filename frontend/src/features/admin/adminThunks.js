@@ -5,7 +5,7 @@ export const fetchAdminDashboard = createAsyncThunk(
   'admin/fetchAdminDashboard',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch('/api/admin/dashboard', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -29,7 +29,7 @@ export const fetchUsers = createAsyncThunk(
   'admin/fetchUsers',
   async ({ page = 1, limit = 10, search = '' }, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(
         `/api/admin/users?page=${page}&limit=${limit}&search=${search}`,
         {
@@ -56,7 +56,7 @@ export const fetchAdminCards = createAsyncThunk(
   'admin/fetchAdminCards',
   async ({ page = 1, limit = 10, search = '' }, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(
         `/api/admin/cards?page=${page}&limit=${limit}&search=${search}`,
         {
@@ -83,7 +83,7 @@ export const fetchAnalytics = createAsyncThunk(
   'admin/fetchAnalytics',
   async ({ period = '7d' }, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/analytics?period=${period}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -102,12 +102,60 @@ export const fetchAnalytics = createAsyncThunk(
   }
 );
 
-// Update user
+// Fetch real-time data
+export const fetchRealTimeData = createAsyncThunk(
+  'admin/fetchRealTimeData',
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch('/api/admin/realtime', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch real-time data');
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// User management functions
+export const banUser = createAsyncThunk(
+  'admin/banUser',
+  async (userId, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/admin/users/${userId}/ban`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to ban user');
+      }
+
+      const data = await response.json();
+      return { userId, ...data };
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 export const updateUser = createAsyncThunk(
   'admin/updateUser',
   async ({ userId, userData }, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: {
@@ -118,24 +166,22 @@ export const updateUser = createAsyncThunk(
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update user');
+        throw new Error('Failed to update user');
       }
 
       const data = await response.json();
-      return data;
+      return { userId, user: data.user };
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Delete user
 export const deleteUser = createAsyncThunk(
   'admin/deleteUser',
   async (userId, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
         headers: {
@@ -144,102 +190,22 @@ export const deleteUser = createAsyncThunk(
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete user');
+        throw new Error('Failed to delete user');
       }
 
-      return userId;
+      return { userId };
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Ban/Unban user
-export const toggleUserBan = createAsyncThunk(
-  'admin/toggleUserBan',
-  async (userId, { rejectWithValue }) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/users/${userId}/ban`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to toggle user ban');
-      }
-
-      const data = await response.json();
-      return { userId, isBanned: data.isBanned };
-    } catch (error) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
-// Delete card
-export const deleteAdminCard = createAsyncThunk(
-  'admin/deleteAdminCard',
+// Card management functions
+export const featureCard = createAsyncThunk(
+  'admin/featureCard',
   async (cardId, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/cards/${cardId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete card');
-      }
-
-      return cardId;
-    } catch (error) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
-// Update card
-export const updateAdminCard = createAsyncThunk(
-  'admin/updateAdminCard',
-  async ({ cardId, cardData }, { rejectWithValue }) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admin/cards/${cardId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(cardData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to update card');
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      return rejectWithValue(error.message);
-    }
-  }
-);
-
-// Feature/Unfeature card
-export const toggleCardFeature = createAsyncThunk(
-  'admin/toggleCardFeature',
-  async (cardId, { rejectWithValue }) => {
-    try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/cards/${cardId}/feature`, {
         method: 'POST',
         headers: {
@@ -248,24 +214,45 @@ export const toggleCardFeature = createAsyncThunk(
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to toggle card feature');
+        throw new Error('Failed to feature card');
       }
 
       const data = await response.json();
-      return { cardId, isFeatured: data.isFeatured };
+      return { cardId, ...data };
     } catch (error) {
       return rejectWithValue(error.message);
     }
   }
 );
 
-// Get card analytics
-export const fetchCardAnalytics = createAsyncThunk(
-  'admin/fetchCardAnalytics',
+export const deleteCard = createAsyncThunk(
+  'admin/deleteCard',
   async (cardId, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/admin/cards/${cardId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete card');
+      }
+
+      return { cardId };
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const getCardAnalytics = createAsyncThunk(
+  'admin/getCardAnalytics',
+  async (cardId, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/cards/${cardId}/analytics`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -289,7 +276,7 @@ export const fetchTemplates = createAsyncThunk(
   'admin/fetchTemplates',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch('/api/admin/templates', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -312,7 +299,7 @@ export const createTemplate = createAsyncThunk(
   'admin/createTemplate',
   async (templateData, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch('/api/admin/templates', {
         method: 'POST',
         headers: {
@@ -339,7 +326,7 @@ export const updateTemplate = createAsyncThunk(
   'admin/updateTemplate',
   async ({ id, ...templateData }, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/templates/${id}`, {
         method: 'PUT',
         headers: {
@@ -366,7 +353,7 @@ export const deleteTemplate = createAsyncThunk(
   'admin/deleteTemplate',
   async (templateId, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/templates/${templateId}`, {
         method: 'DELETE',
         headers: {
@@ -379,7 +366,86 @@ export const deleteTemplate = createAsyncThunk(
         throw new Error(errorData.error || 'Failed to delete template');
       }
 
-      return templateId;
+      return { templateId };
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Access request management
+export const fetchAccessRequests = createAsyncThunk(
+  'admin/fetchAccessRequests',
+  async ({ page = 1, limit = 10, status = '' }, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(
+        `/api/admin/access-requests?page=${page}&limit=${limit}&status=${status}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch access requests');
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const approveAccessRequest = createAsyncThunk(
+  'admin/approveAccessRequest',
+  async ({ requestId, adminNotes = '' }, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/admin/access-requests/${requestId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ adminNotes }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to approve access request');
+      }
+
+      const data = await response.json();
+      return { requestId, ...data };
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const rejectAccessRequest = createAsyncThunk(
+  'admin/rejectAccessRequest',
+  async ({ requestId, adminNotes = '', reason = '' }, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('adminToken');
+      const response = await fetch(`/api/admin/access-requests/${requestId}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ adminNotes, reason }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reject access request');
+      }
+
+      const data = await response.json();
+      return { requestId, ...data };
     } catch (error) {
       return rejectWithValue(error.message);
     }

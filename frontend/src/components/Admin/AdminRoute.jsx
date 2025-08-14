@@ -15,7 +15,7 @@ const AdminRoute = ({ children }) => {
   }
   
   // Check if user is admin
-  const isAdmin = adminUser && JSON.parse(adminUser).role === 'admin';
+  const isAdmin = adminUser && (JSON.parse(adminUser).role === 'admin' || JSON.parse(adminUser).role === 'super_admin');
   
   if (!isAdmin) {
     return <Navigate to="/admin/login" replace />;

@@ -24,21 +24,19 @@ const CardsPage = () => {
     totalShares: 0
   });
 
-  console.log('CardsPage - isLoading:', isLoading, 'cards:', cards, 'error:', error);
-  console.log('CardsPage - user:', user);
-  console.log('CardsPage - token:', localStorage.getItem('token'));
+
 
   useEffect(() => {
-    console.log('CardsPage - Dispatching fetchUserCards');
+
     if (user && localStorage.getItem('token')) {
       dispatch(fetchUserCards({ page: 1, limit: 50 }));
     } else {
-      console.log('CardsPage - User not authenticated, skipping fetch');
+  
     }
   }, [dispatch, user]);
 
   useEffect(() => {
-    console.log('CardsPage - Cards or loading changed:', { cards: cards.length, isLoading });
+
     if (cards.length > 0 || !isLoading) {
       fetchStats();
     }
