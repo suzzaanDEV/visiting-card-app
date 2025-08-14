@@ -6,7 +6,7 @@ const { authenticateAdmin } = require('../middleware/adminMiddleware');
 const { filterSensitiveData, addPrivacyHeaders } = require('../middleware/privacyMiddleware');
 const { upload, handleMulterError } = require('../utils/multerConfig');
 
-console.log('🔒 Card routes loaded with privacy middleware');
+
 
 // Public routes (no authentication required) - Apply privacy filtering
 router.get('/public', addPrivacyHeaders, filterSensitiveData, cardController.getPublicCards);
@@ -56,5 +56,8 @@ router.post('/:cardId/qr', cardController.generateQRCode);
 
 // Analytics
 router.get('/:cardId/analytics', cardController.getCardAnalytics);
+
+// Privacy management
+router.patch('/:cardId/privacy', cardController.updateCardPrivacy);
 
 module.exports = router;

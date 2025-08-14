@@ -5,6 +5,7 @@ import { Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import AuthInitializer from './components/Auth/AuthInitializer';
+import AccountBlocked from './components/Auth/AccountBlocked';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -42,7 +43,7 @@ import AdminRoute from './components/Admin/AdminRoute';
 import TestCardFeatures from './components/TestCardFeatures';
 
 function App() {
-  console.log('App component is rendering');
+
   const [isLoading, setIsLoading] = useState(false);
 
   // Add loading state management
@@ -178,6 +179,9 @@ function App() {
               <Settings />
             </AdminRoute>
           } />
+
+          {/* Account Blocked Route */}
+          <Route path="blocked" element={<AccountBlocked />} />
 
           {/* 404 Route */}
           <Route path="*" element={<NotFoundPage />} />

@@ -134,4 +134,111 @@ const authenticateAdmin = async (req, res, next) => {
   }
 };
 
-module.exports = { authenticateToken, authenticateAdmin };  
+// Existing authenticate middleware
+const authenticate = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Access denied. No token provided.' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId).select('-password');
+    
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid token. User not found.' });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(403).json({ 
+        error: 'Account deactivated',
+        message: 'Your account has been deactivated. Please contact your administrator for further assistance.',
+        code: 'ACCOUNT_DEACTIVATED'
+      });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    logger.error(`Authentication error: ${error.message}`);
+    res.status(401).json({ error: 'Invalid token.' });
+  }
+};
+
+// New middleware to check user activation status
+const checkUserActive = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return res.status(401).json({ error: 'Access denied. No token provided.' });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId).select('-password');
+    
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid token. User not found.' });
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(403).json({ 
+        error: 'Account deactivated',
+        message: 'Your account has been deactivated. Please contact your administrator for further assistance.',
+        code: 'ACCOUNT_DEACTIVATED',
+        contactEmail: process.env.ADMIN_EMAIL || 'admin@cardly.com'
+      });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    logger.error(`User activation check error: ${error.message}`);
+    res.status(401).json({ error: 'Invalid token.' });
+  }
+};
+
+// Middleware to check user activation without requiring token (for public routes)
+const checkUserActiveOptional = async (req, res, next) => {
+  try {
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    if (!token) {
+      return next(); // Continue without user info
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId).select('-password');
+    
+    if (!user) {
+      return next(); // Continue without user info
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return res.status(403).json({ 
+        error: 'Account deactivated',
+        message: 'Your account has been deactivated. Please contact your administrator for further assistance.',
+        code: 'ACCOUNT_DEACTIVATED',
+        contactEmail: process.env.ADMIN_EMAIL || 'admin@cardly.com'
+      });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    // If token is invalid, continue without user info
+    next();
+  }
+};
+
+module.exports = {
+  authenticateToken,
+  authenticateAdmin,
+  authenticate,
+  checkUserActive,
+  checkUserActiveOptional
+};  

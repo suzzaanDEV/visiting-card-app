@@ -146,6 +146,25 @@ const CardManagement = () => {
   const CardItem = ({ card }) => {
     const isSelected = selectedCards.includes(card._id);
     
+    // Safe data extraction with fallbacks
+    const cardName = card.title || card.fullName || card.name || 'Untitled Card';
+    const cardEmail = card.email || 'No email';
+    const cardOwner = card.ownerUserId?.name || card.ownerUserId?.username || card.owner?.name || card.owner?.username || 'Unknown';
+    const cardCompany = card.company || 'No company';
+    const cardPhone = card.phone || 'No phone';
+    const cardPosition = card.jobTitle || card.position || 'No position';
+    
+    // Safe date handling
+    const createdDate = card.createdAt ? new Date(card.createdAt).toLocaleDateString() : 'Unknown';
+    const updatedDate = card.updatedAt ? new Date(card.updatedAt).toLocaleDateString() : 'Unknown';
+    
+    // Safe stats with fallbacks
+    const views = card.views || card.viewCount || 0;
+    const loves = card.loveCount || card.loves || 0;
+    const shares = card.shares || card.shareCount || 0;
+    const downloads = card.downloads || card.downloadCount || 0;
+    const templateName = card.template?.name || card.templateId?.name || 'Custom';
+    
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -174,21 +193,22 @@ const CardManagement = () => {
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2">
                 <h3 className="text-lg font-semibold text-gray-900 truncate">
-                  {card.name || 'Untitled Card'}
+                  {cardName}
                 </h3>
                 {card.isFeatured && (
                   <FiStar className="h-4 w-4 text-yellow-500" />
                 )}
-                {card.isActive ? (
+                {card.isActive !== false ? (
                   <FiCheck className="h-4 w-4 text-green-500" />
                 ) : (
                   <FiXIcon className="h-4 w-4 text-red-500" />
                 )}
               </div>
-              <p className="text-gray-600 text-sm">{card.email}</p>
+              <p className="text-gray-600 text-sm">{cardEmail}</p>
+              <p className="text-gray-500 text-xs">{cardCompany} • {cardPosition}</p>
               <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                <span>Created: {new Date(card.createdAt).toLocaleDateString()}</span>
-                <span>Owner: {card.owner?.name || card.owner?.username || 'Unknown'}</span>
+                <span>Created: {createdDate}</span>
+                <span>Owner: {cardOwner}</span>
               </div>
             </div>
           </div>
@@ -200,6 +220,7 @@ const CardManagement = () => {
                 setShowCardModal(true);
               }}
               className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="View Details"
             >
               <FiEye className="h-4 w-4" />
             </button>
@@ -210,12 +231,14 @@ const CardManagement = () => {
                   ? 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50' 
                   : 'text-gray-600 hover:text-yellow-600 hover:bg-yellow-50'
               }`}
+              title={card.isFeatured ? 'Unfeature' : 'Feature'}
             >
               <FiStar className="h-4 w-4" />
             </button>
             <button
               onClick={() => handleCardAction(card._id, 'delete')}
               className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Delete Card"
             >
               <FiTrash2 className="h-4 w-4" />
             </button>
@@ -225,23 +248,23 @@ const CardManagement = () => {
         {/* Card Stats */}
         <div className="mt-4 grid grid-cols-5 gap-4 pt-4 border-t border-gray-100">
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{card.views || 0}</div>
+            <div className="text-lg font-semibold text-gray-900">{views}</div>
             <div className="text-xs text-gray-500">Views</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{card.loveCount || 0}</div>
+            <div className="text-lg font-semibold text-gray-900">{loves}</div>
             <div className="text-xs text-gray-500">Loves</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{card.shares || 0}</div>
+            <div className="text-lg font-semibold text-gray-900">{shares}</div>
             <div className="text-xs text-gray-500">Shares</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{card.downloads || 0}</div>
+            <div className="text-lg font-semibold text-gray-900">{downloads}</div>
             <div className="text-xs text-gray-500">Downloads</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{card.template?.name || 'Custom'}</div>
+            <div className="text-lg font-semibold text-gray-900">{templateName}</div>
             <div className="text-xs text-gray-500">Template</div>
           </div>
         </div>
@@ -251,6 +274,26 @@ const CardManagement = () => {
 
   const CardModal = ({ card, isOpen, onClose }) => {
     if (!card || !isOpen) return null;
+
+    // Safe data extraction with fallbacks
+    const cardName = card.title || card.fullName || card.name || 'Untitled Card';
+    const cardEmail = card.email || 'No email';
+    const cardPhone = card.phone || 'No phone';
+    const cardCompany = card.company || 'No company';
+    const cardPosition = card.jobTitle || card.position || 'No position';
+    const cardWebsite = card.website || 'No website';
+    const cardAddress = card.address || 'No address';
+    const cardBio = card.bio || 'No bio';
+    
+    // Safe date handling
+    const createdDate = card.createdAt ? new Date(card.createdAt).toLocaleDateString() : 'Unknown';
+    const updatedDate = card.updatedAt ? new Date(card.updatedAt).toLocaleDateString() : 'Unknown';
+    
+    // Safe stats with fallbacks
+    const views = card.views || card.viewCount || 0;
+    const loves = card.loveCount || card.loves || 0;
+    const shares = card.shares || card.shareCount || 0;
+    const downloads = card.downloads || card.downloadCount || 0;
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -274,32 +317,44 @@ const CardManagement = () => {
                 <div className="space-y-3">
                   <div>
                     <label className="text-sm font-medium text-gray-500">Name</label>
-                    <p className="text-gray-900">{card.name || 'N/A'}</p>
+                    <p className="text-gray-900">{cardName}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Email</label>
-                    <p className="text-gray-900">{card.email}</p>
+                    <p className="text-gray-900">{cardEmail}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Phone</label>
-                    <p className="text-gray-900">{card.phone || 'N/A'}</p>
+                    <p className="text-gray-900">{cardPhone}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Company</label>
-                    <p className="text-gray-900">{card.company || 'N/A'}</p>
+                    <p className="text-gray-900">{cardCompany}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Position</label>
-                    <p className="text-gray-900">{card.position || 'N/A'}</p>
+                    <p className="text-gray-900">{cardPosition}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Website</label>
+                    <p className="text-gray-900">{cardWebsite}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Address</label>
+                    <p className="text-gray-900">{cardAddress}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Bio</label>
+                    <p className="text-gray-900">{cardBio}</p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-500">Status</label>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      card.isActive 
+                      card.isActive !== false 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-red-100 text-red-800'
                     }`}>
-                      {card.isActive ? 'Active' : 'Inactive'}
+                      {card.isActive !== false ? 'Active' : 'Inactive'}
                     </span>
                   </div>
                   <div>
@@ -312,6 +367,16 @@ const CardManagement = () => {
                       {card.isFeatured ? 'Featured' : 'Not Featured'}
                     </span>
                   </div>
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Privacy</label>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      card.privacy === 'private' || card.isPrivate
+                        ? 'bg-red-100 text-red-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {card.privacy === 'private' || card.isPrivate ? 'Private' : 'Public'}
+                    </span>
+                  </div>
                 </div>
               </div>
               
@@ -320,27 +385,31 @@ const CardManagement = () => {
                 <div className="space-y-3">
                   <div className="flex justify-between">
                     <span className="text-gray-500">Total Views</span>
-                    <span className="font-semibold">{card.views || 0}</span>
+                    <span className="font-semibold">{views}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Total Loves</span>
-                    <span className="font-semibold">{card.loveCount || 0}</span>
+                    <span className="font-semibold">{loves}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Total Shares</span>
-                    <span className="font-semibold">{card.shares || 0}</span>
+                    <span className="font-semibold">{shares}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Total Downloads</span>
-                    <span className="font-semibold">{card.downloads || 0}</span>
+                    <span className="font-semibold">{downloads}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Created</span>
-                    <span className="font-semibold">{new Date(card.createdAt).toLocaleDateString()}</span>
+                    <span className="font-semibold">{createdDate}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-500">Last Updated</span>
-                    <span className="font-semibold">{new Date(card.updatedAt).toLocaleDateString()}</span>
+                    <span className="font-semibold">{updatedDate}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Short Link</span>
+                    <span className="font-semibold text-blue-600">{card.shortLink || 'N/A'}</span>
                   </div>
                 </div>
               </div>

@@ -1,22 +1,28 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const { authenticateToken } = require('../middleware/authMiddleware');
+const { authenticate, checkUserActive } = require('../middleware/authMiddleware');
 const logger = require('../utils/logger');
 
-// Authentication routes
+// Public routes
 router.post('/register', authController.register);
 router.post('/login', authController.login);
-router.post('/logout', authenticateToken, authController.logout);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
+router.post('/verify-email', authController.verifyEmail);
 
-// User profile routes
-router.get('/profile', authenticateToken, authController.getProfile);
-router.put('/profile', authenticateToken, authController.updateProfile);
+// Protected routes
+router.get('/profile', authenticate, authController.getProfile);
+router.put('/profile', authenticate, authController.updateProfile);
+router.post('/change-password', authenticate, authController.changePassword);
+router.post('/logout', authenticate, authController.logout);
 
-// User stats routes
-router.get('/stats', authenticateToken, authController.getUserStats);
-
-// Check auth status
-router.get('/check', authenticateToken, authController.checkAuth);
+// Check user status (for frontend to verify if user is blocked)
+router.get('/check-status', checkUserActive, (req, res) => {
+  res.status(200).json({ 
+    message: 'User is active',
+    user: req.user 
+  });
+});
 
 module.exports = router;

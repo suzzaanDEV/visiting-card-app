@@ -42,7 +42,7 @@ const AdminLogin = () => {
         localStorage.setItem('adminUser', JSON.stringify({
           name: data.admin.username,
           email: data.admin.email,
-          role: 'admin',
+          role: data.admin.role,
           userId: data.admin.adminId
         }));
         
@@ -62,7 +62,7 @@ const AdminLogin = () => {
   const handleDemoLogin = () => {
     setFormData({
       email: 'admin@cardly.com',
-      password: 'admin123'
+      password: 'password'
     });
   };
 
@@ -155,7 +155,7 @@ const AdminLogin = () => {
           {/* Footer */}
           <div className="mt-8 text-center">
             <p className="text-sm text-slate-500">
-              Demo Mode • Any email/password combination will work
+              Demo Mode • Use admin@cardly.com / password
             </p>
           </div>
         </div>

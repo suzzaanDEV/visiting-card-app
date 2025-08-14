@@ -6,9 +6,10 @@ import { updateCard, fetchPublicCard } from '../../features/cards/cardsThunks';
 import { fetchCardTemplates } from '../../features/cards/cardsThunks';
 import TemplateSelector from '../../components/TemplateSelector';
 import CardEditor from '../../components/CardEditor';
+import PrivacyToggle from '../../components/Cards/PrivacyToggle';
 import toast from 'react-hot-toast';
 import { 
-  FiArrowLeft, FiUpload, FiEye, FiCheck, FiLoader, FiSave 
+  FiArrowLeft, FiUpload, FiEye, FiCheck, FiLoader, FiSave, FiGlobe, FiLock
 } from 'react-icons/fi';
 
 const EditCard = () => {
@@ -36,6 +37,7 @@ const EditCard = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cardPrivacy, setCardPrivacy] = useState('public');
 
   useEffect(() => {
     if (cardId) {
@@ -64,11 +66,24 @@ const EditCard = () => {
       if (card.templateId) {
         setSelectedTemplate(card.templateId);
       }
+      
+      // Set privacy from card data
+      setCardPrivacy(card.isPublic ? 'public' : 'private');
     }
   }, [currentCard]);
 
   useEffect(() => {
-    dispatch(fetchCardTemplates());
+    // Fetch templates with error handling
+    const loadTemplates = async () => {
+      try {
+        await dispatch(fetchCardTemplates()).unwrap();
+      } catch (error) {
+        console.error('Failed to load templates:', error);
+        toast.error('Failed to load templates. Please try again.');
+      }
+    };
+    
+    loadTemplates();
   }, [dispatch]);
 
   const handleInputChange = (e) => {
@@ -83,6 +98,10 @@ const EditCard = () => {
     setSelectedTemplate(template.id);
   };
 
+  const handlePrivacyChange = (newPrivacy) => {
+    setCardPrivacy(newPrivacy);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -92,13 +111,15 @@ const EditCard = () => {
         cardId, 
         cardData: { 
           ...formData, 
-          templateId: selectedTemplate 
+          templateId: selectedTemplate,
+          isPublic: cardPrivacy === 'public'
         } 
       })).unwrap();
       
       toast.success('Card updated successfully!');
       navigate(`/cards/${cardId}`);
     } catch (error) {
+      console.error('Error updating card:', error);
       toast.error(error.message || 'Failed to update card');
     } finally {
       setIsSubmitting(false);
@@ -107,9 +128,9 @@ const EditCard = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <FiLoader className="animate-spin h-8 w-8 text-blue-600 mx-auto mb-4" />
           <p className="text-gray-600">Loading card...</p>
         </div>
       </div>
@@ -118,15 +139,14 @@ const EditCard = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Error</h2>
-          <p className="text-red-600 font-semibold mb-4">{error}</p>
-          <button 
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
             onClick={() => navigate('/cards')}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
           >
-            Go Back
+            Back to Cards
           </button>
         </div>
       </div>
@@ -134,278 +154,92 @@ const EditCard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8">
-      <div className="max-w-7xl mx-auto px-4">
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center space-x-4">
             <button
               onClick={() => navigate('/cards')}
-              className="flex items-center px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
             >
-              <FiArrowLeft className="mr-2" />
-              Back to Cards
+              <FiArrowLeft className="h-5 w-5" />
+              <span>Back to Cards</span>
             </button>
-            <h1 className="text-3xl font-bold text-gray-900">Edit Card</h1>
           </div>
-        </motion.div>
+          
+          <div className="flex items-center space-x-4">
+            {/* Privacy Toggle */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-700">Privacy:</span>
+              <PrivacyToggle
+                cardId={cardId}
+                initialPrivacy={cardPrivacy}
+                onPrivacyChange={handlePrivacyChange}
+                showLabel={false}
+                size="md"
+              />
+            </div>
+            
+            {/* Preview Button */}
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              <FiEye className="h-4 w-4" />
+              <span>{showPreview ? 'Hide Preview' : 'Show Preview'}</span>
+            </button>
+            
+            {/* Save Button */}
+            <button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="flex items-center space-x-2 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isSubmitting ? (
+                <FiLoader className="animate-spin h-4 w-4" />
+              ) : (
+                <FiSave className="h-4 w-4" />
+              )}
+              <span>{isSubmitting ? 'Saving...' : 'Save Changes'}</span>
+            </button>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Form Section */}
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-white rounded-2xl shadow-lg p-8"
-          >
-            <h2 className="text-2xl font-semibold text-gray-900 mb-6">Card Information</h2>
-            
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Template Selection */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Choose Template
-                </label>
-                <TemplateSelector
-                  templates={templates}
-                  onTemplateSelect={handleTemplateSelect}
-                  selectedTemplateId={selectedTemplate}
-                />
-              </div>
+          {/* Editor Section */}
+          <div className="space-y-6">
+            {/* Template Selector */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Choose Template</h3>
+              <TemplateSelector
+                templates={templates || []}
+                selectedTemplate={selectedTemplate}
+                onTemplateSelect={handleTemplateSelect}
+              />
+            </div>
 
-              {/* Basic Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Card Title
-                  </label>
-                  <input
-                    type="text"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter card title"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    name="fullName"
-                    value={formData.fullName}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your full name"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Job Title
-                  </label>
-                  <input
-                    type="text"
-                    name="jobTitle"
-                    value={formData.jobTitle}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your job title"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Company
-                  </label>
-                  <input
-                    type="text"
-                    name="company"
-                    value={formData.company}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your company name"
-                  />
-                </div>
-              </div>
-
-              {/* Contact Information */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Email
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your email"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="Enter your phone number"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Website
-                </label>
-                <input
-                  type="url"
-                  name="website"
-                  value={formData.website}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter your website URL"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Address
-                </label>
-                <input
-                  type="text"
-                  name="address"
-                  value={formData.address}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter your address"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Bio
-                </label>
-                <textarea
-                  name="bio"
-                  value={formData.bio}
-                  onChange={handleInputChange}
-                  rows="4"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter a short bio about yourself"
-                />
-              </div>
-
-              {/* Design Options */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Background Color
-                  </label>
-                  <input
-                    type="color"
-                    name="backgroundColor"
-                    value={formData.backgroundColor}
-                    onChange={handleInputChange}
-                    className="w-full h-10 border border-gray-300 rounded-lg cursor-pointer"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Text Color
-                  </label>
-                  <input
-                    type="color"
-                    name="textColor"
-                    value={formData.textColor}
-                    onChange={handleInputChange}
-                    className="w-full h-10 border border-gray-300 rounded-lg cursor-pointer"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Font Family
-                  </label>
-                  <select
-                    name="fontFamily"
-                    value={formData.fontFamily}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="Arial">Arial</option>
-                    <option value="Helvetica">Helvetica</option>
-                    <option value="Times New Roman">Times New Roman</option>
-                    <option value="Georgia">Georgia</option>
-                    <option value="Verdana">Verdana</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex space-x-4 pt-6">
-                <button
-                  type="button"
-                  onClick={() => setShowPreview(!showPreview)}
-                  className="flex items-center px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                >
-                  <FiEye className="mr-2" />
-                  {showPreview ? 'Hide Preview' : 'Show Preview'}
-                </button>
-                
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <FiLoader className="mr-2 animate-spin" />
-                      Updating...
-                    </>
-                  ) : (
-                    <>
-                      <FiSave className="mr-2" />
-                      Update Card
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          </motion.div>
+            {/* Card Editor */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Card Information</h3>
+              <CardEditor
+                formData={formData}
+                onInputChange={handleInputChange}
+              />
+            </div>
+          </div>
 
           {/* Preview Section */}
           {showPreview && (
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-white rounded-2xl shadow-lg p-8"
-            >
-              <h2 className="text-2xl font-semibold text-gray-900 mb-6">Preview</h2>
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
-                <CardEditor
-                  formData={formData}
-                  selectedTemplate={selectedTemplate}
-                  templates={templates}
-                  isPreview={true}
-                />
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Preview</h3>
+              <div className="border border-gray-200 rounded-lg p-4">
+                {/* Add your card preview component here */}
+                <div className="text-center text-gray-500">
+                  Card preview will be displayed here
+                </div>
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
       </div>

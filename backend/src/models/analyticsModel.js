@@ -10,7 +10,7 @@ const analyticsSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: true,
+    required: false, // Allow anonymous tracking
     index: true
   },
   actionType: {
@@ -52,6 +52,7 @@ const analyticsSchema = new mongoose.Schema({
 analyticsSchema.index({ cardId: 1, actionType: 1, timestamp: -1 });
 analyticsSchema.index({ userId: 1, actionType: 1, timestamp: -1 });
 analyticsSchema.index({ timestamp: -1 });
+analyticsSchema.index({ 'metadata.deviceType': 1 });
 
 // Static method to get analytics summary
 analyticsSchema.statics.getAnalyticsSummary = async function(cardId, period = '30d') {
@@ -184,6 +185,116 @@ analyticsSchema.statics.getUserEngagement = async function(userId, period = '30d
   ]);
 
   return engagement;
+};
+
+// Static method to get system-wide analytics
+analyticsSchema.statics.getSystemAnalytics = async function(period = '30d') {
+  const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+  const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const systemStats = await this.aggregate([
+    {
+      $match: {
+        timestamp: { $gte: startDate }
+      }
+    },
+    {
+      $group: {
+        _id: null,
+        totalViews: {
+          $sum: { $cond: [{ $eq: ['$actionType', 'view'] }, 1, 0] }
+        },
+        totalLoves: {
+          $sum: { $cond: [{ $eq: ['$actionType', 'love'] }, 1, 0] }
+        },
+        totalShares: {
+          $sum: { $cond: [{ $eq: ['$actionType', 'share'] }, 1, 0] }
+        },
+        totalDownloads: {
+          $sum: { $cond: [{ $eq: ['$actionType', 'download'] }, 1, 0] }
+        },
+        uniqueUsers: { $addToSet: '$userId' },
+        uniqueCards: { $addToSet: '$cardId' }
+      }
+    },
+    {
+      $project: {
+        totalViews: 1,
+        totalLoves: 1,
+        totalShares: 1,
+        totalDownloads: 1,
+        uniqueUsers: { $size: '$uniqueUsers' },
+        uniqueCards: { $size: '$uniqueCards' }
+      }
+    }
+  ]);
+
+  return systemStats[0] || {
+    totalViews: 0,
+    totalLoves: 0,
+    totalShares: 0,
+    totalDownloads: 0,
+    uniqueUsers: 0,
+    uniqueCards: 0
+  };
+};
+
+// Static method to get device analytics
+analyticsSchema.statics.getDeviceAnalytics = async function(period = '30d') {
+  const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+  const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const deviceStats = await this.aggregate([
+    {
+      $match: {
+        timestamp: { $gte: startDate }
+      }
+    },
+    {
+      $group: {
+        _id: '$metadata.deviceType',
+        count: { $sum: 1 }
+      }
+    },
+    {
+      $project: {
+        deviceType: '$_id',
+        count: 1,
+        percentage: { $multiply: [{ $divide: ['$count', { $sum: '$count' }] }, 100] }
+      }
+    }
+  ]);
+
+  return deviceStats;
+};
+
+// Static method to get geographic analytics
+analyticsSchema.statics.getGeographicAnalytics = async function(period = '30d') {
+  const days = period === '7d' ? 7 : period === '90d' ? 90 : 30;
+  const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const geoStats = await this.aggregate([
+    {
+      $match: {
+        timestamp: { $gte: startDate },
+        'metadata.location.country': { $exists: true, $ne: null }
+      }
+    },
+    {
+      $group: {
+        _id: '$metadata.location.country',
+        count: { $sum: 1 }
+      }
+    },
+    {
+      $sort: { count: -1 }
+    },
+    {
+      $limit: 10
+    }
+  ]);
+
+  return geoStats;
 };
 
 module.exports = mongoose.model('Analytics', analyticsSchema); 

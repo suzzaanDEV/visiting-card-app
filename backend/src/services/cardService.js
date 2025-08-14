@@ -921,6 +921,33 @@ class CardService {
       throw error;
     }
   }
+
+  async updateCardPrivacy(cardId, userId, privacy) {
+    try {
+      const card = await Card.findById(cardId);
+      if (!card) {
+        throw new Error('Card not found');
+      }
+
+      // Check if user owns the card
+      if (card.ownerUserId.toString() !== userId.toString()) {
+        throw new Error('You can only update privacy for your own cards');
+      }
+
+      // Update privacy settings
+      card.privacy = privacy;
+      card.isPublic = privacy === 'public';
+      card.isPrivate = privacy === 'private';
+
+      await card.save();
+
+      logger.info(`Card privacy updated: ${cardId} by user ${userId} to ${privacy}`);
+      return card;
+    } catch (error) {
+      logger.error(`Update card privacy error: ${error.message}`);
+      throw error;
+    }
+  }
 }
 
 module.exports = new CardService();

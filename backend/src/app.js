@@ -1,7 +1,19 @@
-// src/app.js
+// Enterprise-level Express application
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('./utils/mongoose');
+const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const compression = require('compression');
+const morgan = require('morgan');
+const path = require('path');
+
+// Import configuration and utilities
+const config = require('../config/enterprise.config');
+const { connect, disconnect, getHealthStatus } = require('./utils/mongoose');
+const logger = require('./utils/logger');
+
+// Import routes
 const authRoutes = require('./routes/authRoutes');
 const cardRoutes = require('./routes/cardRoutes');
 const savedCardRoutes = require('./routes/savedCardRoutes');
@@ -9,50 +21,79 @@ const searchRoutes = require('./routes/searchRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
-const errorMiddleware = require('./middleware/errorMiddleware');
-const multer = require('multer');
-const cors = require('cors');
 const templateRoutes = require('./routes/templateRoutes');
 
+// Import middleware
+const errorMiddleware = require('./middleware/errorMiddleware');
+
+// Create Express app
 const app = express();
-const rateLimit = require('express-rate-limit');
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS ? 
-  process.env.ALLOWED_ORIGINS.split(',') : 
-  ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'];
+// Security middleware
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      connectSrc: ["'self'", "ws:", "wss:"]
+    }
+  },
+  crossOriginEmbedderPolicy: false
+}));
 
+// CORS configuration
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.includes(origin)) {
+    if (config.cors.origins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log('CORS blocked origin:', origin);
-      console.log('Allowed origins:', allowedOrigins);
+      logger.security('CORS blocked origin', { origin, allowedOrigins: config.cors.origins });
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  credentials: config.cors.credentials,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-API-Key'],
+  exposedHeaders: ['X-Total-Count', 'X-Page-Count']
 }));
 
-// More lenient rate limiter for development
+// Compression middleware
+app.use(compression({
+  level: 6,
+  threshold: 1024,
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+}));
+
+// Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // 1000 requests in development
+  windowMs: config.rateLimit.windowMs,
+  max: config.rateLimit.max,
   message: {
-    error: 'Too many requests from this IP, please try again later.',
-    retryAfter: '15 minutes'
+    error: config.rateLimit.message,
+    retryAfter: Math.ceil(config.rateLimit.windowMs / 1000 / 60)
   },
-  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  standardHeaders: true,
+  legacyHeaders: false,
   handler: (req, res) => {
+    logger.security('Rate limit exceeded', {
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      url: req.url
+    });
     res.status(429).json({
-      error: 'Too many requests from this IP, please try again later.',
-      retryAfter: Math.ceil(15 * 60), // 15 minutes in seconds
+      error: config.rateLimit.message,
+      retryAfter: Math.ceil(config.rateLimit.windowMs / 1000 / 60),
       message: 'Rate limit exceeded. Please wait before making more requests.'
     });
   }
@@ -60,19 +101,87 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Body parsing middleware
+app.use(express.json({ 
+  limit: '10mb',
+  verify: (req, res, buf) => {
+    req.rawBody = buf;
+  }
+}));
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: '10mb' 
+}));
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    message: 'Server is running',
-    timestamp: new Date().toISOString(),
-    port: process.env.PORT || 5001
+// Request logging middleware
+if (config.isDevelopment) {
+  app.use(morgan('dev'));
+} else {
+  app.use(morgan('combined', {
+    stream: {
+      write: (message) => {
+        logger.http(message.trim());
+      }
+    }
+  }));
+}
+
+// Request timing middleware
+app.use((req, res, next) => {
+  req.startTime = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - req.startTime;
+    logger.http(req, res, duration);
   });
+  next();
 });
 
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    const dbHealth = getHealthStatus();
+    const memoryUsage = process.memoryUsage();
+    const uptime = process.uptime();
+    
+    const health = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      service: 'cardly-backend',
+      version: process.env.npm_package_version || '1.0.0',
+      environment: config.env,
+      uptime: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m ${Math.floor(uptime % 60)}s`,
+      memory: {
+        used: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+        total: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+        external: Math.round(memoryUsage.external / 1024 / 1024)
+      },
+      database: dbHealth,
+      endpoints: {
+        auth: '/api/auth',
+        cards: '/api/cards',
+        admin: '/api/admin',
+        analytics: '/api/analytics'
+      }
+    };
+    
+    // Check if database is healthy
+    if (dbHealth.status !== 'healthy') {
+      health.status = 'degraded';
+      health.database = dbHealth;
+    }
+    
+    res.status(200).json(health);
+  } catch (error) {
+    logger.error('Health check failed', { error: error.message });
+    res.status(503).json({
+      status: 'unhealthy',
+      timestamp: new Date().toISOString(),
+      error: error.message
+    });
+  }
+});
+
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/cards', cardRoutes);
 app.use('/api/library', savedCardRoutes);
@@ -82,18 +191,184 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/templates', templateRoutes);
 
+// API documentation endpoint
+app.get('/api', (req, res) => {
+  res.json({
+    name: 'Cardly API',
+    version: process.env.npm_package_version || '1.0.0',
+    description: 'Digital Visiting Card Platform API',
+    endpoints: {
+      auth: {
+        login: 'POST /api/auth/login',
+        register: 'POST /api/auth/register',
+        logout: 'POST /api/auth/logout'
+      },
+      cards: {
+        create: 'POST /api/cards',
+        list: 'GET /api/cards',
+        get: 'GET /api/cards/:id',
+        update: 'PUT /api/cards/:id',
+        delete: 'DELETE /api/cards/:id'
+      },
+      admin: {
+        dashboard: 'GET /api/admin/dashboard',
+        analytics: 'GET /api/admin/analytics',
+        users: 'GET /api/admin/users',
+        cards: 'GET /api/admin/cards'
+      },
+      health: 'GET /health'
+    },
+    documentation: '/api/docs'
+  });
+});
+
+// 404 handler
+app.use('*', (req, res) => {
+  logger.warn('Route not found', { 
+    method: req.method, 
+    url: req.originalUrl,
+    ip: req.ip,
+    userAgent: req.get('User-Agent')
+  });
+  res.status(404).json({
+    error: 'Route not found',
+    message: `Cannot ${req.method} ${req.originalUrl}`,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Error handling middleware
 app.use(errorMiddleware);
 
-// Enhanced error handling for production environment
+// Global error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
-  res.status(500).json({ error: 'Something went wrong!' });
+  logger.errorWithContext(err, {
+    method: req.method,
+    url: req.url,
+    ip: req.ip,
+    userAgent: req.get('User-Agent'),
+    userId: req.user?.userId || 'anonymous'
+  });
+  
+  // Don't leak error details in production
+  const errorResponse = {
+    error: config.isProduction ? 'Internal server error' : err.message,
+    timestamp: new Date().toISOString()
+  };
+  
+  if (config.isDevelopment) {
+    errorResponse.stack = err.stack;
+  }
+  
+  res.status(err.status || 500).json(errorResponse);
 });
 
-const PORT = process.env.PORT || 5050;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 CORS Origins: ${allowedOrigins.join(', ')}`);
-  console.log(`⚡ Rate Limit: ${process.env.NODE_ENV === 'production' ? '100' : '1000'} requests per 15 minutes`);
+// Graceful shutdown handling
+process.on('SIGTERM', async () => {
+  logger.info('SIGTERM received, shutting down gracefully');
+  await gracefulShutdown();
 });
+
+process.on('SIGINT', async () => {
+  logger.info('SIGINT received, shutting down gracefully');
+  await gracefulShutdown();
+});
+
+// Unhandled promise rejection handler
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection at:', { promise, reason });
+});
+
+// Uncaught exception handler
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+// Graceful shutdown function
+async function gracefulShutdown() {
+  try {
+    logger.info('Starting graceful shutdown...');
+    
+    // Close database connection
+    await disconnect();
+    
+    // Close server
+    if (server) {
+      server.close(() => {
+        logger.info('HTTP server closed');
+        process.exit(0);
+      });
+      
+      // Force close after 10 seconds
+      setTimeout(() => {
+        logger.error('Could not close connections in time, forcefully shutting down');
+        process.exit(1);
+      }, 10000);
+    } else {
+      process.exit(0);
+    }
+  } catch (error) {
+    logger.error('Error during graceful shutdown:', error);
+    process.exit(1);
+  }
+}
+
+// Start server
+let server;
+async function startServer() {
+  try {
+    // Connect to database
+    await connect();
+    
+    // Start HTTP server
+    server = app.listen(config.port, () => {
+      logger.info(`🚀 Server running on port ${config.port}`);
+      logger.info(`📊 Environment: ${config.env}`);
+      logger.info(`🌐 CORS Origins: ${config.cors.origins.join(', ')}`);
+      logger.info(`⚡ Rate Limit: ${config.rateLimit.max} requests per ${config.rateLimit.windowMs / 1000 / 60} minutes`);
+      logger.info(`🔒 Security: ${config.isProduction ? 'Production' : 'Development'} mode`);
+      
+      console.log(`🚀 Server running on port ${config.port}`);
+      console.log(`📊 Environment: ${config.env}`);
+      console.log(`🌐 CORS Origins: ${config.cors.origins.join(', ')}`);
+      console.log(`⚡ Rate Limit: ${config.rateLimit.max} requests per ${config.rateLimit.windowMs / 1000 / 60} minutes`);
+      console.log(`🔒 Security: ${config.isProduction ? 'Production' : 'Development'} mode`);
+    });
+    
+    // Handle server errors
+    server.on('error', (error) => {
+      if (error.syscall !== 'listen') {
+        throw error;
+      }
+      
+      const bind = typeof config.port === 'string' ? 'Pipe ' + config.port : 'Port ' + config.port;
+      
+      switch (error.code) {
+        case 'EACCES':
+          logger.error(`${bind} requires elevated privileges`);
+          process.exit(1);
+          break;
+        case 'EADDRINUSE':
+          logger.error(`${bind} is already in use`);
+          process.exit(1);
+          break;
+        default:
+          throw error;
+      }
+    });
+    
+  } catch (error) {
+    logger.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+// Export for testing
+module.exports = { app, startServer, gracefulShutdown };
+
+// Start server if this file is run directly
+if (require.main === module) {
+  startServer();
+}

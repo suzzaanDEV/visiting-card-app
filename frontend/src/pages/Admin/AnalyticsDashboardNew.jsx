@@ -13,7 +13,6 @@ import {
   FaRocket, FaLightbulb, FaChartBar, FaChartPie, FaTachometerAlt
 } from 'react-icons/fa';
 import AdminLayout from '../../components/Admin/AdminLayout';
-import { LineChartComponent, BarChartComponent, PieChartComponent, ProgressBar } from '../../components/Admin/ChartComponent';
 import toast from 'react-hot-toast';
 
 // Enhanced Chart Component
@@ -30,7 +29,6 @@ const EnhancedChart = ({ data, title, type = 'line', color = 'blue', height = 'h
   }
 
   const maxValue = Math.max(...data.map(d => d.count || d.value || 0));
-  const minValue = Math.min(...data.map(d => d.count || d.value || 0));
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -97,71 +95,76 @@ const EnhancedChart = ({ data, title, type = 'line', color = 'blue', height = 'h
             })}
           </div>
         )}
-        {type === 'pie' && (
-          <div className="flex items-center justify-center h-full">
-            <div className="relative w-32 h-32">
-              <svg className="w-full h-full" viewBox="0 0 100 100">
-                {data.map((d, i) => {
-                  const percentage = (d.count || d.value || 0) / maxValue;
-                  const angle = percentage * 360;
-                  const radius = 40;
-                  const x = 50 + radius * Math.cos((i * angle) * Math.PI / 180);
-                  const y = 50 + radius * Math.sin((i * angle) * Math.PI / 180);
-                  
-                  return (
-                    <circle
-                      key={i}
-                      cx="50"
-                      cy="50"
-                      r={radius}
-                      fill="none"
-                      stroke={`hsl(${i * 60}, 70%, 60%)`}
-                      strokeWidth="20"
-                      strokeDasharray={`${percentage * 251.2} 251.2`}
-                      strokeDashoffset={i === 0 ? 0 : -251.2 * (1 - percentage)}
-                      transform={`rotate(${i * angle}, 50, 50)`}
-                    />
-                  );
-                })}
-              </svg>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
 };
 
-const AnalyticsDashboard = () => {
+const AnalyticsDashboardNew = () => {
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('7d');
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [analytics, setAnalytics] = useState({
     overview: {
-      totalUsers: 0,
-      totalCards: 0,
-      totalViews: 0,
-      totalRevenue: 0,
-      growthRate: 0
+      totalUsers: 1250,
+      totalCards: 3400,
+      totalViews: 15600,
+      totalRevenue: 1250.50,
+      growthRate: 12.5
     },
-    userGrowth: [],
-    cardGrowth: [],
+    userGrowth: [
+      { _id: '2024-01-01', count: 1200 },
+      { _id: '2024-01-02', count: 1220 },
+      { _id: '2024-01-03', count: 1240 },
+      { _id: '2024-01-04', count: 1260 },
+      { _id: '2024-01-05', count: 1280 },
+      { _id: '2024-01-06', count: 1300 },
+      { _id: '2024-01-07', count: 1320 }
+    ],
+    cardGrowth: [
+      { _id: '2024-01-01', count: 3200 },
+      { _id: '2024-01-02', count: 3250 },
+      { _id: '2024-01-03', count: 3300 },
+      { _id: '2024-01-04', count: 3350 },
+      { _id: '2024-01-05', count: 3400 },
+      { _id: '2024-01-06', count: 3420 },
+      { _id: '2024-01-07', count: 3450 }
+    ],
     deviceAnalytics: {
-      desktop: 0,
-      mobile: 0,
-      tablet: 0
+      desktop: 45,
+      mobile: 40,
+      tablet: 15
     },
-    geographicAnalytics: {},
+    geographicAnalytics: {
+      'United States': 35,
+      'India': 25,
+      'United Kingdom': 15,
+      'Canada': 10,
+      'Australia': 8,
+      'Others': 7
+    },
     engagementMetrics: {
-      views: 0,
-      loves: 0,
-      shares: 0,
-      downloads: 0,
-      avgSessionTime: 0,
-      bounceRate: 0
+      views: 15600,
+      loves: 3200,
+      shares: 1800,
+      downloads: 950,
+      avgSessionTime: 4.5,
+      bounceRate: 23.5
     },
-    topCards: [],
-    recentActivity: []
+    topCards: [
+      { id: 1, name: 'John Doe - Developer', views: 450, loves: 120, shares: 45 },
+      { id: 2, name: 'Jane Smith - Designer', views: 380, loves: 95, shares: 32 },
+      { id: 3, name: 'Mike Johnson - Manager', views: 320, loves: 78, shares: 28 },
+      { id: 4, name: 'Sarah Wilson - Consultant', views: 290, loves: 65, shares: 22 },
+      { id: 5, name: 'David Brown - Engineer', views: 250, loves: 55, shares: 18 }
+    ],
+    recentActivity: [
+      { id: 1, type: 'card_viewed', user: 'John Doe', card: 'Developer Card', time: '2 minutes ago' },
+      { id: 2, type: 'card_shared', user: 'Jane Smith', card: 'Designer Card', time: '5 minutes ago' },
+      { id: 3, type: 'user_registered', user: 'New User', time: '10 minutes ago' },
+      { id: 4, type: 'card_loved', user: 'Mike Johnson', card: 'Manager Card', time: '15 minutes ago' },
+      { id: 5, type: 'card_downloaded', user: 'Sarah Wilson', card: 'Consultant Card', time: '20 minutes ago' }
+    ]
   });
 
   useEffect(() => {
@@ -197,69 +200,6 @@ const AnalyticsDashboard = () => {
       } else {
         console.error('Failed to fetch analytics:', response.status);
         toast.error('Failed to load analytics');
-        // Use fallback data
-        setAnalytics({
-          overview: {
-            totalUsers: 1250,
-            totalCards: 3400,
-            totalViews: 15600,
-            totalRevenue: 1250.50,
-            growthRate: 12.5
-          },
-          userGrowth: [
-            { _id: '2024-01-01', count: 1200 },
-            { _id: '2024-01-02', count: 1220 },
-            { _id: '2024-01-03', count: 1240 },
-            { _id: '2024-01-04', count: 1260 },
-            { _id: '2024-01-05', count: 1280 },
-            { _id: '2024-01-06', count: 1300 },
-            { _id: '2024-01-07', count: 1320 }
-          ],
-          cardGrowth: [
-            { _id: '2024-01-01', count: 3200 },
-            { _id: '2024-01-02', count: 3250 },
-            { _id: '2024-01-03', count: 3300 },
-            { _id: '2024-01-04', count: 3350 },
-            { _id: '2024-01-05', count: 3400 },
-            { _id: '2024-01-06', count: 3420 },
-            { _id: '2024-01-07', count: 3450 }
-          ],
-          deviceAnalytics: {
-            desktop: 45,
-            mobile: 40,
-            tablet: 15
-          },
-          geographicAnalytics: {
-            'United States': 35,
-            'India': 25,
-            'United Kingdom': 15,
-            'Canada': 10,
-            'Australia': 8,
-            'Others': 7
-          },
-          engagementMetrics: {
-            views: 15600,
-            loves: 3200,
-            shares: 1800,
-            downloads: 950,
-            avgSessionTime: 4.5,
-            bounceRate: 23.5
-          },
-          topCards: [
-            { id: 1, name: 'John Doe - Developer', views: 450, loves: 120, shares: 45 },
-            { id: 2, name: 'Jane Smith - Designer', views: 380, loves: 95, shares: 32 },
-            { id: 3, name: 'Mike Johnson - Manager', views: 320, loves: 78, shares: 28 },
-            { id: 4, name: 'Sarah Wilson - Consultant', views: 290, loves: 65, shares: 22 },
-            { id: 5, name: 'David Brown - Engineer', views: 250, loves: 55, shares: 18 }
-          ],
-          recentActivity: [
-            { id: 1, type: 'card_viewed', user: 'John Doe', card: 'Developer Card', time: '2 minutes ago' },
-            { id: 2, type: 'card_shared', user: 'Jane Smith', card: 'Designer Card', time: '5 minutes ago' },
-            { id: 3, type: 'user_registered', user: 'New User', time: '10 minutes ago' },
-            { id: 4, type: 'card_loved', user: 'Mike Johnson', card: 'Manager Card', time: '15 minutes ago' },
-            { id: 5, type: 'card_downloaded', user: 'Sarah Wilson', card: 'Consultant Card', time: '20 minutes ago' }
-          ]
-        });
       }
     } catch (error) {
       console.error('Error fetching analytics:', error);
@@ -478,15 +418,17 @@ const AnalyticsDashboard = () => {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 mb-8">
-        <LineChartComponent
+        <EnhancedChart
           title="User Growth"
           data={analytics.userGrowth}
-          color="#3B82F6"
+          type="line"
+          color="blue"
         />
-        <BarChartComponent
+        <EnhancedChart
           title="Card Creation"
           data={analytics.cardGrowth}
-          color="#10B981"
+          type="bar"
+          color="green"
         />
       </div>
 
@@ -528,43 +470,56 @@ const AnalyticsDashboard = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Device Usage</h3>
           <div className="space-y-4">
-            <div className="flex items-center space-x-2 mb-2">
-              <FaDesktop className="h-4 w-4 text-blue-500" />
-              <span className="text-sm text-gray-700">Desktop</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <FaDesktop className="h-4 w-4 text-blue-500" />
+                <span className="text-sm text-gray-700">Desktop</span>
+              </div>
+              <span className="text-sm font-semibold">{analytics.deviceAnalytics?.desktop || 0}%</span>
             </div>
-            <ProgressBar 
-              label="Desktop" 
-              value={analytics.deviceAnalytics?.desktop || 0} 
-              color="blue" 
-            />
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${analytics.deviceAnalytics?.desktop || 0}%` }}></div>
+            </div>
             
-            <div className="flex items-center space-x-2 mb-2">
-              <FaMobile className="h-4 w-4 text-green-500" />
-              <span className="text-sm text-gray-700">Mobile</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <FaMobile className="h-4 w-4 text-green-500" />
+                <span className="text-sm text-gray-700">Mobile</span>
+              </div>
+              <span className="text-sm font-semibold">{analytics.deviceAnalytics?.mobile || 0}%</span>
             </div>
-            <ProgressBar 
-              label="Mobile" 
-              value={analytics.deviceAnalytics?.mobile || 0} 
-              color="green" 
-            />
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-green-500 h-2 rounded-full" style={{ width: `${analytics.deviceAnalytics?.mobile || 0}%` }}></div>
+            </div>
             
-            <div className="flex items-center space-x-2 mb-2">
-              <FaTablet className="h-4 w-4 text-purple-500" />
-              <span className="text-sm text-gray-700">Tablet</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <FaTablet className="h-4 w-4 text-purple-500" />
+                <span className="text-sm text-gray-700">Tablet</span>
+              </div>
+              <span className="text-sm font-semibold">{analytics.deviceAnalytics?.tablet || 0}%</span>
             </div>
-            <ProgressBar 
-              label="Tablet" 
-              value={analytics.deviceAnalytics?.tablet || 0} 
-              color="purple" 
-            />
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div className="bg-purple-500 h-2 rounded-full" style={{ width: `${analytics.deviceAnalytics?.tablet || 0}%` }}></div>
+            </div>
           </div>
         </div>
 
         {/* Geographic Analytics */}
-        <PieChartComponent
-          title="Geographic Distribution"
-          data={analytics.geographicAnalytics || {}}
-        />
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Geographic Distribution</h3>
+          <div className="space-y-3">
+            {Object.entries(analytics.geographicAnalytics || {}).map(([country, percentage], index) => (
+              <div key={country} className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <FiMapPin className="h-4 w-4 text-gray-400" />
+                  <span className="text-sm text-gray-700">{country}</span>
+                </div>
+                <span className="text-sm font-semibold">{percentage}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Session Analytics */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -614,4 +569,4 @@ const AnalyticsDashboard = () => {
   );
 };
 
-export default AnalyticsDashboard; 
+export default AnalyticsDashboardNew;
