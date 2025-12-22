@@ -1,9 +1,16 @@
 // API Service Configuration
-const API_BASE_URL = import.meta.env.VITE_API_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api';
+
+// Validate API URL on load
+if (!import.meta.env.VITE_API_URL) {
+  console.warn('⚠️ VITE_API_URL not set in .env file, using default:', API_BASE_URL);
+}
 
 // Helper function to make API calls
 export const apiCall = async (endpoint, options = {}) => {
-  const url = `${API_BASE_URL}${endpoint}`;
+  // Ensure endpoint starts with /
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE_URL}${normalizedEndpoint}`;
   const token = localStorage.getItem('token');
   
   const defaultHeaders = {
@@ -22,13 +29,32 @@ export const apiCall = async (endpoint, options = {}) => {
   try {
     const response = await fetch(url, config);
     
+    // Handle non-JSON responses
+    const contentType = response.headers.get('content-type');
+    const isJson = contentType && contentType.includes('application/json');
+    
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      let errorData = {};
+      try {
+        errorData = isJson ? await response.json() : { error: await response.text() || `HTTP error! status: ${response.status}` };
+      } catch (parseError) {
+        errorData = { error: `HTTP error! status: ${response.status}` };
+      }
+      throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
     }
     
-    return await response.json();
+    // Handle empty responses
+    if (response.status === 204 || response.status === 201) {
+      return isJson ? await response.json().catch(() => ({})) : {};
+    }
+    
+    return isJson ? await response.json() : await response.text();
   } catch (error) {
+    // Enhanced error handling
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      console.error('Network error - API server may be down:', error);
+      throw new Error('Unable to connect to server. Please check your connection and try again.');
+    }
     console.error('API call failed:', error);
     throw error;
   }

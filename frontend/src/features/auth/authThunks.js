@@ -28,6 +28,94 @@ export const register = createAsyncThunk(
   }
 );
 
+// Request email OTP
+export const requestEmailOtp = createAsyncThunk(
+  'auth/requestEmailOtp',
+  async (email, { rejectWithValue }) => {
+    try {
+      const response = await fetch('/api/auth/verify-email/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return rejectWithValue(data.error || 'Failed to send verification code');
+      }
+      return data.message || 'Verification code sent';
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to send verification code');
+    }
+  }
+);
+
+// Verify email OTP
+export const verifyEmailOtp = createAsyncThunk(
+  'auth/verifyEmailOtp',
+  async ({ email, otp }, { rejectWithValue }) => {
+    try {
+      const response = await fetch('/api/auth/verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return rejectWithValue(data.error || 'Invalid verification code');
+      }
+      return data.message || 'Email verified';
+    } catch (error) {
+      return rejectWithValue(error.message || 'Verification failed');
+    }
+  }
+);
+
+// Forgot password
+export const forgotPassword = createAsyncThunk(
+  'auth/forgotPassword',
+  async (email, { rejectWithValue }) => {
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return rejectWithValue(data.error || 'Failed to send reset link');
+      }
+      return data.message || 'Reset link sent';
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to send reset link');
+    }
+  }
+);
+
+// Reset password
+export const resetPassword = createAsyncThunk(
+  'auth/resetPassword',
+  async ({ token, newPassword }, { rejectWithValue }) => {
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return rejectWithValue(data.error || 'Failed to reset password');
+      }
+      return data.message || 'Password reset successfully';
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to reset password');
+    }
+  }
+);
+
 // Login user
 export const login = createAsyncThunk(
   'auth/login',

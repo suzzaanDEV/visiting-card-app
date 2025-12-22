@@ -163,6 +163,57 @@ const authSlice = createSlice({
       .addCase(authThunks.getUserStats.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload || 'Failed to get user stats';
+      })
+
+      // --- Email OTP ---
+      .addCase(authThunks.requestEmailOtp.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(authThunks.requestEmailOtp.fulfilled, (state) => {
+        state.isLoading = false;
+      })
+      .addCase(authThunks.requestEmailOtp.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Failed to send verification code';
+      })
+      .addCase(authThunks.verifyEmailOtp.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(authThunks.verifyEmailOtp.fulfilled, (state) => {
+        state.isLoading = false;
+        if (state.user) {
+          state.user.isEmailVerified = true;
+        }
+      })
+      .addCase(authThunks.verifyEmailOtp.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Verification failed';
+      })
+
+      // --- Password reset ---
+      .addCase(authThunks.forgotPassword.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(authThunks.forgotPassword.fulfilled, (state) => {
+        state.isLoading = false;
+      })
+      .addCase(authThunks.forgotPassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Failed to send reset link';
+      })
+      .addCase(authThunks.resetPassword.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(authThunks.resetPassword.fulfilled, (state) => {
+        state.isLoading = false;
+      })
+      .addCase(authThunks.resetPassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload || 'Failed to reset password';
       });
   },
 });

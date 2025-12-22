@@ -4,6 +4,14 @@ const User = require('../models/userModel');
 const logger = require('../utils/logger');
 const rateLimit = require('express-rate-limit');
 
+// Validate JWT_SECRET on module load
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-super-secret-jwt-key-change-this-in-production') {
+  if (process.env.NODE_ENV === 'production' || process.env.NODE_ENV === 'staging') {
+    throw new Error('JWT_SECRET must be set in production/staging environment. Please set it in .env file.');
+  }
+  logger.warn('⚠️  JWT_SECRET not properly configured. Using default secret (not secure for production).');
+}
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // limit each IP to 5 requests per windowMs

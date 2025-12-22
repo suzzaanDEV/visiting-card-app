@@ -21,12 +21,15 @@ const RegisterPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   
-  const { isAuthenticated, isLoading, error } = useSelector((state) => state.auth);
+  const { isAuthenticated, isLoading, error, user } = useSelector((state) => state.auth);
 
   useEffect(() => {
     // Redirect if already authenticated
-    if (isAuthenticated) {
+    // If authenticated and email verified, go dashboard; otherwise go verify email
+    if (isAuthenticated && user?.isEmailVerified) {
       navigate('/dashboard');
+    } else if (isAuthenticated && user?.email && user?.isEmailVerified === false) {
+      navigate('/verify-email', { state: { email: user.email } });
     }
     
     // Show error toast if there's an error
@@ -75,7 +78,13 @@ const RegisterPage = () => {
       profilePicture: formData.profilePicture
     };
     
-    dispatch(register(userData));
+    try {
+      const result = await dispatch(register(userData)).unwrap();
+      toast.success('Account created! Check your email for the verification code.');
+      navigate('/verify-email', { state: { email: formData.email } });
+    } catch (err) {
+      toast.error(err || 'Registration failed');
+    }
   };
 
   return (

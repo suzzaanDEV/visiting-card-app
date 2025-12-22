@@ -91,17 +91,15 @@ exports.checkAuth = async (req, res, next) => {
   }
 };
 
-// Add missing methods
 exports.forgotPassword = async (req, res, next) => {
   try {
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
-    
-    // For now, just return a success message
-    // In a real app, you would send a password reset email
-    res.status(200).json({ message: 'Password reset email sent (if email exists)' });
+
+    const result = await authService.forgotPassword(email);
+    res.status(200).json(result);
   } catch (error) {
     logger.error(`Forgot password error: ${error.message}`);
     res.status(500).json({ error: error.message });
@@ -114,26 +112,39 @@ exports.resetPassword = async (req, res, next) => {
     if (!token || !newPassword) {
       return res.status(400).json({ error: 'Token and new password are required' });
     }
-    
-    // For now, just return a success message
-    // In a real app, you would validate the token and update the password
-    res.status(200).json({ message: 'Password reset successfully' });
+
+    const result = await authService.resetPassword(token, newPassword);
+    res.status(200).json(result);
   } catch (error) {
     logger.error(`Reset password error: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 };
 
+exports.requestEmailOtp = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const result = await authService.requestEmailOtp(email);
+    res.status(200).json(result);
+  } catch (error) {
+    logger.error(`Request email OTP error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 exports.verifyEmail = async (req, res, next) => {
   try {
-    const { token } = req.body;
-    if (!token) {
-      return res.status(400).json({ error: 'Verification token is required' });
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email and OTP are required' });
     }
-    
-    // For now, just return a success message
-    // In a real app, you would validate the token and mark email as verified
-    res.status(200).json({ message: 'Email verified successfully' });
+
+    const result = await authService.verifyEmailOtp(email, otp);
+    res.status(200).json(result);
   } catch (error) {
     logger.error(`Email verification error: ${error.message}`);
     res.status(500).json({ error: error.message });

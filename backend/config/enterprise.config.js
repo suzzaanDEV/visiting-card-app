@@ -1,9 +1,18 @@
 const path = require('path');
 
+// Helper to build CORS origins from env
+const buildOrigins = (defaults = []) => {
+  const envOrigins = process.env.ALLOWED_ORIGINS?.split(',').filter(Boolean) || [];
+  const frontendUrl = process.env.FRONTEND_URL;
+  const all = [...defaults, ...envOrigins, ...(frontendUrl ? [frontendUrl] : [])];
+  return [...new Set(all.map((o) => o.trim()))];
+};
+
 // Environment configuration
 const environments = {
   development: {
     port: process.env.PORT || 5050,
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
     database: {
       url: process.env.DATABASE_URL || 'mongodb://localhost:27017/cardly-dev',
       options: {
@@ -18,7 +27,7 @@ const environments = {
       refreshExpiresIn: '30d'
     },
     cors: {
-      origins: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
+      origins: buildOrigins(['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000']),
       credentials: true
     },
     rateLimit: {
@@ -40,6 +49,7 @@ const environments = {
   
   staging: {
     port: process.env.PORT || 5050,
+    frontendUrl: process.env.FRONTEND_URL,
     database: {
       url: process.env.DATABASE_URL,
       options: {
@@ -54,7 +64,7 @@ const environments = {
       refreshExpiresIn: '30d'
     },
     cors: {
-      origins: process.env.ALLOWED_ORIGINS?.split(',') || [],
+      origins: buildOrigins(),
       credentials: true
     },
     rateLimit: {
@@ -76,6 +86,7 @@ const environments = {
   
   production: {
     port: process.env.PORT || 5050,
+    frontendUrl: process.env.FRONTEND_URL,
     database: {
       url: process.env.DATABASE_URL,
       options: {
@@ -90,7 +101,7 @@ const environments = {
       refreshExpiresIn: '30d'
     },
     cors: {
-      origins: process.env.ALLOWED_ORIGINS?.split(',') || [],
+      origins: buildOrigins(),
       credentials: true
     },
     rateLimit: {
@@ -117,11 +128,17 @@ const config = environments[env];
 
 // Validation
 if (!config.database.url) {
-  throw new Error(`Database URL is required for ${env} environment`);
+  if (env === 'production' || env === 'staging') {
+    throw new Error(`Database URL is required for ${env} environment. Please set DATABASE_URL in .env file.`);
+  }
+  console.warn(`⚠️  Warning: Database URL not set for ${env} environment. Using default: ${config.database.url}`);
 }
 
 if (!config.jwt.secret || config.jwt.secret === 'dev-super-secret-jwt-key-change-in-production') {
-  console.warn('⚠️  Warning: Using default JWT secret. Please set JWT_SECRET environment variable.');
+  if (env === 'production' || env === 'staging') {
+    throw new Error('JWT_SECRET is required for production/staging. Please set JWT_SECRET in .env file.');
+  }
+  console.warn('⚠️  Warning: Using default JWT secret. Please set JWT_SECRET environment variable in .env file.');
 }
 
 module.exports = {

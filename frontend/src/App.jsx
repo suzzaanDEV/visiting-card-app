@@ -11,6 +11,9 @@ import AccountBlocked from './components/Auth/AccountBlocked';
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
+import ForgotPassword from './pages/Auth/ForgotPassword';
+import ResetPassword from './pages/Auth/ResetPassword';
+import VerifyEmail from './pages/Auth/VerifyEmail';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import CardsPage from './pages/Cards/CardsPage';
 import AddCard from './pages/Cards/AddCard';
@@ -64,6 +67,9 @@ function App() {
             <Route path="contact" element={<Contact />} />
             <Route path="login" element={<LoginPage />} />
             <Route path="register" element={<RegisterPage />} />
+            <Route path="forgot-password" element={<ForgotPassword />} />
+            <Route path="reset-password" element={<ResetPassword />} />
+            <Route path="verify-email" element={<VerifyEmail />} />
             <Route path="view/:cardId" element={<ViewCard />} />
             <Route path="c/:shortLink" element={<ViewCard />} />
             <Route path="test-features" element={<TestCardFeatures />} />
