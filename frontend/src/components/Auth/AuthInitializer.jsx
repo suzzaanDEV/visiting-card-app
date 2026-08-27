@@ -1,29 +1,31 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { checkAuthStatus } from '../../features/auth/authThunks';
-import { setInitialized } from '../../features/auth/authSlice';
+import { hydrateFromStorage, setInitialized } from '../../features/auth/authSlice';
+import { getToken } from '../../utils/authStorage';
 
 const AuthInitializer = ({ children }) => {
   const dispatch = useDispatch();
-  const { isLoading, isAuthenticated, isInitialized } = useSelector((state) => state.auth);
+  const { isLoading, isInitialized } = useSelector((state) => state.auth);
+  const hasBootstrapped = useRef(false);
 
   useEffect(() => {
-    // Check if there's a token in localStorage
-    const token = localStorage.getItem('token');
-    
-    if (token && !isAuthenticated) {
-      // If token exists and user is not authenticated, validate it with the backend
+    if (hasBootstrapped.current) return;
+    hasBootstrapped.current = true;
+
+    dispatch(hydrateFromStorage());
+
+    const token = getToken();
+    if (token) {
       dispatch(checkAuthStatus());
-    } else if (!token && !isInitialized) {
-      // If no token and not initialized, mark as initialized
+    } else {
       dispatch(setInitialized());
     }
-  }, [dispatch, isAuthenticated, isInitialized]);
+  }, [dispatch]);
 
-  // Show loading spinner while checking authentication
-  if (isLoading) {
+  if (!isInitialized || isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-green-900 to-green-900 flex items-center justify-center">
         <div className="text-center text-white">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <div className="text-lg">Loading...</div>
@@ -35,4 +37,4 @@ const AuthInitializer = ({ children }) => {
   return children;
 };
 
-export default AuthInitializer; 
+export default AuthInitializer;

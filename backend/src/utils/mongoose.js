@@ -7,25 +7,32 @@ let connectionState = 'disconnected';
 let reconnectAttempts = 0;
 const maxReconnectAttempts = 10;
 const reconnectDelay = 5000; // 5 seconds
+let intentionalDisconnect = false;
+let monitoringInterval = null;
 
 // Connection event handlers
 mongoose.connection.on('connected', () => {
   connectionState = 'connected';
   reconnectAttempts = 0;
   logger.info('✅ MongoDB connected successfully');
-  console.log('✅ MongoDB connected successfully');
 });
 
 mongoose.connection.on('error', (err) => {
   connectionState = 'error';
   logger.error('❌ MongoDB connection error:', err);
-  console.error('❌ MongoDB connection error:', err);
 });
 
 mongoose.connection.on('disconnected', () => {
   connectionState = 'disconnected';
+
+  // Skip reconnect logic when the disconnect was intentional (shutdown/tests)
+  if (intentionalDisconnect) {
+    intentionalDisconnect = false;
+    logger.info('ℹ️ MongoDB disconnected intentionally');
+    return;
+  }
+
   logger.warn('⚠️ MongoDB disconnected');
-  console.warn('⚠️ MongoDB disconnected');
   
   // Auto-reconnect logic
   if (reconnectAttempts < maxReconnectAttempts) {
@@ -36,7 +43,6 @@ mongoose.connection.on('disconnected', () => {
     }, reconnectDelay);
   } else {
     logger.error('❌ Max reconnection attempts reached');
-    console.error('❌ Max reconnection attempts reached');
   }
 });
 
@@ -44,7 +50,6 @@ mongoose.connection.on('reconnected', () => {
   connectionState = 'connected';
   reconnectAttempts = 0;
   logger.info('✅ MongoDB reconnected successfully');
-  console.log('✅ MongoDB reconnected successfully');
 });
 
 // Performance monitoring
@@ -63,8 +68,9 @@ async function connect() {
       return;
     }
 
+    intentionalDisconnect = false;
+
     logger.info('🔌 Connecting to MongoDB...');
-    console.log('🔌 Connecting to MongoDB...');
     
     // Modern MongoDB connection options
     const connectionOptions = {
@@ -95,7 +101,7 @@ async function connect() {
 
     // Set up connection monitoring
     if (config.monitoring.enabled) {
-      setInterval(() => {
+      monitoringInterval = setInterval(() => {
         const status = {
           state: connectionState,
           readyState: mongoose.connection.readyState,
@@ -106,14 +112,13 @@ async function connect() {
         };
         
         if (config.isDevelopment) {
-          console.log('📊 MongoDB Status:', status);
+          logger.debug('📊 MongoDB Status:', status);
         }
       }, 60000); // Check every minute
     }
 
   } catch (error) {
     logger.error('❌ Failed to connect to MongoDB:', error);
-    console.error('❌ Failed to connect to MongoDB:', error);
     throw error;
   }
 }
@@ -121,14 +126,18 @@ async function connect() {
 // Graceful shutdown
 async function disconnect() {
   try {
-    if (connectionState === 'connected') {
+    intentionalDisconnect = true;
+    if (monitoringInterval) {
+      clearInterval(monitoringInterval);
+      monitoringInterval = null;
+    }
+    if (mongoose.connection.readyState !== 0) {
       await mongoose.connection.close();
       logger.info('✅ MongoDB disconnected gracefully');
-      console.log('✅ MongoDB disconnected gracefully');
     }
   } catch (error) {
+    intentionalDisconnect = false;
     logger.error('❌ Error during MongoDB disconnect:', error);
-    console.error('❌ Error during MongoDB disconnect:', error);
   }
 }
 
@@ -143,11 +152,17 @@ function getHealthStatus() {
   };
 }
 
+// Suppress auto-reconnect (used by test teardown and graceful shutdown)
+function suppressReconnect() {
+  intentionalDisconnect = true;
+}
+
 // Export connection utilities
 module.exports = {
   connect,
   disconnect,
   getHealthStatus,
+  suppressReconnect,
   connection: mongoose.connection,
   // Export mongoose for models
   mongoose

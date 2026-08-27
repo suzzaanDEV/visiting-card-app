@@ -7,9 +7,6 @@ const CardPreview = ({ designJson, width = 350, height = 200, className = '', fu
   const containerRef = useRef(null);
 
   useEffect(() => {
-
-
-    console.log("Rendering Card Preview with design:", designJson);
     const container = containerRef.current;
     if (!container) return;
 

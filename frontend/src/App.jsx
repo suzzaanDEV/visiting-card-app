@@ -1,66 +1,73 @@
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, lazy } from 'react';
 import { Routes, Route } from 'react-router-dom';
 
-// Layout Components
 import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import AuthInitializer from './components/Auth/AuthInitializer';
 import AccountBlocked from './components/Auth/AccountBlocked';
+import AdminRoute from './components/Admin/AdminRoute';
+import ErrorBoundary from './components/UI/ErrorBoundary';
 
-// Pages
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import ResetPassword from './pages/Auth/ResetPassword';
 import VerifyEmail from './pages/Auth/VerifyEmail';
-import DashboardPage from './pages/Dashboard/DashboardPage';
-import CardsPage from './pages/Cards/CardsPage';
-import AddCard from './pages/Cards/AddCard';
-import EditCard from './pages/Cards/EditCard';
-import CardDetail from './pages/Cards/CardDetail';
-import DiscoverCards from './pages/Cards/DiscoverCards';
-import PopularCards from './pages/Cards/PopularCards';
-import RecentCards from './pages/Cards/RecentCards';
-import SearchPage from './pages/SearchPage';
 import ViewCard from './pages/ViewCard';
-import LibraryPage from './pages/Library/LibraryPage';
-import ProfilePage from './pages/Profile/ProfilePage';
 import AboutPage from './pages/AboutPage';
 import Contact from './pages/Contact';
 import NotFoundPage from './pages/NotFoundPage';
-
-// Admin Pages
 import AdminLogin from './pages/Admin/AdminLogin';
-import AdminDashboard from './pages/Admin/AdminDashboard';
-import TemplateManagement from './pages/Admin/TemplateManagement';
-import AnalyticsDashboard from './pages/Admin/AnalyticsDashboard';
-import TemplateBuilder from './pages/Admin/TemplateBuilder';
-import UserManagement from './pages/Admin/UserManagement';
-import CardManagement from './pages/Admin/CardManagement';
-import AccessRequests from './pages/Admin/AccessRequests';
-import Settings from './pages/Admin/Settings';
-import UserAccessRequests from './pages/User/AccessRequests';
-import Notifications from './pages/User/Notifications';
-import AdminRoute from './components/Admin/AdminRoute';
-import TestCardFeatures from './components/TestCardFeatures';
+
+const PageLoader = () => (
+  <div className="flex justify-center items-center min-h-[40vh]">
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600" />
+  </div>
+);
+
+const lazyPage = (factory) => lazy(factory);
+
+const DashboardPage = lazyPage(() => import('./pages/Dashboard/DashboardPage'));
+const CardsPage = lazyPage(() => import('./pages/Cards/CardsPage'));
+const AddCard = lazyPage(() => import('./pages/Cards/AddCard'));
+const EditCard = lazyPage(() => import('./pages/Cards/EditCard'));
+const CardDetail = lazyPage(() => import('./pages/Cards/CardDetail'));
+const DiscoverCards = lazyPage(() => import('./pages/Cards/DiscoverCards'));
+const PopularCards = lazyPage(() => import('./pages/Cards/PopularCards'));
+const RecentCards = lazyPage(() => import('./pages/Cards/RecentCards'));
+const SearchPage = lazyPage(() => import('./pages/SearchPage'));
+const LibraryPage = lazyPage(() => import('./pages/Library/LibraryPage'));
+const ProfilePage = lazyPage(() => import('./pages/Profile/ProfilePage'));
+const AdminDashboard = lazyPage(() => import('./pages/Admin/AdminDashboard'));
+const TemplateManagement = lazyPage(() => import('./pages/Admin/TemplateManagement'));
+const AnalyticsDashboard = lazyPage(() => import('./pages/Admin/AnalyticsDashboard'));
+const TemplateBuilder = lazyPage(() => import('./pages/Admin/TemplateBuilder'));
+const UserManagement = lazyPage(() => import('./pages/Admin/UserManagement'));
+const CardManagement = lazyPage(() => import('./pages/Admin/CardManagement'));
+const AccessRequests = lazyPage(() => import('./pages/Admin/AccessRequests'));
+const Settings = lazyPage(() => import('./pages/Admin/Settings'));
+const PolicyManagement = lazyPage(() => import('./pages/Admin/PolicyManagement'));
+const CRMPage = lazyPage(() => import('./pages/Admin/CRMPage'));
+const AuditLogPage = lazyPage(() => import('./pages/Admin/AuditLogPage'));
+const CategoryManagement = lazyPage(() => import('./pages/Admin/CategoryManagement'));
+const UserAccessRequests = lazyPage(() => import('./pages/User/AccessRequests'));
+const Notifications = lazyPage(() => import('./pages/User/Notifications'));
+const BroadcastManagement = lazyPage(() => import('./pages/Admin/BroadcastManagement'));
+const NotificationTemplateManagement = lazyPage(() => import('./pages/Admin/NotificationTemplateManagement'));
+const AdminProfile = lazyPage(() => import('./pages/Admin/AdminProfile'));
+
+const withSuspense = (element) => (
+  <ErrorBoundary>
+    <Suspense fallback={<PageLoader />}>{element}</Suspense>
+  </ErrorBoundary>
+);
 
 function App() {
-
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Add loading state management
-  useEffect(() => {
-    setIsLoading(true);
-    // Simulate loading time
-    setTimeout(() => setIsLoading(false), 1000);
-  }, []);
-  
   return (
     <AuthInitializer>
       <div className="App">
         <Routes>
-          {/* Public Routes with Layout */}
           <Route index element={<HomePage />} />
           <Route path="/" element={<Layout />}>
             <Route path="about" element={<AboutPage />} />
@@ -72,124 +79,42 @@ function App() {
             <Route path="verify-email" element={<VerifyEmail />} />
             <Route path="view/:cardId" element={<ViewCard />} />
             <Route path="c/:shortLink" element={<ViewCard />} />
-            <Route path="test-features" element={<TestCardFeatures />} />
-            <Route path="discover" element={<DiscoverCards />} />
-            <Route path="discover/popular" element={<PopularCards />} />
-            <Route path="discover/recent" element={<RecentCards />} />
-            
-            {/* Protected User Routes */}
-            <Route path="dashboard" element={
-              <ProtectedRoute>
-                <DashboardPage />
-              </ProtectedRoute>
-            } />
-            <Route path="cards" element={
-              <ProtectedRoute>
-                <CardsPage />
-              </ProtectedRoute>
-            } />
-            <Route path="cards/add" element={
-              <ProtectedRoute>
-                <AddCard />
-              </ProtectedRoute>
-            } />
-            <Route path="create" element={
-              <ProtectedRoute>
-                <AddCard />
-              </ProtectedRoute>
-            } />
-            <Route path="cards/edit/:cardId" element={
-              <ProtectedRoute>
-                <EditCard />
-              </ProtectedRoute>
-            } />
-            <Route path="cards/:cardId" element={
-              <ProtectedRoute>
-                <CardDetail />
-              </ProtectedRoute>
-            } />
-            <Route path="search" element={
-              <ProtectedRoute>
-                <SearchPage />
-              </ProtectedRoute>
-            } />
-            <Route path="library" element={
-              <ProtectedRoute>
-                <LibraryPage />
-              </ProtectedRoute>
-            } />
+            <Route path="discover" element={withSuspense(<DiscoverCards />)} />
+            <Route path="discover/popular" element={withSuspense(<PopularCards />)} />
+            <Route path="discover/recent" element={withSuspense(<RecentCards />)} />
 
-            <Route path="access-requests" element={
-              <ProtectedRoute>
-                <UserAccessRequests />
-              </ProtectedRoute>
-            } />
-
-            <Route path="notifications" element={
-              <ProtectedRoute>
-                <Notifications />
-              </ProtectedRoute>
-            } />
-
-            <Route path="profile" element={
-              <ProtectedRoute>
-                <ProfilePage />
-              </ProtectedRoute>
-            } />
+            <Route path="dashboard" element={<ProtectedRoute>{withSuspense(<DashboardPage />)}</ProtectedRoute>} />
+            <Route path="cards" element={<ProtectedRoute>{withSuspense(<CardsPage />)}</ProtectedRoute>} />
+            <Route path="cards/add" element={<ProtectedRoute>{withSuspense(<AddCard />)}</ProtectedRoute>} />
+            <Route path="create" element={<ProtectedRoute>{withSuspense(<AddCard />)}</ProtectedRoute>} />
+            <Route path="cards/edit/:cardId" element={<ProtectedRoute>{withSuspense(<EditCard />)}</ProtectedRoute>} />
+            <Route path="cards/:cardId" element={<ProtectedRoute>{withSuspense(<CardDetail />)}</ProtectedRoute>} />
+            <Route path="search" element={withSuspense(<SearchPage />)} />
+            <Route path="library" element={<ProtectedRoute>{withSuspense(<LibraryPage />)}</ProtectedRoute>} />
+            <Route path="access-requests" element={<ProtectedRoute>{withSuspense(<UserAccessRequests />)}</ProtectedRoute>} />
+            <Route path="notifications" element={<ProtectedRoute>{withSuspense(<Notifications />)}</ProtectedRoute>} />
+            <Route path="profile" element={<ProtectedRoute>{withSuspense(<ProfilePage />)}</ProtectedRoute>} />
           </Route>
 
-          {/* Admin Routes */}
           <Route path="admin/login" element={<AdminLogin />} />
-          <Route path="admin" element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
-          } />
-          <Route path="admin/dashboard" element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
-          } />
-          <Route path="admin/templates" element={
-            <AdminRoute>
-              <TemplateManagement />
-            </AdminRoute>
-          } />
-          <Route path="admin/templates/builder" element={
-            <AdminRoute>
-              <TemplateBuilder />
-            </AdminRoute>
-          } />
-          <Route path="admin/cards" element={
-            <AdminRoute>
-              <CardManagement />
-            </AdminRoute>
-          } />
-          <Route path="admin/access-requests" element={
-            <AdminRoute>
-              <AccessRequests />
-            </AdminRoute>
-          } />
-          <Route path="admin/analytics" element={
-            <AdminRoute>
-              <AnalyticsDashboard />
-            </AdminRoute>
-          } />
-          <Route path="admin/users" element={
-            <AdminRoute>
-              <UserManagement />
-            </AdminRoute>
-          } />
-          <Route path="admin/settings" element={
-            <AdminRoute>
-              <Settings />
-            </AdminRoute>
-          } />
+          <Route path="admin" element={<AdminRoute>{withSuspense(<AdminDashboard />)}</AdminRoute>} />
+          <Route path="admin/dashboard" element={<AdminRoute>{withSuspense(<AdminDashboard />)}</AdminRoute>} />
+          <Route path="admin/templates" element={<AdminRoute>{withSuspense(<TemplateManagement />)}</AdminRoute>} />
+          <Route path="admin/templates/builder" element={<AdminRoute>{withSuspense(<TemplateBuilder />)}</AdminRoute>} />
+          <Route path="admin/cards" element={<AdminRoute>{withSuspense(<CardManagement />)}</AdminRoute>} />
+          <Route path="admin/access-requests" element={<AdminRoute>{withSuspense(<AccessRequests />)}</AdminRoute>} />
+          <Route path="admin/analytics" element={<AdminRoute>{withSuspense(<AnalyticsDashboard />)}</AdminRoute>} />
+          <Route path="admin/users" element={<AdminRoute>{withSuspense(<UserManagement />)}</AdminRoute>} />
+          <Route path="admin/settings" element={<AdminRoute>{withSuspense(<Settings />)}</AdminRoute>} />
+          <Route path="admin/policies" element={<AdminRoute>{withSuspense(<PolicyManagement />)}</AdminRoute>} />
+          <Route path="admin/crm" element={<AdminRoute>{withSuspense(<CRMPage />)}</AdminRoute>} />
+          <Route path="admin/audit" element={<AdminRoute>{withSuspense(<AuditLogPage />)}</AdminRoute>} />
+          <Route path="admin/categories" element={<AdminRoute>{withSuspense(<CategoryManagement />)}</AdminRoute>} />
+          <Route path="admin/broadcasts" element={<AdminRoute>{withSuspense(<BroadcastManagement />)}</AdminRoute>} />
+          <Route path="admin/notification-templates" element={<AdminRoute>{withSuspense(<NotificationTemplateManagement />)}</AdminRoute>} />
+          <Route path="admin/profile" element={<AdminRoute>{withSuspense(<AdminProfile />)}</AdminRoute>} />
 
-          {/* Account Blocked Route */}
           <Route path="blocked" element={<AccountBlocked />} />
-
-          {/* 404 Route */}
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </div>

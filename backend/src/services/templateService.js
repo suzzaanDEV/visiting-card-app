@@ -5,23 +5,73 @@ class TemplateService {
   // Get all active templates
   async getAllTemplates(filters = {}) {
     try {
-      const query = { isActive: true };
-      
+      const query = {};
+
+      if (filters.all) {
+        // Admin view — don't filter by isActive
+      } else if (filters.isActive !== undefined) {
+        query.isActive = filters.isActive;
+      } else {
+        query.isActive = true;
+      }
+
       if (filters.category && filters.category !== 'all') {
         query.category = filters.category;
       }
-      
-      if (filters.featured) {
+
+      if (filters.isFeatured !== undefined) {
+        query.isFeatured = filters.isFeatured;
+      } else if (filters.featured) {
         query.isFeatured = true;
       }
-      
+
       if (filters.search) {
         query.$text = { $search: filters.search };
       }
-      
-      const templates = await Template.find(query)
-        .sort({ isFeatured: -1, usageCount: -1, createdAt: -1 });
-      
+
+      const hasPagination = filters.page !== undefined || filters.limit !== undefined;
+
+      if (hasPagination) {
+        const page = parseInt(filters.page) || 1;
+        const limit = parseInt(filters.limit) || 20;
+        const skip = (page - 1) * limit;
+
+        const sort = {};
+        if (filters.sortBy) {
+          sort[filters.sortBy] = filters.sortOrder === 'asc' ? 1 : -1;
+        } else {
+          sort.isFeatured = -1;
+          sort.usageCount = -1;
+          sort.createdAt = -1;
+        }
+
+        const [templates, total] = await Promise.all([
+          Template.find(query).sort(sort).skip(skip).limit(limit),
+          Template.countDocuments(query)
+        ]);
+
+        return {
+          templates,
+          pagination: {
+            page,
+            limit,
+            total,
+            pages: Math.ceil(total / limit)
+          }
+        };
+      }
+
+      const sort = {};
+      if (filters.sortBy) {
+        sort[filters.sortBy] = filters.sortOrder === 'asc' ? 1 : -1;
+      } else {
+        sort.isFeatured = -1;
+        sort.usageCount = -1;
+        sort.createdAt = -1;
+      }
+
+      const templates = await Template.find(query).sort(sort);
+
       return templates;
     } catch (error) {
       logger.error(`Get all templates error: ${error.message}`);

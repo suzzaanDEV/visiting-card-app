@@ -9,6 +9,12 @@ const adminSchema = new mongoose.Schema({
     minlength: 3,
     maxlength: 30
   },
+  name: {
+    type: String,
+    trim: true,
+    maxlength: 100,
+    default: 'System Admin',
+  },
   email: { 
     type: String, 
     required: true, 
@@ -30,8 +36,28 @@ const adminSchema = new mongoose.Schema({
     type: Boolean, 
     default: true 
   },
+  isVerified: {
+    type: Boolean,
+    default: true,
+  },
   lastLoginAt: { 
     type: Date 
+  },
+  adminOtpHash: {
+    type: String,
+    default: null,
+  },
+  adminOtpExpires: {
+    type: Date,
+    default: null,
+  },
+  adminOtpRequestedAt: {
+    type: Date,
+    default: null,
+  },
+  twoFactorEnabled: {
+    type: Boolean,
+    default: false,
   },
   createdAt: { 
     type: Date, 

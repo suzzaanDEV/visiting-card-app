@@ -8,6 +8,8 @@ const initialState = {
   currentCard: null,
   // Holds the available card templates
   templates: [],
+  // Suggested cards for discovery
+  suggestions: [],
   // Pagination data
   pagination: {
     page: 1,
@@ -15,11 +17,12 @@ const initialState = {
     total: 0,
     pages: 0
   },
+  popularCards: { data: [], loading: false, error: null },
+  recentCards: { data: [], loading: false, error: null },
+  featuredCards: { data: [], loading: false, error: null },
+  recommendations: { data: [], loading: false, error: null },
   isLoading: false,
   error: null,
-  // Note: Removed separate userCards, publicCards, qrCode states.
-  // 'cards' array holds the list context.
-  // 'currentCard' holds the full detail of one card, including its qrCode if fetched.
 };
 
 const cardsSlice = createSlice({
@@ -158,7 +161,8 @@ const cardsSlice = createSlice({
     });
     builder.addCase(cardsThunks.fetchCardTemplates.fulfilled, (state, action) => {
       state.isLoading = false;
-      state.templates = action.payload;
+      const payload = action.payload;
+      state.templates = Array.isArray(payload) ? payload : (payload.templates || payload.data || []);
     });
     builder.addCase(cardsThunks.fetchCardTemplates.rejected, (state, action) => {
       state.isLoading = false;
@@ -172,16 +176,16 @@ const cardsSlice = createSlice({
     });
     builder.addCase(cardsThunks.updateCard.fulfilled, (state, action) => {
       state.isLoading = false;
-      // Payload is the full updated card object
-      const updatedCard = action.payload;
-      // Update the card in the main list if it exists there
+      // Payload may be { card: {...}, cardDesign: {...} } or a flat card object
+      const updatedCard = action.payload.card || action.payload;
+      // Update the card in the main list if it exists
       const index = state.cards.findIndex(card => card._id === updatedCard._id);
       if (index !== -1) {
         state.cards[index] = updatedCard; // Replace with updated data
       }
       // Update currentCard if the updated card is the one being viewed/edited
-      if (state.currentCard && state.currentCard._id === updatedCard._id) {
-        state.currentCard = updatedCard;
+      if (state.currentCard && (state.currentCard._id === updatedCard._id || state.currentCard.card?._id === updatedCard._id)) {
+        state.currentCard = { ...state.currentCard, card: updatedCard };
       }
     });
     builder.addCase(cardsThunks.updateCard.rejected, (state, action) => {
@@ -285,6 +289,70 @@ const cardsSlice = createSlice({
     builder.addCase(cardsThunks.fetchPublicCards.rejected, (state, action) => {
       state.isLoading = false;
       state.error = action.payload || 'Failed to fetch public cards';
+    });
+
+    // fetchSuggestions
+    builder.addCase(cardsThunks.fetchSuggestions.fulfilled, (state, action) => {
+      state.suggestions = action.payload.suggestions || [];
+    });
+    builder.addCase(cardsThunks.fetchSuggestions.rejected, (state) => {
+      state.suggestions = [];
+    });
+
+    // --- Fetch Popular Cards ---
+    builder.addCase(cardsThunks.fetchPopularCards.pending, (state) => {
+      state.popularCards.loading = true;
+      state.popularCards.error = null;
+    });
+    builder.addCase(cardsThunks.fetchPopularCards.fulfilled, (state, action) => {
+      state.popularCards.loading = false;
+      state.popularCards.data = action.payload.cards || action.payload.data || action.payload || [];
+    });
+    builder.addCase(cardsThunks.fetchPopularCards.rejected, (state, action) => {
+      state.popularCards.loading = false;
+      state.popularCards.error = action.payload || 'Failed to fetch popular cards';
+    });
+
+    // --- Fetch Recent Cards ---
+    builder.addCase(cardsThunks.fetchRecentCards.pending, (state) => {
+      state.recentCards.loading = true;
+      state.recentCards.error = null;
+    });
+    builder.addCase(cardsThunks.fetchRecentCards.fulfilled, (state, action) => {
+      state.recentCards.loading = false;
+      state.recentCards.data = action.payload.cards || action.payload.data || action.payload || [];
+    });
+    builder.addCase(cardsThunks.fetchRecentCards.rejected, (state, action) => {
+      state.recentCards.loading = false;
+      state.recentCards.error = action.payload || 'Failed to fetch recent cards';
+    });
+
+    // --- Fetch Featured Cards ---
+    builder.addCase(cardsThunks.fetchFeaturedCards.pending, (state) => {
+      state.featuredCards.loading = true;
+      state.featuredCards.error = null;
+    });
+    builder.addCase(cardsThunks.fetchFeaturedCards.fulfilled, (state, action) => {
+      state.featuredCards.loading = false;
+      state.featuredCards.data = action.payload.cards || action.payload.data || action.payload || [];
+    });
+    builder.addCase(cardsThunks.fetchFeaturedCards.rejected, (state, action) => {
+      state.featuredCards.loading = false;
+      state.featuredCards.error = action.payload || 'Failed to fetch featured cards';
+    });
+
+    // --- Fetch Recommendations ---
+    builder.addCase(cardsThunks.fetchRecommendations.pending, (state) => {
+      state.recommendations.loading = true;
+      state.recommendations.error = null;
+    });
+    builder.addCase(cardsThunks.fetchRecommendations.fulfilled, (state, action) => {
+      state.recommendations.loading = false;
+      state.recommendations.data = action.payload.recommendations || action.payload.cards || action.payload || [];
+    });
+    builder.addCase(cardsThunks.fetchRecommendations.rejected, (state, action) => {
+      state.recommendations.loading = false;
+      state.recommendations.error = action.payload || 'Failed to fetch recommendations';
     });
   },
 });

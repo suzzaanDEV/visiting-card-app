@@ -17,25 +17,40 @@ class AdvancedSearchAlgorithms {
       const { limit = 20, skip = 0, filters = {} } = options;
       
       // Normalize query
-      const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 2);
+      const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
       
       if (searchTerms.length === 0) {
         return { results: [], total: 0, algorithm: 'tfidf' };
       }
 
       // Calculate TF-IDF scores
+      const regex = searchTerms.join('|');
+      const orClause = [
+        { title: { $regex: regex, $options: 'i' } },
+        { fullName: { $regex: regex, $options: 'i' } },
+        { jobTitle: { $regex: regex, $options: 'i' } },
+        { company: { $regex: regex, $options: 'i' } },
+        { bio: { $regex: regex, $options: 'i' } },
+        { industry: { $regex: regex, $options: 'i' } },
+        { profession: { $regex: regex, $options: 'i' } },
+        { skills: { $regex: regex, $options: 'i' } },
+        { services: { $regex: regex, $options: 'i' } }
+      ];
+
       const pipeline = [
         {
           $match: {
             isPublic: true,
             ...filters,
-            $or: [
-              { title: { $regex: searchTerms.join('|'), $options: 'i' } },
-              { fullName: { $regex: searchTerms.join('|'), $options: 'i' } },
-              { jobTitle: { $regex: searchTerms.join('|'), $options: 'i' } },
-              { company: { $regex: searchTerms.join('|'), $options: 'i' } },
-              { bio: { $regex: searchTerms.join('|'), $options: 'i' } }
-            ]
+            $or: orClause
+          }
+        },
+        {
+          $addFields: {
+            _titleWords: { $split: [{ $toLower: { $ifNull: ['$title', ''] } }, ' '] },
+            _nameWords: { $split: [{ $toLower: { $ifNull: ['$fullName', ''] } }, ' '] },
+            _jobWords: { $split: [{ $toLower: { $ifNull: ['$jobTitle', ''] } }, ' '] },
+            _companyWords: { $split: [{ $toLower: { $ifNull: ['$company', ''] } }, ' '] }
           }
         },
         {
@@ -47,12 +62,12 @@ class AdvancedSearchAlgorithms {
                     {
                       $size: {
                         $filter: {
-                          input: { $split: [{ $toLower: '$title' }, ' '] },
+                          input: '$_titleWords',
                           cond: { $in: ['$$this', searchTerms] }
                         }
                       }
                     },
-                    10 // Title weight
+                    10
                   ]
                 },
                 {
@@ -60,12 +75,12 @@ class AdvancedSearchAlgorithms {
                     {
                       $size: {
                         $filter: {
-                          input: { $split: [{ $toLower: '$fullName' }, ' '] },
+                          input: '$_nameWords',
                           cond: { $in: ['$$this', searchTerms] }
                         }
                       }
                     },
-                    8 // Full name weight
+                    8
                   ]
                 },
                 {
@@ -73,12 +88,12 @@ class AdvancedSearchAlgorithms {
                     {
                       $size: {
                         $filter: {
-                          input: { $split: [{ $toLower: '$jobTitle' }, ' '] },
+                          input: '$_jobWords',
                           cond: { $in: ['$$this', searchTerms] }
                         }
                       }
                     },
-                    6 // Job title weight
+                    6
                   ]
                 },
                 {
@@ -86,12 +101,12 @@ class AdvancedSearchAlgorithms {
                     {
                       $size: {
                         $filter: {
-                          input: { $split: [{ $toLower: '$company' }, ' '] },
+                          input: '$_companyWords',
                           cond: { $in: ['$$this', searchTerms] }
                         }
                       }
                     },
-                    6 // Company weight
+                    6
                   ]
                 }
               ]
@@ -116,7 +131,7 @@ class AdvancedSearchAlgorithms {
           }
         },
         {
-          $unwind: '$owner'
+          $unwind: { path: '$owner', preserveNullAndEmptyArrays: true }
         },
         {
           $project: {
@@ -135,7 +150,11 @@ class AdvancedSearchAlgorithms {
             tfidfScore: 1,
             'owner.username': 1,
             'owner.email': 1,
-            'owner.name': 1
+            'owner.name': 1,
+            _titleWords: 0,
+            _nameWords: 0,
+            _jobWords: 0,
+            _companyWords: 0
           }
         }
       ];
@@ -144,13 +163,7 @@ class AdvancedSearchAlgorithms {
       const total = await Card.countDocuments({
         isPublic: true,
         ...filters,
-        $or: [
-          { title: { $regex: searchTerms.join('|'), $options: 'i' } },
-          { fullName: { $regex: searchTerms.join('|'), $options: 'i' } },
-          { jobTitle: { $regex: searchTerms.join('|'), $options: 'i' } },
-          { company: { $regex: searchTerms.join('|'), $options: 'i' } },
-          { bio: { $regex: searchTerms.join('|'), $options: 'i' } }
-        ]
+        $or: orClause
       });
 
       return {
@@ -178,7 +191,7 @@ class AdvancedSearchAlgorithms {
     try {
       const { limit = 20, skip = 0, filters = {} } = options;
       
-      const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 2);
+      const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
       
       if (searchTerms.length === 0) {
         return { results: [], total: 0, algorithm: 'bm25' };
@@ -189,31 +202,46 @@ class AdvancedSearchAlgorithms {
       const b = 0.75; // Length normalization parameter
       const avgDocLength = 50; // Average document length (approximate)
 
+      const bm25Regex = searchTerms.join('|');
+      const bm25Or = [
+        { title: { $regex: bm25Regex, $options: 'i' } },
+        { fullName: { $regex: bm25Regex, $options: 'i' } },
+        { jobTitle: { $regex: bm25Regex, $options: 'i' } },
+        { company: { $regex: bm25Regex, $options: 'i' } },
+        { bio: { $regex: bm25Regex, $options: 'i' } },
+        { industry: { $regex: bm25Regex, $options: 'i' } },
+        { profession: { $regex: bm25Regex, $options: 'i' } },
+        { skills: { $regex: bm25Regex, $options: 'i' } },
+        { services: { $regex: bm25Regex, $options: 'i' } }
+      ];
+
       const pipeline = [
         {
           $match: {
             isPublic: true,
             ...filters,
-            $or: [
-              { title: { $regex: searchTerms.join('|'), $options: 'i' } },
-              { fullName: { $regex: searchTerms.join('|'), $options: 'i' } },
-              { jobTitle: { $regex: searchTerms.join('|'), $options: 'i' } },
-              { company: { $regex: searchTerms.join('|'), $options: 'i' } },
-              { bio: { $regex: searchTerms.join('|'), $options: 'i' } }
-            ]
+            $or: bm25Or
           }
         },
         {
           $addFields: {
+            _titleWords: { $split: [{ $toLower: { $ifNull: ['$title', ''] } }, ' '] },
+            _nameWords: { $split: [{ $toLower: { $ifNull: ['$fullName', ''] } }, ' '] },
+            _titleLen: { $strLenCP: { $ifNull: ['$title', ''] } },
+            _nameLen: { $strLenCP: { $ifNull: ['$fullName', ''] } },
             docLength: {
               $add: [
-                { $strLenCP: '$title' },
-                { $strLenCP: '$fullName' },
-                { $strLenCP: '$jobTitle' },
-                { $strLenCP: '$company' },
-                { $strLenCP: '$bio' }
+                { $strLenCP: { $ifNull: ['$title', ''] } },
+                { $strLenCP: { $ifNull: ['$fullName', ''] } },
+                { $strLenCP: { $ifNull: ['$jobTitle', ''] } },
+                { $strLenCP: { $ifNull: ['$company', ''] } },
+                { $strLenCP: { $ifNull: ['$bio', ''] } }
               ]
-            },
+            }
+          }
+        },
+        {
+          $addFields: {
             bm25Score: {
               $sum: [
                 // Title score (highest weight)
@@ -226,7 +254,7 @@ class AdvancedSearchAlgorithms {
                             {
                               $size: {
                                 $filter: {
-                                  input: { $split: [{ $toLower: '$title' }, ' '] },
+                                  input: '$_titleWords',
                                   cond: { $in: ['$$this', searchTerms] }
                                 }
                               }
@@ -242,7 +270,7 @@ class AdvancedSearchAlgorithms {
                                 k1,
                                 {
                                   $divide: [
-                                    { $strLenCP: '$title' },
+                                    '$_titleLen',
                                     avgDocLength
                                   ]
                                 }
@@ -265,7 +293,7 @@ class AdvancedSearchAlgorithms {
                             {
                               $size: {
                                 $filter: {
-                                  input: { $split: [{ $toLower: '$fullName' }, ' '] },
+                                  input: '$_nameWords',
                                   cond: { $in: ['$$this', searchTerms] }
                                 }
                               }
@@ -281,7 +309,7 @@ class AdvancedSearchAlgorithms {
                                 k1,
                                 {
                                   $divide: [
-                                    { $strLenCP: '$fullName' },
+                                    '$_nameLen',
                                     avgDocLength
                                   ]
                                 }
@@ -316,7 +344,7 @@ class AdvancedSearchAlgorithms {
           }
         },
         {
-          $unwind: '$owner'
+          $unwind: { path: '$owner', preserveNullAndEmptyArrays: true }
         },
         {
           $project: {
@@ -335,7 +363,12 @@ class AdvancedSearchAlgorithms {
             bm25Score: 1,
             'owner.username': 1,
             'owner.email': 1,
-            'owner.name': 1
+            'owner.name': 1,
+            _titleWords: 0,
+            _nameWords: 0,
+            _titleLen: 0,
+            _nameLen: 0,
+            docLength: 0
           }
         }
       ];
@@ -344,13 +377,7 @@ class AdvancedSearchAlgorithms {
       const total = await Card.countDocuments({
         isPublic: true,
         ...filters,
-        $or: [
-          { title: { $regex: searchTerms.join('|'), $options: 'i' } },
-          { fullName: { $regex: searchTerms.join('|'), $options: 'i' } },
-          { jobTitle: { $regex: searchTerms.join('|'), $options: 'i' } },
-          { company: { $regex: searchTerms.join('|'), $options: 'i' } },
-          { bio: { $regex: searchTerms.join('|'), $options: 'i' } }
-        ]
+        $or: bm25Or
       });
 
       return {
@@ -392,7 +419,7 @@ class AdvancedSearchAlgorithms {
 
       return {
         results: paginatedResults,
-        total: combinedResults.length,
+        total: Math.max(tfidfResults.total || 0, bm25Results.total || 0, combinedResults.length),
         algorithm: 'hybrid',
         query,
         pagination: {
@@ -448,11 +475,27 @@ class AdvancedSearchAlgorithms {
           const relevanceA = a.tfidfScore || a.bm25Score || 0;
           const relevanceB = b.tfidfScore || b.bm25Score || 0;
           return sortOrder === 'desc' ? relevanceB - relevanceA : relevanceA - relevanceB;
-        }
+        },
+
+        // Alphabetical by name
+        name: (a, b) => {
+          const nameA = (a.fullName || '').toLowerCase();
+          const nameB = (b.fullName || '').toLowerCase();
+          return sortOrder === 'desc' ? nameB.localeCompare(nameA) : nameA.localeCompare(nameB);
+        },
+
+        recent: (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+        oldest: (a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0),
+        popular: (a, b) => ((b.loveCount || 0) + (b.views || 0) * 0.1) - ((a.loveCount || 0) + (a.views || 0) * 0.1),
+        views: (a, b) => (b.views || 0) - (a.views || 0),
+        loves: (a, b) => (b.loveCount || 0) - (a.loveCount || 0),
+        date: (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+        newest: (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
+        company: (a, b) => (a.company || '').localeCompare(b.company || ''),
       };
 
       const sortFunction = sortFunctions[sortBy] || sortFunctions.relevance;
-      return cards.sort(sortFunction);
+      return [...cards].sort(sortFunction);
     } catch (error) {
       logger.error(`Advanced sorting error: ${error.message}`);
       return cards;
@@ -520,7 +563,7 @@ class AdvancedSearchAlgorithms {
     try {
       const { limit = 20, skip = 0, filters = {}, threshold = 0.7 } = options;
       
-      const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 2);
+      const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 0);
       
       if (searchTerms.length === 0) {
         return { results: [], total: 0, algorithm: 'fuzzy' };
@@ -540,8 +583,19 @@ class AdvancedSearchAlgorithms {
               { title: { $regex: fuzzyRegex, $options: 'i' } },
               { fullName: { $regex: fuzzyRegex, $options: 'i' } },
               { jobTitle: { $regex: fuzzyRegex, $options: 'i' } },
-              { company: { $regex: fuzzyRegex, $options: 'i' } }
+              { company: { $regex: fuzzyRegex, $options: 'i' } },
+              { bio: { $regex: fuzzyRegex, $options: 'i' } },
+              { industry: { $regex: fuzzyRegex, $options: 'i' } },
+              { profession: { $regex: fuzzyRegex, $options: 'i' } },
+              { skills: { $regex: fuzzyRegex, $options: 'i' } },
+              { services: { $regex: fuzzyRegex, $options: 'i' } }
             ]
+          }
+        },
+        {
+          $addFields: {
+            _titleWords: { $split: [{ $toLower: { $ifNull: ['$title', ''] } }, ' '] },
+            _nameWords: { $split: [{ $toLower: { $ifNull: ['$fullName', ''] } }, ' '] }
           }
         },
         {
@@ -553,7 +607,7 @@ class AdvancedSearchAlgorithms {
                     {
                       $size: {
                         $filter: {
-                          input: { $split: [{ $toLower: '$title' }, ' '] },
+                          input: '$_titleWords',
                           cond: { $in: ['$$this', searchTerms] }
                         }
                       }
@@ -566,7 +620,7 @@ class AdvancedSearchAlgorithms {
                     {
                       $size: {
                         $filter: {
-                          input: { $split: [{ $toLower: '$fullName' }, ' '] },
+                          input: '$_nameWords',
                           cond: { $in: ['$$this', searchTerms] }
                         }
                       }
@@ -596,7 +650,29 @@ class AdvancedSearchAlgorithms {
           }
         },
         {
-          $unwind: '$owner'
+          $unwind: { path: '$owner', preserveNullAndEmptyArrays: true }
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            fullName: 1,
+            jobTitle: 1,
+            company: 1,
+            email: 1,
+            bio: 1,
+            shortLink: 1,
+            qrCode: 1,
+            loveCount: 1,
+            views: 1,
+            createdAt: 1,
+            fuzzyScore: 1,
+            'owner.username': 1,
+            'owner.email': 1,
+            'owner.name': 1,
+            _titleWords: 0,
+            _nameWords: 0
+          }
         }
       ];
 
@@ -608,7 +684,12 @@ class AdvancedSearchAlgorithms {
           { title: { $regex: fuzzyRegex, $options: 'i' } },
           { fullName: { $regex: fuzzyRegex, $options: 'i' } },
           { jobTitle: { $regex: fuzzyRegex, $options: 'i' } },
-          { company: { $regex: fuzzyRegex, $options: 'i' } }
+          { company: { $regex: fuzzyRegex, $options: 'i' } },
+          { bio: { $regex: fuzzyRegex, $options: 'i' } },
+          { industry: { $regex: fuzzyRegex, $options: 'i' } },
+          { profession: { $regex: fuzzyRegex, $options: 'i' } },
+          { skills: { $regex: fuzzyRegex, $options: 'i' } },
+          { services: { $regex: fuzzyRegex, $options: 'i' } }
         ]
       });
 

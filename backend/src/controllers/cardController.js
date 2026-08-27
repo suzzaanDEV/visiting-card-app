@@ -7,32 +7,45 @@ const logger = require('../utils/logger');
 // Create a new card
 exports.createCard = async (req, res, next) => {
   try {
-    const { 
-      title, 
-      isPublic, 
+    const {
+      title,
+      isPublic,
       privacy,
-      designJson, 
-      templateId, 
+      designJson,
+      templateId,
       customShortLink,
       fullName,
       jobTitle,
+      department,
       email,
       phone,
+      mobile,
+      fax,
       website,
       company,
       address,
-      bio
+      city,
+      state,
+      country,
+      postalCode,
+      bio,
+      tagline,
+      companyTagline,
+      socialLinks,
+      cardDesign,
+      templateName,
+      category,
+      tags
     } = req.body;
     const cardImage = req.file;
-    
-    logger.info(`createCard: title=${title}, isPublic=${isPublic}, designJson=${designJson ? 'provided' : 'none'}, cardImage=${cardImage ? 'provided' : 'none'}, fullName=${fullName}`);
-    
-    // Validate required fields
+
+    logger.info(`createCard: title=${title}, isPublic=${isPublic}, fullName=${fullName}`);
+
     if (!fullName || fullName.trim() === '') {
-      logger.error(`createCard: fullName is missing or empty. Received: "${fullName}"`);
+      logger.error(`createCard: fullName is missing or empty.`);
       return res.status(400).json({ error: 'Full name is required' });
     }
-    
+
     const result = await cardService.createCard(req.user.userId, {
       title,
       isPublic,
@@ -43,14 +56,28 @@ exports.createCard = async (req, res, next) => {
       customShortLink,
       fullName,
       jobTitle,
+      department,
       email,
       phone,
+      mobile,
+      fax,
       website,
       company,
       address,
-      bio
+      city,
+      state,
+      country,
+      postalCode,
+      bio,
+      tagline,
+      companyTagline,
+      socialLinks,
+      cardDesign,
+      templateName,
+      category,
+      tags
     });
-    
+
     res.status(201).json(result);
   } catch (error) {
     logger.error(`Create card error: ${error.message}`);
@@ -64,47 +91,47 @@ exports.createCardFromTemplate = async (req, res, next) => {
     logger.info(`Request headers: ${JSON.stringify(req.headers)}`);
     logger.info(`Request body keys: ${Object.keys(req.body)}`);
     logger.info(`Request body: ${JSON.stringify(req.body)}`);
-    
+
     // Handle both FormData and JSON
     let cardData = req.body;
-    
+
     // If the data is coming as FormData, it might be in a different format
     if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
       logger.info('Processing FormData request');
       // FormData fields should be directly accessible in req.body
       cardData = req.body;
     }
-    
-    const { 
-      title, 
-      isPublic, 
+
+    const {
+      title,
+      isPublic,
       privacy,
-      templateId, 
-      fullName, 
-      jobTitle, 
-      email, 
-      phone, 
-      website, 
-      company, 
-      address, 
-      bio, 
-      backgroundColor, 
-      textColor, 
-      fontFamily 
+      templateId,
+      fullName,
+      jobTitle,
+      email,
+      phone,
+      website,
+      company,
+      address,
+      bio,
+      backgroundColor,
+      textColor,
+      fontFamily
     } = cardData;
     const cardImage = req.file;
-    
+
     logger.info(`createCardFromTemplate: title=${title}, isPublic=${isPublic}, templateId=${templateId}, fullName=${fullName}, formData="${JSON.stringify(cardData)}", cardImage=${cardImage ? 'provided' : 'none'}`);
     logger.info(`Template ID type: ${typeof templateId}, value: ${templateId}`);
     logger.info(`Full name type: ${typeof fullName}, value: ${fullName}`);
-    
+
     // Validate required fields
     if (!fullName || fullName.trim() === '') {
       logger.error(`createCardFromTemplate: fullName is missing or empty. Received: "${fullName}"`);
       logger.error(`All received fields: ${JSON.stringify(cardData)}`);
       return res.status(400).json({ error: 'Full name is required' });
     }
-    
+
     const result = await cardService.createCardFromTemplate(req.user.userId, {
       title,
       isPublic,
@@ -123,7 +150,7 @@ exports.createCardFromTemplate = async (req, res, next) => {
       fontFamily,
       cardImage
     });
-    
+
     res.status(201).json(result);
   } catch (error) {
     logger.error(`Create card from template error: ${error.message}`);
@@ -142,41 +169,67 @@ exports.getUserCards = async (req, res, next) => {
   }
 };
 
+// Get aggregate stats for all of a user's cards
+exports.getUserCardStats = async (req, res, next) => {
+  try {
+    const stats = await cardService.getUserCardStats(req.user.userId);
+    // Flat shape so frontend can read stats.totalCards directly from the payload
+    res.status(200).json(stats);
+  } catch (error) {
+    logger.error(`Get user card stats error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Get a specific card
 exports.getCard = async (req, res, next) => {
   try {
     logger.info(`getCard called with cardId: ${req.params.cardId}, userId: ${req.user.userId}`);
     const card = await cardService.getCard(req.params.cardId, req.user.userId);
-    res.status(200).json({ card });
+    res.status(200).json({ success: true, card });
   } catch (error) {
     logger.error(`Get card error: ${error.message}`);
-    res.status(404).json({ error: error.message });
+    res.status(404).json({ success: false, error: error.message });
   }
 };
 
 // Update a card
 exports.updateCard = async (req, res, next) => {
   try {
-    const { 
-      title, 
-      isPublic, 
+    const {
+      title,
+      isPublic,
       privacy,
       designJson,
       fullName,
       jobTitle,
+      department,
       email,
       phone,
+      mobile,
+      fax,
       website,
       company,
       address,
+      city,
+      state,
+      country,
+      postalCode,
       bio,
+      tagline,
+      companyTagline,
+      socialLinks,
+      cardDesign,
       backgroundColor,
       textColor,
       fontFamily,
-      templateId
+      templateId,
+      templateName,
+      category,
+      tags
     } = req.body;
     const cardImage = req.file;
-    
+
     const result = await cardService.updateCard(req.params.cardId, req.user.userId, {
       title,
       isPublic,
@@ -184,20 +237,34 @@ exports.updateCard = async (req, res, next) => {
       designJson,
       fullName,
       jobTitle,
+      department,
       email,
       phone,
+      mobile,
+      fax,
       website,
       company,
       address,
+      city,
+      state,
+      country,
+      postalCode,
       bio,
+      tagline,
+      companyTagline,
+      socialLinks,
+      cardDesign,
       backgroundColor,
       textColor,
       fontFamily,
       templateId,
+      templateName,
+      category,
+      tags,
       cardImage
     });
-    
-    res.status(200).json(result);
+
+    res.status(200).json({ success: true, card: result.card, cardDesign: result.cardDesign });
   } catch (error) {
     logger.error(`Update card error: ${error.message}`);
     res.status(400).json({ error: error.message });
@@ -218,19 +285,22 @@ exports.deleteCard = async (req, res, next) => {
 // Get all public cards (for discovery)
 exports.getPublicCards = async (req, res, next) => {
   try {
-    const { page = 1, limit = 10, category, search, privacy } = req.query;
+    const { page = 1, limit = 10, category, search, privacy, sortBy, industry, location } = req.query;
     const cards = await cardService.getPublicCards({
       page: parseInt(page),
       limit: parseInt(limit),
       category,
       search,
-      privacy
+      privacy,
+      sortBy,
+      industry,
+      location
     });
 
     // Check if user is authenticated for privacy filtering
     const token = req.headers.authorization?.replace('Bearer ', '');
     let isAuthenticated = false;
-    
+
     if (token) {
       try {
         const jwt = require('jsonwebtoken');
@@ -252,7 +322,7 @@ exports.getPublicCards = async (req, res, next) => {
 
     // Add privacy header
     res.setHeader('X-Privacy-Notice', 'Some contact information may be filtered for privacy');
-    
+
     res.status(200).json(cards);
   } catch (error) {
     logger.error(`Get public cards error: ${error.message}`);
@@ -264,7 +334,7 @@ exports.getPublicCards = async (req, res, next) => {
 exports.getCardByShortLink = async (req, res, next) => {
   try {
     const result = await cardService.getCardByShortLink(req.params.shortLink);
-    
+
     // Increment view count
     if (result && result.card) {
       await result.card.incrementViews();
@@ -274,7 +344,7 @@ exports.getCardByShortLink = async (req, res, next) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
     let isAuthenticated = false;
     let userId = null;
-    
+
     if (token) {
       try {
         const jwt = require('jsonwebtoken');
@@ -292,7 +362,7 @@ exports.getCardByShortLink = async (req, res, next) => {
     if (isAuthenticated && result && result.card) {
       // Check if user is the owner
       isOwner = result.card.ownerUserId?.toString() === userId?.toString();
-      
+
       // Check if user has approved access for private cards
       if (result.card.privacy === 'private') {
         const accessCheck = await cardAccessService.checkAccess(result.card._id, userId);
@@ -306,7 +376,7 @@ exports.getCardByShortLink = async (req, res, next) => {
       // Convert Mongoose document to plain object
       const cardObj = result.card.toObject ? result.card.toObject() : result.card;
       const filteredCard = { ...cardObj };
-      
+
       // Mask email
       if (filteredCard.email) {
         const [localPart, domain] = filteredCard.email.split('@');
@@ -343,7 +413,7 @@ exports.getCardByShortLink = async (req, res, next) => {
     if (result && result.card && result.card.privacy === 'private') {
       res.setHeader('X-Privacy-Notice', 'Some contact information may be filtered for privacy');
     }
-    
+
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Get card by short link error: ${error.message}`);
@@ -355,11 +425,11 @@ exports.getCardByShortLink = async (req, res, next) => {
 exports.getCardById = async (req, res, next) => {
   try {
     const result = await cardService.getCardById(req.params.cardId);
-    
+
     if (!result || !result.card) {
       return res.status(404).json({ error: 'Card not found' });
     }
-    
+
     // Increment view count
     try {
       if (result.card && typeof result.card.incrementViews === 'function') {
@@ -374,7 +444,7 @@ exports.getCardById = async (req, res, next) => {
     const token = req.headers.authorization?.replace('Bearer ', '');
     let isAuthenticated = false;
     let userId = null;
-    
+
     if (token) {
       try {
         const jwt = require('jsonwebtoken');
@@ -392,7 +462,7 @@ exports.getCardById = async (req, res, next) => {
     if (isAuthenticated && result && result.card) {
       // Check if user is the owner
       isOwner = result.card.ownerUserId?.toString() === userId?.toString();
-      
+
       // Check if user has approved access for private cards
       if (result.card.privacy === 'private') {
         const accessCheck = await cardAccessService.checkAccess(result.card._id, userId);
@@ -406,7 +476,7 @@ exports.getCardById = async (req, res, next) => {
       // Convert Mongoose document to plain object
       const cardObj = result.card.toObject ? result.card.toObject() : result.card;
       const filteredCard = { ...cardObj };
-      
+
       // Mask email
       if (filteredCard.email) {
         const [localPart, domain] = filteredCard.email.split('@');
@@ -443,7 +513,7 @@ exports.getCardById = async (req, res, next) => {
     if (result && result.card && result.card.privacy === 'private') {
       res.setHeader('X-Privacy-Notice', 'Some contact information may be filtered for privacy');
     }
-    
+
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Get card by ID error: ${error.message}`);
@@ -456,7 +526,13 @@ exports.toggleLove = async (req, res, next) => {
   try {
     const { cardId } = req.params;
     const result = await cardService.toggleLove(cardId, req.user.userId);
-    res.status(200).json(result);
+    // Notify card owner when someone loves their card (only on love, not unlove)
+    if (result.loved) {
+      notificationService.createCardLovedNotification(cardId, req.user.userId).catch(err =>
+        logger.warn(`Failed to create love notification: ${err.message}`)
+      );
+    }
+    res.status(200).json({ cardId, loved: result.loved, loveCount: result.loveCount });
   } catch (error) {
     logger.error(`Toggle love error: ${error.message}`);
     res.status(400).json({ error: error.message });
@@ -468,7 +544,7 @@ exports.saveCard = async (req, res, next) => {
   try {
     const { cardId } = req.params;
     const { notes, tags } = req.body;
-    
+
     const result = await savedCardService.saveCard(req.user.userId, cardId, { notes, tags });
     res.status(200).json(result);
   } catch (error) {
@@ -516,7 +592,7 @@ exports.exportContact = async (req, res, next) => {
   try {
     const { cardId } = req.params;
     const vcfContent = await cardService.generateVCF(cardId);
-    
+
     res.setHeader('Content-Type', 'text/vcard');
     res.setHeader('Content-Disposition', `attachment; filename="contact-${cardId}.vcf"`);
     res.status(200).send(vcfContent);
@@ -531,6 +607,12 @@ exports.shareCard = async (req, res, next) => {
   try {
     const { cardId } = req.params;
     await cardService.incrementShares(cardId);
+    // Notify card owner when someone shares their card
+    if (req.user?.userId) {
+      notificationService.createCardSharedNotification(cardId, req.user.userId).catch(err =>
+        logger.warn(`Failed to create share notification: ${err.message}`)
+      );
+    }
     res.status(200).json({ message: 'Share recorded' });
   } catch (error) {
     logger.error(`Share card error: ${error.message}`);
@@ -574,6 +656,24 @@ exports.getTrendingCards = async (req, res, next) => {
   }
 };
 
+// Get suggested cards (random popular public cards)
+exports.getSuggestions = async (req, res, next) => {
+  try {
+    const { limit = 6 } = req.query;
+    const Card = require('../models/cardModel');
+    const suggestions = await Card.aggregate([
+      { $match: { isPublic: true, isActive: true } },
+      { $sample: { size: parseInt(limit) } },
+      { $lookup: { from: 'users', localField: 'ownerUserId', foreignField: '_id', as: 'owner', pipeline: [{ $project: { name: 1, username: 1, avatar: 1 } }] } },
+      { $unwind: { path: '$owner', preserveNullAndEmptyArrays: true } }
+    ]);
+    res.status(200).json({ suggestions });
+  } catch (error) {
+    logger.error(`Get suggestions error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Get user's loved cards
 exports.getLovedCards = async (req, res, next) => {
   try {
@@ -590,14 +690,14 @@ exports.saveContact = async (req, res, next) => {
   try {
     const { cardId } = req.params;
     const card = await cardService.getCardById(cardId);
-    
+
     if (!card) {
       return res.status(404).json({ error: 'Card not found' });
     }
 
     // Generate VCF content for contact
     const vcfContent = await cardService.generateVCF(cardId);
-    
+
     // Set headers for VCF download
     res.setHeader('Content-Type', 'text/vcard');
     res.setHeader('Content-Disposition', `attachment; filename="contact-${card.shortLink}.vcf"`);
@@ -613,9 +713,9 @@ exports.getCardWithEnhancedInfo = async (req, res, next) => {
   try {
     const { cardId } = req.params;
     const userId = req.user?.userId;
-    
+
     const result = await cardService.getCardById(cardId);
-    
+
     if (!result || !result.card) {
       return res.status(404).json({ error: 'Card not found' });
     }
@@ -624,10 +724,10 @@ exports.getCardWithEnhancedInfo = async (req, res, next) => {
     if (result.card.privacy === 'private' && userId) {
       const accessCheck = await cardAccessService.checkAccess(cardId, userId);
       if (!accessCheck.access) {
-        return res.status(403).json({ 
-          error: 'Access denied', 
+        return res.status(403).json({
+          error: 'Access denied',
           reason: accessCheck.reason,
-          requestId: accessCheck.request?._id 
+          requestId: accessCheck.request?._id
         });
       }
     }
@@ -638,7 +738,7 @@ exports.getCardWithEnhancedInfo = async (req, res, next) => {
     if (result.card.privacy === 'private' && userId) {
       // Check if user is the owner
       isOwner = result.card.ownerUserId?.toString() === userId;
-      
+
       // Check if user has approved access
       const accessCheck = await cardAccessService.checkAccess(cardId, userId);
       hasApprovedAccess = accessCheck.access && (accessCheck.reason === 'approved_request' || accessCheck.reason === 'owner');
@@ -654,9 +754,9 @@ exports.getCardWithEnhancedInfo = async (req, res, next) => {
         fullContactInfo: isOwner || hasApprovedAccess || result.card.privacy === 'public',
         hasApprovedAccess: hasApprovedAccess
       };
-      
-      return res.json({ 
-        success: true, 
+
+      return res.json({
+        success: true,
         card: enhancedCard,
         cardDesign: result.cardDesign,
         template: result.template
@@ -664,8 +764,8 @@ exports.getCardWithEnhancedInfo = async (req, res, next) => {
     }
 
     // For non-authenticated users, return basic info
-    return res.json({ 
-      success: true, 
+    return res.json({
+      success: true,
       card: result.card,
       cardDesign: result.cardDesign,
       template: result.template
@@ -683,7 +783,7 @@ exports.checkCardAccess = async (req, res, next) => {
     const userId = req.user.userId;
 
     const accessCheck = await cardAccessService.checkAccess(cardId, userId);
-    
+
     res.status(200).json({
       success: true,
       access: accessCheck.access,
@@ -704,12 +804,12 @@ exports.requestCardAccess = async (req, res, next) => {
     const userId = req.user.userId;
 
     const result = await cardAccessService.createAccessRequest(cardId, userId, 'manual_request', message);
-    
+
     // Create notification for card owner
     if (!result.access) {
       await notificationService.createAccessRequestNotification(cardId, userId, result.request._id);
     }
-    
+
     res.status(200).json({
       success: true,
       access: result.access,
@@ -729,7 +829,7 @@ exports.grantQRAccess = async (req, res, next) => {
     const userId = req.user.userId;
 
     const result = await cardAccessService.grantQRAccess(cardId, userId);
-    
+
     res.status(200).json({
       success: true,
       access: result.access,
@@ -747,7 +847,7 @@ exports.getAccessRequests = async (req, res, next) => {
   try {
     const userId = req.user.userId;
     const requests = await cardAccessService.getOwnerRequests(userId);
-    
+
     res.status(200).json({
       success: true,
       requests
@@ -766,10 +866,10 @@ exports.approveAccessRequest = async (req, res, next) => {
     const userId = req.user.userId;
 
     const request = await cardAccessService.approveRequest(requestId, userId, message);
-    
+
     // Create notification for requester
     await notificationService.createAccessApprovedNotification(requestId);
-    
+
     res.status(200).json({
       success: true,
       request,
@@ -789,10 +889,10 @@ exports.rejectAccessRequest = async (req, res, next) => {
     const userId = req.user.userId;
 
     const request = await cardAccessService.rejectRequest(requestId, userId, message);
-    
+
     // Create notification for requester
     await notificationService.createAccessRejectedNotification(requestId, message);
-    
+
     res.status(200).json({
       success: true,
       request,
@@ -817,9 +917,9 @@ exports.updateCardPrivacy = async (req, res, next) => {
     }
 
     const card = await cardService.updateCardPrivacy(cardId, userId, privacy);
-    
+
     logger.info(`Card privacy updated: ${cardId} by user ${userId} to ${privacy}`);
-    
+
     res.status(200).json({
       success: true,
       card: {
@@ -833,5 +933,99 @@ exports.updateCardPrivacy = async (req, res, next) => {
   } catch (error) {
     logger.error(`Update card privacy error: ${error.message}`);
     res.status(400).json({ error: error.message });
+  }
+};
+
+// Archive a card (soft delete)
+exports.archiveCard = async (req, res, next) => {
+  try {
+    const { cardId } = req.params;
+    const userId = req.user.userId;
+    const Card = require('../models/cardModel');
+    const card = await Card.findOne({ _id: cardId, ownerUserId: userId });
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    card.isActive = false;
+    await card.save();
+    res.status(200).json({ message: 'Card archived', card: { _id: card._id, isActive: false } });
+  } catch (error) {
+    logger.error(`Archive card error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Restore a card
+exports.restoreCard = async (req, res, next) => {
+  try {
+    const { cardId } = req.params;
+    const userId = req.user.userId;
+    const Card = require('../models/cardModel');
+    const card = await Card.findOne({ _id: cardId, ownerUserId: userId });
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    card.isActive = true;
+    await card.save();
+    res.status(200).json({ message: 'Card restored', card: { _id: card._id, isActive: true } });
+  } catch (error) {
+    logger.error(`Restore card error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Duplicate a card
+exports.duplicateCard = async (req, res, next) => {
+  try {
+    const { cardId } = req.params;
+    const userId = req.user.userId;
+    const Card = require('../models/cardModel');
+    const card = await Card.findOne({ _id: cardId, ownerUserId: userId });
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    const cardObj = card.toObject();
+    delete cardObj._id;
+    delete cardObj.shortLink;
+    delete cardObj.createdAt;
+    delete cardObj.updatedAt;
+    delete cardObj.loves;
+    delete cardObj.__v;
+    cardObj.title = `${cardObj.title} (Copy)`;
+    cardObj.views = 0;
+    cardObj.loveCount = 0;
+    cardObj.shares = 0;
+    cardObj.downloads = 0;
+    const newCard = await cardService.createCard(userId, cardObj);
+    res.status(201).json(newCard);
+  } catch (error) {
+    logger.error(`Duplicate card error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Get archived cards
+exports.getArchivedCards = async (req, res, next) => {
+  try {
+    const Card = require('../models/cardModel');
+    const cards = await Card.find({ ownerUserId: req.user.userId, isActive: false }).sort({ updatedAt: -1 });
+    res.status(200).json({ cards });
+  } catch (error) {
+    logger.error(`Get archived cards error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Card completion score
+exports.getCardCompletionScore = async (req, res, next) => {
+  try {
+    const { cardId } = req.params;
+    const Card = require('../models/cardModel');
+    const card = await Card.findOne({ _id: cardId, ownerUserId: req.user.userId });
+    if (!card) return res.status(404).json({ error: 'Card not found' });
+    const fields = ['fullName', 'jobTitle', 'company', 'email', 'phone', 'website', 'bio', 'address', 'city', 'country'];
+    const socialFields = Object.keys(card.socialLinks || {}).filter(k => card.socialLinks[k]);
+    const filled = fields.filter(f => card[f] && card[f].toString().trim() !== '').length;
+    const total = fields.length + 1;
+    let score = Math.round((filled / total) * 100);
+    if (socialFields.length > 0) score = Math.min(100, score + 10);
+    const missing = fields.filter(f => !card[f] || card[f].toString().trim() === '');
+    res.status(200).json({ score, missing, socialLinksCount: socialFields.length });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 };

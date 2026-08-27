@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Logo = ({ className = "", color = "#1a3a63" }) => {
+const Logo = ({ className = "", color = "#064E3B" }) => {
   return (
     <svg 
       className={className} 
@@ -11,8 +11,8 @@ const Logo = ({ className = "", color = "#1a3a63" }) => {
       {/* Background circle with gradient */}
       <defs>
         <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#667eea" />
-          <stop offset="100%" stopColor="#764ba2" />
+          <stop offset="0%" stopColor="#10B981" />
+          <stop offset="100%" stopColor="#047857" />
         </linearGradient>
       </defs>
       

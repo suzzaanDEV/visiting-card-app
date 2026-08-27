@@ -108,9 +108,9 @@ class AnalyticsService {
       };
       
       // Store in real-time analytics collection
-      console.log('Real-time Analytics Event:', analyticsEvent);
+      logger.info('Real-time Analytics Event:', analyticsEvent);
     } catch (error) {
-      console.error('Failed to track real-time event:', error);
+      logger.error('Failed to track real-time event:', error);
     }
   };
 

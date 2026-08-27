@@ -8,7 +8,7 @@ import {
 import UnifiedNavigation from '../components/Layout/UnifiedNavigation';
 
 const AboutPage = () => {
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [, setIsScrolled] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -63,7 +63,7 @@ const AboutPage = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-green-900 to-slate-900">
       {/* Navigation */}
       <UnifiedNavigation />
       
@@ -77,14 +77,14 @@ const AboutPage = () => {
             className="text-center"
           >
             <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
+              <div className="w-20 h-20 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center">
                 <FaIdCard className="text-white text-3xl" />
               </div>
             </div>
             <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
               About Cardly
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-gray-300 dark:text-slate-400 max-w-4xl mx-auto leading-relaxed">
               We're revolutionizing the way professionals connect and share their information. 
                               Cardly makes networking effortless, secure, and impactful.
             </p>
@@ -102,7 +102,7 @@ const AboutPage = () => {
             className="text-center mb-16"
           >
             <h2 className="text-4xl font-bold text-white mb-6">Our Mission</h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 dark:text-slate-400 max-w-3xl mx-auto">
               To empower professionals with modern digital tools that enhance networking, 
               foster meaningful connections, and drive business growth in the digital age.
             </p>
@@ -118,11 +118,11 @@ const AboutPage = () => {
                 transition={{ duration: 0.6, delay: 0.3 + index * 0.1 }}
                 className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/10 text-center"
               >
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl flex items-center justify-center mx-auto mb-6">
                   <feature.icon className="text-white text-2xl" />
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-4">{feature.title}</h3>
-                <p className="text-gray-300">{feature.description}</p>
+                <p className="text-gray-300 dark:text-slate-400">{feature.description}</p>
               </motion.div>
             ))}
           </div>
@@ -150,7 +150,7 @@ const AboutPage = () => {
                 className="text-center"
               >
                 <div className="text-4xl md:text-5xl font-bold text-white mb-2">{stat.number}</div>
-                <div className="text-gray-300">{stat.label}</div>
+                <div className="text-gray-300 dark:text-slate-400">{stat.label}</div>
               </motion.div>
             ))}
           </div>
@@ -167,7 +167,7 @@ const AboutPage = () => {
             className="text-center mb-16"
           >
             <h2 className="text-4xl font-bold text-white mb-6">Meet the Team</h2>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
+            <p className="text-xl text-gray-300 dark:text-slate-400 max-w-3xl mx-auto">
                               The passionate minds behind Cardly, dedicated to creating the best digital networking experience.
             </p>
           </motion.div>
@@ -181,16 +181,16 @@ const AboutPage = () => {
                 transition={{ duration: 0.6, delay: 0.7 + index * 0.1 }}
                 className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/10 text-center"
               >
-                <div className="w-24 h-24 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mx-auto mb-6">
+                <div className="w-24 h-24 bg-gradient-to-r from-emerald-500 to-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
                   <FaUsers className="text-white text-3xl" />
                 </div>
                 <h3 className="text-xl font-semibold text-white mb-2">{member.name}</h3>
-                <p className="text-gray-300 mb-4">{member.role}</p>
-                <p className="text-gray-400 text-sm mb-6">{member.bio}</p>
+                <p className="text-gray-300 dark:text-slate-400 mb-4">{member.role}</p>
+                <p className="text-gray-400 dark:text-slate-500 text-sm mb-6">{member.bio}</p>
                 <div className="flex justify-center space-x-4">
                   <a
                     href={`mailto:${member.email}`}
-                    className="text-gray-400 hover:text-white transition-colors"
+                    className="text-gray-400 dark:text-slate-500 hover:text-white transition-colors"
                     title="Email"
                   >
                     <FaEnvelope className="text-lg" />
@@ -199,7 +199,7 @@ const AboutPage = () => {
                     href={`https://github.com/${member.github.replace('@', '')}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-white transition-colors"
+                    className="text-gray-400 dark:text-slate-500 hover:text-white transition-colors"
                     title="GitHub"
                   >
                     <FaGithub className="text-lg" />
@@ -208,7 +208,7 @@ const AboutPage = () => {
                     href="https://linkedin.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-gray-400 hover:text-white transition-colors"
+                    className="text-gray-400 dark:text-slate-500 hover:text-white transition-colors"
                     title="LinkedIn"
                   >
                     <FaLinkedin className="text-lg" />
@@ -231,13 +231,13 @@ const AboutPage = () => {
             <h2 className="text-4xl font-bold text-white mb-6">
               Ready to Transform Your Networking?
             </h2>
-            <p className="text-xl text-gray-300 mb-8">
+            <p className="text-xl text-gray-300 dark:text-slate-400 mb-8">
               Join thousands of professionals who have already upgraded to digital business cards
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/register"
-                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-2xl hover:shadow-purple-500/25 inline-flex items-center justify-center"
+                className="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-emerald-600 hover:to-green-700 transition-all duration-300 shadow-2xl hover:shadow-green-500/25 inline-flex items-center justify-center"
               >
                 Get Started Today
               </Link>
@@ -260,10 +260,10 @@ const AboutPage = () => {
               <FaIdCard className="h-8 w-8 text-white mr-3" />
                               <span className="text-2xl font-bold text-white">Cardly</span>
             </div>
-            <p className="text-gray-400 mb-4">
+            <p className="text-gray-400 dark:text-slate-500 mb-4">
               Made with <FaHeart className="inline text-red-500" /> by Suzan Ghimire
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-slate-400">
               Contact: sznghimire61@gmail.com | GitHub: @suzzaanDEV
             </p>
           </div>

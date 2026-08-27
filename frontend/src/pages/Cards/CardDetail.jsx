@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { FiArrowLeft, FiHeart, FiShare, FiDownload, FiSave, FiEye, FiAlertCircle, FiCheck, FiEdit, FiTrash2 } from 'react-icons/fi';
 import { FaHeart, FaShareAlt, FaDownload, FaSave, FaQrcode } from 'react-icons/fa';
-import { QRCodeCanvas } from 'qrcode.react';
 import toast from 'react-hot-toast';
+import QRCodeDisplay from '../../components/QRCodeDisplay';
 import { fetchCard, deleteCard } from '../../features/cards/cardsThunks';
 import { saveCardToLibrary, fetchSavedCards } from '../../features/library/libraryThunks';
 import { toggleCardLove } from '../../features/cards/cardsThunks';
@@ -21,9 +21,8 @@ const CardDetail = () => {
   const { currentCard, isLoading, error } = useSelector(state => state.cards);
   
   const [copied, setCopied] = useState(false);
-  const [isLoved, setIsLoved] = useState(false);
-  const [template, setTemplate] = useState(null);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
+  const [template, setTemplate] = useState(null);
   const [showQR, setShowQR] = useState(false);
   const [showTemplateView, setShowTemplateView] = useState(false);
 
@@ -59,8 +58,8 @@ const CardDetail = () => {
         const templateData = await response.json();
         setTemplate(templateData);
       }
-    } catch (error) {
-      console.error('Failed to fetch template:', error);
+    } catch {
+      console.error('Failed to fetch template:');
     } finally {
       setIsLoadingTemplate(false);
     }
@@ -75,7 +74,7 @@ const CardDetail = () => {
       await dispatch(deleteCard(cardId)).unwrap();
       toast.success('Card deleted successfully!');
       navigate('/cards');
-    } catch (error) {
+    } catch {
       toast.error('Failed to delete card');
     }
   };
@@ -84,7 +83,7 @@ const CardDetail = () => {
     try {
       await dispatch(toggleCardLove(cardId)).unwrap();
       toast.success('Card loved!');
-    } catch (error) {
+    } catch {
       toast.error('Failed to love card');
     }
   };
@@ -98,7 +97,7 @@ const CardDetail = () => {
       
       await dispatch(saveCardToLibrary({ cardId })).unwrap();
       toast.success('Card saved to library!');
-    } catch (error) {
+    } catch {
       toast.error('Failed to save card');
     }
   };
@@ -118,25 +117,8 @@ const CardDetail = () => {
         toast.success('Link copied to clipboard!');
         setTimeout(() => setCopied(false), 2000);
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to share');
-    }
-  };
-
-  const handleDownloadQR = () => {
-    try {
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
-        const link = document.createElement('a');
-        link.download = `${currentCard?.fullName?.replace(/\s+/g, '_')}_QR.png`;
-        link.href = canvas.toDataURL();
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('QR code downloaded!');
-      }
-    } catch (error) {
-      toast.error('Failed to download QR code');
     }
   };
 
@@ -151,10 +133,10 @@ const CardDetail = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-green-50 dark:from-slate-950 dark:to-slate-950 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading card...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 dark:text-slate-400">Loading card...</p>
         </div>
       </div>
     );
@@ -162,14 +144,14 @@ const CardDetail = () => {
 
   if (error || !currentCard) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-green-50 dark:from-slate-950 dark:to-slate-950 flex items-center justify-center">
         <div className="text-center">
           <FiAlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-red-600 mb-2">Card Not Found</h2>
-          <p className="text-red-600 mb-4">{error || 'The card you\'re looking for doesn\'t exist.'}</p>
+          <h2 className="text-2xl font-bold text-red-600 dark:text-red-400 mb-2">Card Not Found</h2>
+          <p className="text-red-600 dark:text-red-400 mb-4">{error || 'The card you\'re looking for doesn\'t exist.'}</p>
           <button 
             onClick={() => navigate('/cards')}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
           >
             Go Back
           </button>
@@ -182,7 +164,7 @@ const CardDetail = () => {
   const isOwner = user?.userId === card.ownerUserId;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-green-50 dark:from-slate-950 dark:to-slate-950 py-8">
       <div className="max-w-7xl mx-auto px-4">
         {/* Header */}
         <motion.div
@@ -193,12 +175,12 @@ const CardDetail = () => {
           <div className="flex items-center justify-between mb-6">
             <button
               onClick={() => navigate('/cards')}
-              className="flex items-center px-4 py-2 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+              className="flex items-center px-4 py-2 bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors shadow-sm"
             >
               <FiArrowLeft className="mr-2" />
               Back to Cards
             </button>
-            <h1 className="text-3xl font-bold text-gray-900">{card.fullName}</h1>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">{card.fullName}</h1>
           </div>
         </motion.div>
 
@@ -207,17 +189,17 @@ const CardDetail = () => {
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             animate={{ opacity: 1, x: 0 }}
-            className="bg-white rounded-2xl shadow-lg p-8"
+            className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-8"
           >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-semibold text-gray-900">Card Preview</h2>
+              <h2 className="text-2xl font-semibold text-gray-900 dark:text-slate-100">Card Preview</h2>
               <div className="flex space-x-2">
                 <button
                   onClick={() => setShowTemplateView(!showTemplateView)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                     showTemplateView 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-emerald-600 text-white' 
+                      : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'
                   }`}
                 >
                   {showTemplateView ? 'Template View' : 'Design View'}
@@ -227,7 +209,7 @@ const CardDetail = () => {
 
             <div className="relative">
               {showTemplateView && template && !isLoadingTemplate ? (
-                <div className="w-full h-96 bg-white rounded-xl shadow-lg overflow-hidden">
+                <div className="w-full h-96 bg-white dark:bg-slate-800 rounded-xl shadow-lg overflow-hidden">
                   <TemplateCardRenderer 
                     card={card} 
                     template={template}
@@ -235,7 +217,7 @@ const CardDetail = () => {
                   />
                 </div>
               ) : isLoadingTemplate ? (
-                <div className="w-full h-96 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center">
+                <div className="w-full h-96 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center">
                   <div className="text-center text-white">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                     <p>Loading template...</p>
@@ -245,33 +227,11 @@ const CardDetail = () => {
                 <div 
                   className="w-full h-96 rounded-xl flex items-center justify-center text-9xl font-bold text-white"
                   style={{
-                    background: card.backgroundColor || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                    background: card.backgroundColor || 'linear-gradient(135deg, #10B981 0%, #047857 100%)'
                   }}
                 >
                   {card.fullName?.split(' ').map(word => word.charAt(0)).join('').toUpperCase().slice(0, 2)}
                 </div>
-              )}
-
-              {/* QR Code Overlay */}
-              {showQR && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="absolute top-4 right-4 bg-white p-4 rounded-xl shadow-lg"
-                >
-                  <QRCodeCanvas
-                    value={window.location.href}
-                    size={120}
-                    level="H"
-                    includeMargin={true}
-                  />
-                  <button
-                    onClick={handleDownloadQR}
-                    className="mt-2 w-full bg-blue-600 text-white px-3 py-1 rounded text-xs hover:bg-blue-700 transition-colors"
-                  >
-                    Download QR
-                  </button>
-                </motion.div>
               )}
             </div>
           </motion.div>
@@ -283,47 +243,47 @@ const CardDetail = () => {
             className="space-y-6"
           >
             {/* Basic Information */}
-            <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">Card Information</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-8">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-6">Card Information</h3>
               
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-500">Title</label>
-                  <p className="text-lg font-medium text-gray-900">{card.title || 'Untitled'}</p>
+                  <label className="block text-sm font-medium text-gray-500 dark:text-slate-400">Title</label>
+                  <p className="text-lg font-medium text-gray-900 dark:text-slate-100">{card.title || 'Untitled'}</p>
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-500">Full Name</label>
-                  <p className="text-lg font-medium text-gray-900">{card.fullName}</p>
+                  <label className="block text-sm font-medium text-gray-500 dark:text-slate-400">Full Name</label>
+                  <p className="text-lg font-medium text-gray-900 dark:text-slate-100">{card.fullName}</p>
                 </div>
                 
                 {card.jobTitle && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Job Title</label>
-                    <p className="text-lg font-medium text-gray-900">{card.jobTitle}</p>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-slate-400">Job Title</label>
+                    <p className="text-lg font-medium text-gray-900 dark:text-slate-100">{card.jobTitle}</p>
                   </div>
                 )}
                 
                 {card.company && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Company</label>
-                    <p className="text-lg font-medium text-gray-900">{card.company}</p>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-slate-400">Company</label>
+                    <p className="text-lg font-medium text-gray-900 dark:text-slate-100">{card.company}</p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Contact Information */}
-            <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">Contact Information</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-8">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-6">Contact Information</h3>
               
               <div className="space-y-4">
                 {card.email && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Email</label>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-slate-400">Email</label>
                     <a 
                       href={`mailto:${card.email}`}
-                      className="text-lg font-medium text-blue-600 hover:text-blue-800 transition-colors"
+                      className="text-lg font-medium text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:text-emerald-300 transition-colors"
                     >
                       {card.email}
                     </a>
@@ -332,10 +292,10 @@ const CardDetail = () => {
                 
                 {card.phone && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Phone</label>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-slate-400">Phone</label>
                     <a 
                       href={`tel:${card.phone}`}
-                      className="text-lg font-medium text-green-600 hover:text-green-800 transition-colors"
+                      className="text-lg font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:text-green-300 transition-colors"
                     >
                       {formatPhone(card.phone)}
                     </a>
@@ -344,12 +304,12 @@ const CardDetail = () => {
                 
                 {card.website && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Website</label>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-slate-400">Website</label>
                     <a 
                       href={card.website.startsWith('http') ? card.website : `https://${card.website}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-lg font-medium text-purple-600 hover:text-purple-800 transition-colors"
+                      className="text-lg font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:text-green-300 transition-colors"
                     >
                       {card.website}
                     </a>
@@ -358,28 +318,28 @@ const CardDetail = () => {
                 
                 {card.address && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Address</label>
-                    <p className="text-lg font-medium text-gray-900">{card.address}</p>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-slate-400">Address</label>
+                    <p className="text-lg font-medium text-gray-900 dark:text-slate-100">{card.address}</p>
                   </div>
                 )}
                 
                 {card.bio && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-500">Bio</label>
-                    <p className="text-lg font-medium text-gray-900">{card.bio}</p>
+                    <label className="block text-sm font-medium text-gray-500 dark:text-slate-400">Bio</label>
+                    <p className="text-lg font-medium text-gray-900 dark:text-slate-100">{card.bio}</p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">Actions</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-8">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-slate-100 mb-6">Actions</h3>
               
               <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={handleLove}
-                  className="flex items-center justify-center px-4 py-3 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                  className="flex items-center justify-center px-4 py-3 bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:bg-red-900/40 transition-colors"
                 >
                   <FaHeart className="mr-2" />
                   Love
@@ -390,8 +350,8 @@ const CardDetail = () => {
                   disabled={isCardInLibrary}
                   className={`flex items-center justify-center px-4 py-3 rounded-lg transition-colors ${
                     isCardInLibrary 
-                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                      : 'bg-purple-50 text-purple-600 hover:bg-purple-100'
+                      ? 'bg-gray-300 text-gray-500 dark:text-slate-400 cursor-not-allowed' 
+                      : 'bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 hover:bg-green-100 dark:bg-green-900/40'
                   }`}
                 >
                   <FiSave className="mr-2" />
@@ -400,7 +360,7 @@ const CardDetail = () => {
                 
                 <button
                   onClick={handleShare}
-                  className="flex items-center justify-center px-4 py-3 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                  className="flex items-center justify-center px-4 py-3 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:bg-emerald-900/40 transition-colors"
                 >
                   {copied ? <FiCheck className="mr-2" /> : <FaShareAlt className="mr-2" />}
                   {copied ? 'Copied!' : 'Share'}
@@ -408,7 +368,7 @@ const CardDetail = () => {
                 
                 <button
                   onClick={() => setShowQR(!showQR)}
-                  className="flex items-center justify-center px-4 py-3 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"
+                  className="flex items-center justify-center px-4 py-3 bg-green-100 dark:bg-green-900/40 text-green-600 dark:text-green-400 rounded-lg hover:bg-green-100 dark:bg-green-900/40 transition-colors"
                 >
                   <FaQrcode className="mr-2" />
                   QR Code
@@ -416,15 +376,15 @@ const CardDetail = () => {
               </div>
 
               {isOwner && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-slate-700">
                   {/* Privacy Toggle for Card Owner */}
                   <div className="mb-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-700">Card Privacy</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Card Privacy</span>
                       <PrivacyToggle
                         cardId={cardId}
                         initialPrivacy={card.isPublic ? 'public' : 'private'}
-                                                 onPrivacyChange={(newPrivacy) => {
+                                                 onPrivacyChange={() => {
                            // Update the card state locally
                          }}
                         showLabel={false}
@@ -436,7 +396,7 @@ const CardDetail = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <button
                       onClick={() => navigate(`/cards/edit/${cardId}`)}
-                      className="flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="flex items-center justify-center px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                     >
                       <FiEdit className="mr-2" />
                       Edit
@@ -456,6 +416,13 @@ const CardDetail = () => {
           </motion.div>
         </div>
       </div>
+
+      {/* Premium QR Code Modal */}
+      <QRCodeDisplay
+        card={card}
+        isOpen={showQR}
+        onClose={() => setShowQR(false)}
+      />
     </div>
   );
 };

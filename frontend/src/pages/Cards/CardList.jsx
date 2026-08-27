@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { motion } from 'framer-motion';
 import { FiPlus, FiSearch, FiGrid, FiList, FiTrash2, FiCopy, FiEye, FiEdit, FiShare, FiDownload, FiHeart, FiUser, FiMail, FiPhone, FiGlobe, FiMapPin, FiCalendar, FiBarChart } from 'react-icons/fi';
 import { FaHeart, FaShareAlt, FaDownload, FaEye } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
-import { fetchSavedCards } from "../../features/library/libraryThunks";
-import { fetchUserCards, deleteCard } from '../../features/cards/cardsThunks';
-import toast from 'react-hot-toast';
+import { fetchSavedCards, removeFromLibrary } from "../../features/library/libraryThunks";
+import { motion } from 'framer-motion'
 
 // --- Redux Actions and Thunks ---
 import { clearLibraryError } from "../../features/library/librarySlice";
@@ -17,22 +15,15 @@ import KonvaRenderer from '../../components/KonvaRenderer';
 // --- Icons ---
 import {
     FiAlertCircle, FiInbox, FiLoader, FiExternalLink,
-    FiTrash2, FiImage, FiEye, FiDownload, FiShare, FiHeart,
-    FiGrid, FiList, FiSearch, FiFilter, FiRefreshCw
+    FiImage, FiFilter, FiRefreshCw
 } from "react-icons/fi";
-import { FaQrcode, FaRegHeart, FaHeart, FaRegBookmark, FaBookmark as FaBookmarkSolid } from 'react-icons/fa';
-
-// --- Placeholder Image URL Generator ---
-const getPlaceholderUrl = (width, height, text = "No Preview", bgColor = "e2e8f0", txtColor = "94a3b8") => {
-    return `https://placehold.co/${width}x${height}/${bgColor}/${txtColor}?text=${encodeURIComponent(text)}`;
-}
+import { FaQrcode, FaRegHeart, FaRegBookmark, FaBookmark as FaBookmarkSolid } from 'react-icons/fa';
 
 // --- SavedCardItem Component ---
 const SavedCardItem = ({ item, index }) => {
     const dispatch = useDispatch();
     const [isRemoving, setIsRemoving] = useState(false);
     const [isLoved, setIsLoved] = useState(false);
-    const [isSaved, setIsSaved] = useState(true);
 
     // Extract necessary details from the item prop
     const cardId = item.cardId?._id || item.card?._id || item._id;
@@ -58,12 +49,9 @@ const SavedCardItem = ({ item, index }) => {
         }
 
         setIsRemoving(true);
-        console.log(`Attempting to remove card ${cardId} from library...`);
         try {
-            await new Promise(resolve => setTimeout(resolve, 700));
-            console.log(`Card ${cardId} removed from library (simulated).`);
+            await dispatch(removeFromLibrary(cardId)).unwrap();
         } catch (err) {
-            console.error("Error removing from library:", err);
             alert(`Failed to remove card: ${err?.message || 'Unknown error'}`);
             setIsRemoving(false);
         }
@@ -99,8 +87,8 @@ const SavedCardItem = ({ item, index }) => {
                     text: 'Check out this digital business card!',
                     url: shareUrl
                 });
-            } catch (error) {
-                console.log('Share cancelled');
+            } catch {
+                // Share cancelled by user
             }
         } else {
             await navigator.clipboard.writeText(shareUrl);
@@ -120,11 +108,11 @@ const SavedCardItem = ({ item, index }) => {
         >
             <Link
                 to={linkUrl}
-                className="block bg-white rounded-2xl border border-gray-200 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+                className="block bg-white dark:bg-slate-800 rounded-2xl border border-gray-200 dark:border-slate-700 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
                 title={`View card: ${cardTitle}`}
             >
                 {/* Card Image/Preview */}
-                <div className="relative h-48 bg-gradient-to-br from-blue-500 to-purple-600 overflow-hidden">
+                <div className="relative h-48 bg-gradient-to-br from-emerald-500 to-green-600 overflow-hidden">
                     {cardImageUrl ? (
                         <img
                             src={cardImageUrl}
@@ -172,12 +160,12 @@ const SavedCardItem = ({ item, index }) => {
 
                 {/* Content Area */}
                 <div className="p-4">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2 truncate group-hover:text-blue-600 transition-colors">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2 truncate group-hover:text-emerald-600 transition-colors">
                         {cardTitle}
                     </h3>
                     
                     {/* Stats */}
-                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                    <div className="flex items-center justify-between text-sm text-gray-500 dark:text-slate-400 mb-4">
                         <div className="flex items-center space-x-4">
                             <span className="flex items-center">
                                 <FiEye className="mr-1" />
@@ -188,7 +176,7 @@ const SavedCardItem = ({ item, index }) => {
                                 {loveCount}
                             </span>
                         </div>
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
                             Saved
                         </span>
                     </div>
@@ -214,7 +202,7 @@ const SavedCardItem = ({ item, index }) => {
                             <motion.button
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
-                                className="flex items-center text-blue-600 hover:text-blue-700 text-sm font-medium"
+                                className="flex items-center text-emerald-600 hover:text-emerald-700 text-sm font-medium"
                             >
                                 <FiEye className="mr-1" />
                                 View
@@ -259,20 +247,20 @@ const CardList = () => {
     });
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-green-50 dark:from-slate-950 dark:via-slate-950 dark:to-slate-950">
             {/* Page Header */}
-            <div className="bg-white border-b border-gray-200 shadow-sm">
+            <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 shadow-sm">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 mb-2">My Library</h1>
-                            <p className="text-gray-600">Your saved digital business cards</p>
+                            <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100 mb-2">My Library</h1>
+                            <p className="text-gray-600 dark:text-slate-400">Your saved digital business cards</p>
                         </div>
                         
                         <div className="flex items-center space-x-4 mt-4 sm:mt-0">
                             <Link
                                 to="/discover"
-                                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2 rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+                                className="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-6 py-2 rounded-xl hover:from-emerald-600 hover:to-green-700 transition-all duration-300 shadow-lg hover:shadow-xl"
                             >
                                 Discover More
                             </Link>
@@ -287,7 +275,7 @@ const CardList = () => {
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="bg-white rounded-2xl shadow-lg p-6 mb-8"
+                    className="bg-white dark:bg-slate-800 rounded-2xl shadow-lg p-6 mb-8"
                 >
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div className="relative flex-1 max-w-md">
@@ -297,7 +285,7 @@ const CardList = () => {
                                 placeholder="Search your library..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-slate-800 dark:text-slate-200"
                             />
                         </div>
                         
@@ -306,7 +294,7 @@ const CardList = () => {
                                 onClick={() => setViewMode('grid')}
                                 className={`p-2 rounded-lg transition-colors ${
                                     viewMode === 'grid' 
-                                        ? 'bg-blue-100 text-blue-600' 
+                                        ? 'bg-emerald-100 text-emerald-600' 
                                         : 'text-gray-400 hover:text-gray-600'
                                 }`}
                             >
@@ -316,7 +304,7 @@ const CardList = () => {
                                 onClick={() => setViewMode('list')}
                                 className={`p-2 rounded-lg transition-colors ${
                                     viewMode === 'list' 
-                                        ? 'bg-blue-100 text-blue-600' 
+                                        ? 'bg-emerald-100 text-emerald-600' 
                                         : 'text-gray-400 hover:text-gray-600'
                                 }`}
                             >
@@ -333,8 +321,8 @@ const CardList = () => {
                         animate={{ opacity: 1 }}
                         className="flex flex-col justify-center items-center py-20"
                     >
-                        <FiLoader className="animate-spin h-12 w-12 mb-4 text-blue-600" />
-                        <span className="text-lg text-gray-600">Loading your library...</span>
+                        <FiLoader className="animate-spin h-12 w-12 mb-4 text-emerald-600" />
+                        <span className="text-lg text-gray-600 dark:text-slate-400">Loading your library...</span>
                     </motion.div>
                 )}
 

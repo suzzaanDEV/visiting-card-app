@@ -1,10 +1,12 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
 
 const AdminRoute = ({ children }) => {
-  const { user, isAuthenticated } = useSelector(state => state.auth);
-  
+  // Bypass auth in development mode
+  if (import.meta.env.DEV) {
+    return children;
+  }
+
   // Get admin user from localStorage
   const adminUser = localStorage.getItem('adminUser');
   const adminToken = localStorage.getItem('adminToken');
@@ -15,7 +17,14 @@ const AdminRoute = ({ children }) => {
   }
   
   // Check if user is admin
-  const isAdmin = adminUser && (JSON.parse(adminUser).role === 'admin' || JSON.parse(adminUser).role === 'super_admin');
+  let parsedAdminUser = null;
+  try {
+    parsedAdminUser = adminUser ? JSON.parse(adminUser) : null;
+  } catch {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  const isAdmin = parsedAdminUser && (parsedAdminUser.role === 'admin' || parsedAdminUser.role === 'super_admin');
   
   if (!isAdmin) {
     return <Navigate to="/admin/login" replace />;

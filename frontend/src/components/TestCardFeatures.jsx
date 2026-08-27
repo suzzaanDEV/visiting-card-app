@@ -20,7 +20,7 @@ const TestCardFeatures = () => {
     website: 'www.harikec.com',
     address: 'Patan, Lalitpur, Nepal',
     bio: 'Marketing professional with expertise in digital marketing and brand strategy.',
-    backgroundColor: '#4facfe',
+    backgroundColor: '#34D399',
     textColor: '#ffffff',
     fontFamily: 'Arial',
     shortLink: 'mea8awqz',
@@ -110,7 +110,7 @@ const TestCardFeatures = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-green-50 py-8">
       <div className="max-w-4xl mx-auto px-4">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Card Features Test</h1>
@@ -174,7 +174,7 @@ const TestCardFeatures = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={handleShare}
-              className="flex items-center justify-center p-4 bg-blue-100 text-blue-700 rounded-xl hover:bg-blue-200 transition-all"
+              className="flex items-center justify-center p-4 bg-emerald-100 text-emerald-700 rounded-xl hover:bg-emerald-200 transition-all"
             >
               <FaShareAlt className="h-5 w-5 mr-2" />
               <span className="font-medium">Share</span>
@@ -241,15 +241,15 @@ const TestCardFeatures = () => {
               )}
 
               {card.website && (
-                <div className="flex items-center p-3 bg-purple-50 rounded-lg">
-                  <FiGlobe className="h-5 w-5 mr-3 text-purple-500" />
+                <div className="flex items-center p-3 bg-green-50 rounded-lg">
+                  <FiGlobe className="h-5 w-5 mr-3 text-green-500" />
                   <div>
                     <p className="text-sm text-gray-500 font-medium">Website</p>
                     <a 
                       href={card.website.startsWith('http') ? card.website : `https://${card.website}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-purple-700 hover:text-purple-800 transition-colors font-medium"
+                      className="text-green-700 hover:text-green-800 transition-colors font-medium"
                     >
                       {card.website}
                     </a>
@@ -273,9 +273,9 @@ const TestCardFeatures = () => {
               <h3 className="text-lg font-semibold text-gray-800 mb-4">Card Statistics</h3>
               
               <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <FaDownload className="h-5 w-5 text-blue-600 mx-auto mb-1" />
-                  <p className="text-lg font-bold text-blue-600">{card.views}</p>
+                <div className="text-center p-3 bg-emerald-50 rounded-lg">
+                  <FaDownload className="h-5 w-5 text-emerald-600 mx-auto mb-1" />
+                  <p className="text-lg font-bold text-emerald-600">{card.views}</p>
                   <p className="text-xs text-gray-600">Views</p>
                 </div>
                 <div className="text-center p-3 bg-red-50 rounded-lg">
@@ -288,9 +288,9 @@ const TestCardFeatures = () => {
                   <p className="text-lg font-bold text-green-600">{card.shares}</p>
                   <p className="text-xs text-gray-600">Shares</p>
                 </div>
-                <div className="text-center p-3 bg-purple-50 rounded-lg">
-                  <FaDownload className="h-5 w-5 text-purple-600 mx-auto mb-1" />
-                  <p className="text-lg font-bold text-purple-600">{card.downloads}</p>
+                <div className="text-center p-3 bg-green-50 rounded-lg">
+                  <FaDownload className="h-5 w-5 text-green-600 mx-auto mb-1" />
+                  <p className="text-lg font-bold text-green-600">{card.downloads}</p>
                   <p className="text-xs text-gray-600">Downloads</p>
                 </div>
               </div>

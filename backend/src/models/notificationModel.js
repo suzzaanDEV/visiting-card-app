@@ -12,7 +12,7 @@ const notificationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['access_request', 'access_approved', 'access_rejected', 'card_loved', 'card_shared', 'system'],
+    enum: ['access_request', 'access_approved', 'access_rejected', 'card_loved', 'card_shared', 'card_viewed', 'system'],
     required: true
   },
   title: {
@@ -49,6 +49,7 @@ const notificationSchema = new mongoose.Schema({
 notificationSchema.index({ recipientId: 1, isRead: 1 });
 notificationSchema.index({ recipientId: 1, createdAt: -1 });
 notificationSchema.index({ type: 1, createdAt: -1 });
+notificationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // Method to mark as read
 notificationSchema.methods.markAsRead = function() {
@@ -73,7 +74,7 @@ notificationSchema.statics.createAccessRequestNotification = async function(reci
     data: {
       cardId,
       requestId,
-      actionUrl: `/admin/access-requests/${requestId}`
+      actionUrl: '/access-requests'
     }
   });
   
@@ -105,7 +106,8 @@ notificationSchema.statics.createAccessRejectedNotification = async function(rec
     message: `Your access request for "${cardTitle}" has been rejected${reason ? `: ${reason}` : ''}`,
     data: {
       cardId,
-      reason
+      reason,
+      actionUrl: '/access-requests'
     }
   });
   

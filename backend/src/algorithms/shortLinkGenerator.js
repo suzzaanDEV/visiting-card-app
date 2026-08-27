@@ -128,6 +128,6 @@ const trackLinkClick = async (shortLink) => {
     );
     return link;
   } catch (error) {
-    console.error('Failed to track link click:', error);
+    logger.error('Failed to track link click:', error);
   }
 };

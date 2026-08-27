@@ -10,9 +10,9 @@ import React, { useState, useEffect, useRef } from 'react';
  * - onDesignChange: Callback function invoked with the updated design JSON whenever changes occur.
  * - cardImageUrl: Optional URL for a background image.
  */
-const CardEditor = ({ initialDesignJson, onDesignChange, cardImageUrl }) => {
+const CardEditor = ({ initialDesignJson, onDesignChange }) => {
   const [design, setDesign] = useState({});
-  const stageRef = useRef(null);
+  const _stageRef = useRef(null);
   // const [backgroundImage] = useImage(cardImageUrl || ''); // Load background image for Konva
 
   // Load initial design
@@ -53,16 +53,15 @@ const CardEditor = ({ initialDesignJson, onDesignChange, cardImageUrl }) => {
     const updatedDesign = { ...design, elements: updatedElements };
     setDesign(updatedDesign);
     onDesignChange(JSON.stringify(updatedDesign)); // Notify parent
-    console.log("Added text, new design:", updatedDesign);
   };
 
   // Placeholder for the editor UI
   return (
-    <div className="card-editor border border-[#e1ecf2] rounded-lg p-4 bg-gray-50">
-      <h3 className="text-lg font-semibold mb-4 text-[#1a3a63]">Card Editor</h3>
+    <div className="card-editor border border-[#e1ecf2] dark:border-slate-700 rounded-lg p-4 bg-gray-50 dark:bg-slate-900">
+      <h3 className="text-lg font-semibold mb-4 text-[#1a3a63] dark:text-slate-200">Card Editor</h3>
 
       {/* Toolbar Placeholder */}
-      <div className="editor-toolbar mb-4 pb-4 border-b border-gray-200">
+      <div className="editor-toolbar mb-4 pb-4 border-b border-gray-200 dark:border-slate-700">
         <button
           onClick={handleAddText}
           className="bg-[#1a3a63] text-white px-3 py-1.5 rounded text-sm hover:bg-[#2c5a8c] transition-colors"
@@ -73,8 +72,8 @@ const CardEditor = ({ initialDesignJson, onDesignChange, cardImageUrl }) => {
       </div>
 
       {/* Canvas Area Placeholder */}
-      <div className="editor-canvas-area bg-white shadow-inner rounded p-2 relative" style={{ height: '400px' /* Example height */ }}>
-         <p className="text-center text-gray-400 p-10">
+      <div className="editor-canvas-area bg-white dark:bg-slate-800 shadow-inner rounded p-2 relative" style={{ height: '400px' /* Example height */ }}>
+         <p className="text-center text-gray-400 dark:text-slate-400 p-10">
             Visual Editor Canvas (Konva Stage would be here)
          </p>
          {/* <Stage ref={stageRef} width={width} height={height}> */}

@@ -3,6 +3,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { resetPassword } from '../../features/auth/authThunks';
+import { isStrongPassword } from '../../utils/validation';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Card from '../../components/ui/Card';
+import { FaLock } from 'react-icons/fa';
 
 const ResetPassword = () => {
   const dispatch = useDispatch();
@@ -20,8 +25,8 @@ const ResetPassword = () => {
       toast.error('Missing or invalid reset token.');
       return;
     }
-    if (newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters.');
+    if (!isStrongPassword(newPassword)) {
+      toast.error('Password must be at least 8 characters.');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -39,45 +44,47 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md bg-white shadow-lg rounded-xl p-8">
-        <h1 className="text-2xl font-semibold text-gray-800 mb-2">Reset Password</h1>
-        <p className="text-sm text-gray-500 mb-6">Enter your new password below.</p>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-            <input
+    <div className="min-h-screen bg-brand-background dark:bg-slate-950 flex items-center justify-center px-4 py-16 transition-colors duration-200">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8 select-none">
+          <h1 className="text-3xl font-bold text-brand-text dark:text-white mb-2">Reset Password</h1>
+          <p className="text-brand-textMuted">Enter your new password below.</p>
+        </div>
+
+        <Card elevation="lg" className="p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <Input
+              label="New Password"
               type="password"
+              icon={FaLock}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="New password"
+              placeholder="Enter new password"
               required
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Confirm Password</label>
-            <input
+            
+            <Input
+              label="Confirm Password"
               type="password"
+              icon={FaLock}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Confirm password"
+              placeholder="Confirm new password"
               required
             />
-          </div>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 disabled:opacity-60"
-          >
-            {isLoading ? 'Resetting...' : 'Reset Password'}
-          </button>
-        </form>
+
+            <Button
+              type="submit"
+              isLoading={isLoading}
+              className="w-full justify-center"
+            >
+              Reset Password
+            </Button>
+          </form>
+        </Card>
       </div>
     </div>
   );
 };
 
 export default ResetPassword;
-

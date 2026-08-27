@@ -5,6 +5,7 @@ import {
   FiGrid, FiList, FiSearch, FiFilter, FiSettings
 } from 'react-icons/fi';
 import { FaStar, FaPalette, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { API_BASE_URL } from '../../services/apiService';
 
 const TemplateBuilder = () => {
   const [templates, setTemplates] = useState([]);
@@ -20,7 +21,7 @@ const TemplateBuilder = () => {
     id: '',
     name: '',
     description: '',
-    category: 'Professional',
+    category: 'business',
     tags: [],
     isActive: true,
     isFeatured: false,
@@ -41,7 +42,7 @@ const TemplateBuilder = () => {
   });
 
   const categories = [
-    'Professional', 'Creative', 'Modern', 'Classic', 'Minimal', 'Premium', 'Cultural'
+    'business', 'creative', 'tech', 'personal', 'general', 'premium', 'cultural'
   ];
 
   const layouts = [
@@ -65,9 +66,9 @@ const TemplateBuilder = () => {
   const fetchTemplates = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/templates', {
+      const response = await fetch(`${API_BASE_URL}/admin/templates`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
       });
       if (response.ok) {
@@ -85,8 +86,8 @@ const TemplateBuilder = () => {
     e.preventDefault();
     try {
       const url = editingTemplate 
-        ? `/api/admin/templates/${editingTemplate.id}`
-        : '/api/admin/templates';
+        ? `${API_BASE_URL}/admin/templates/${editingTemplate.id}`
+        : `${API_BASE_URL}/admin/templates`;
       
       const method = editingTemplate ? 'PUT' : 'POST';
       
@@ -94,7 +95,7 @@ const TemplateBuilder = () => {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         },
         body: JSON.stringify(formData)
       });
@@ -114,10 +115,10 @@ const TemplateBuilder = () => {
     if (!window.confirm('Are you sure you want to delete this template?')) return;
     
     try {
-      const response = await fetch(`/api/admin/templates/${templateId}`, {
+      const response = await fetch(`${API_BASE_URL}/admin/templates/${templateId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         }
       });
 
@@ -147,11 +148,11 @@ const TemplateBuilder = () => {
 
   const handleToggleFeatured = async (templateId, currentStatus) => {
     try {
-      const response = await fetch(`/api/admin/templates/${templateId}/featured`, {
+      const response = await fetch(`${API_BASE_URL}/admin/templates/${templateId}/featured`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${localStorage.getItem('adminToken')}`
         },
         body: JSON.stringify({ isFeatured: !currentStatus })
       });
@@ -169,7 +170,7 @@ const TemplateBuilder = () => {
       id: '',
       name: '',
       description: '',
-      category: 'Professional',
+      category: 'business',
       tags: [],
       isActive: true,
       isFeatured: false,
@@ -274,20 +275,20 @@ const TemplateBuilder = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-3 text-gray-600">Loading templates...</span>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+        <span className="ml-3 text-gray-600 dark:text-slate-400">Loading templates...</span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-green-50 py-8 px-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Template Builder</h1>
-            <p className="text-gray-600 mt-2">Create and manage card design templates</p>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">Template Builder</h1>
+            <p className="text-gray-600 dark:text-slate-400 mt-2">Create and manage card design templates</p>
           </div>
           
           <button
@@ -296,7 +297,7 @@ const TemplateBuilder = () => {
               resetForm();
               setShowModal(true);
             }}
-            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
           >
             <FiPlus className="mr-2" />
             Create Template
@@ -304,23 +305,23 @@ const TemplateBuilder = () => {
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <div className="bg-white dark:bg-slate-800 rounded-lg shadow-sm border border-gray-200 dark:border-slate-700 p-6 mb-8">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1 relative">
-              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+              <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-slate-500 h-5 w-5" />
                     <input
                       type="text"
                 placeholder="Search templates..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     />
                   </div>
             
                     <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             >
               <option value="all">All Categories</option>
               {categories.map(category => (
@@ -333,8 +334,8 @@ const TemplateBuilder = () => {
                 onClick={() => setViewMode('grid')}
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'grid' 
-                    ? 'bg-blue-100 text-blue-600' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400' 
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-600'
                 }`}
               >
                 <FiGrid className="h-5 w-5" />
@@ -343,8 +344,8 @@ const TemplateBuilder = () => {
                 onClick={() => setViewMode('list')}
                 className={`p-2 rounded-lg transition-colors ${
                   viewMode === 'list' 
-                    ? 'bg-blue-100 text-blue-600' 
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400' 
+                    : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-600'
                 }`}
               >
                 <FiList className="h-5 w-5" />
@@ -363,7 +364,7 @@ const TemplateBuilder = () => {
               key={template.id}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden"
+              className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-200 dark:border-slate-700 overflow-hidden"
             >
               {/* Template Preview */}
               {renderTemplatePreview(template)}
@@ -371,22 +372,22 @@ const TemplateBuilder = () => {
               {/* Template Info */}
               <div className="p-6">
                 <div className="flex items-start justify-between mb-3">
-                  <h3 className="font-semibold text-gray-900 truncate">{template.name}</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-slate-100 truncate">{template.name}</h3>
                   <div className="flex items-center space-x-2">
                     {template.isFeatured && (
                       <FaStar className="h-4 w-4 text-yellow-500" />
                     )}
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
                       {template.category}
                     </span>
                   </div>
                 </div>
                 
-                <p className="text-sm text-gray-600 line-clamp-2 mb-4">
+                <p className="text-sm text-gray-600 dark:text-slate-400 line-clamp-2 mb-4">
                   {template.description}
                 </p>
                 
-                <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                <div className="flex items-center justify-between text-sm text-gray-500 dark:text-slate-400 mb-4">
                   <span>{template.usageCount || 0} uses</span>
                   <span>{template.isActive ? 'Active' : 'Inactive'}</span>
               </div>
@@ -395,7 +396,7 @@ const TemplateBuilder = () => {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => handleEdit(template)}
-                    className="flex-1 flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    className="flex-1 flex items-center justify-center px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
                   >
                     <FiEdit className="mr-1 h-4 w-4" />
                     Edit
@@ -405,8 +406,8 @@ const TemplateBuilder = () => {
                     onClick={() => handleToggleFeatured(template.id, template.isFeatured)}
                     className={`flex items-center justify-center px-3 py-2 rounded-lg transition-colors text-sm ${
                       template.isFeatured
-                        ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 hover:bg-yellow-200'
+                        : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'
                     }`}
                   >
                     {template.isFeatured ? <FaStar className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
@@ -414,7 +415,7 @@ const TemplateBuilder = () => {
                   
                   <button
                     onClick={() => handleDelete(template.id)}
-                    className="flex items-center justify-center px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors text-sm"
+                    className="flex items-center justify-center px-3 py-2 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 transition-colors text-sm"
                   >
                     <FiTrash2 className="h-4 w-4" />
                   </button>
@@ -427,9 +428,9 @@ const TemplateBuilder = () => {
         {/* Empty State */}
         {filteredTemplates.length === 0 && (
           <div className="text-center py-12">
-            <FaPalette className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No templates found</h3>
-            <p className="text-gray-600">Create your first template to get started</p>
+            <FaPalette className="h-12 w-12 text-gray-400 dark:text-slate-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">No templates found</h3>
+            <p className="text-gray-600 dark:text-slate-400">Create your first template to get started</p>
           </div>
         )}
       </div>
@@ -447,16 +448,16 @@ const TemplateBuilder = () => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto"
+              className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto"
             >
-              <div className="p-6 border-b border-gray-200">
+              <div className="p-6 border-b border-gray-200 dark:border-slate-700">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-gray-900">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                     {editingTemplate ? 'Edit Template' : 'Create Template'}
                   </h2>
                   <button
                     onClick={() => setShowModal(false)}
-                    className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                    className="p-2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 transition-colors"
                   >
                     <FiX className="h-6 w-6" />
                   </button>
@@ -469,11 +470,11 @@ const TemplateBuilder = () => {
                   <div className="space-y-6">
                     {/* Basic Information */}
                 <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-4">Basic Information</h3>
                       
                   <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                             Template ID *
                           </label>
                           <input
@@ -481,13 +482,13 @@ const TemplateBuilder = () => {
                             value={formData.id}
                             onChange={(e) => setFormData(prev => ({ ...prev, id: e.target.value }))}
                             required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                             placeholder="professional-template"
                           />
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                             Name *
                           </label>
                           <input
@@ -495,13 +496,13 @@ const TemplateBuilder = () => {
                             value={formData.name}
                             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                             required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                             placeholder="Professional Template"
                           />
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                             Description *
                           </label>
                           <textarea
@@ -509,20 +510,20 @@ const TemplateBuilder = () => {
                             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                             required
                             rows="3"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                             placeholder="A clean and professional design for business cards"
                           />
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                             Category *
                           </label>
                           <select
                             value={formData.category}
                             onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                             required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                           >
                             {categories.map(category => (
                               <option key={category} value={category}>{category}</option>
@@ -534,12 +535,12 @@ const TemplateBuilder = () => {
 
                     {/* Design Settings */}
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Design Settings</h3>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-4">Design Settings</h3>
                       
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                               Background Color
                             </label>
                             <input
@@ -550,12 +551,12 @@ const TemplateBuilder = () => {
                                 design: { ...prev.design, backgroundColor: e.target.value },
                                 preview: { ...prev.preview, backgroundColor: e.target.value }
                               }))}
-                              className="w-full h-10 border border-gray-300 rounded-lg"
+                              className="w-full h-10 border border-gray-300 dark:border-slate-600 rounded-lg"
                             />
                           </div>
                           
                           <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                               Text Color
                             </label>
                             <input
@@ -566,13 +567,13 @@ const TemplateBuilder = () => {
                                 design: { ...prev.design, textColor: e.target.value },
                                 preview: { ...prev.preview, textColor: e.target.value }
                               }))}
-                              className="w-full h-10 border border-gray-300 rounded-lg"
+                              className="w-full h-10 border border-gray-300 dark:border-slate-600 rounded-lg"
                             />
                           </div>
                         </div>
                         
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                             Font Family
                           </label>
                           <select
@@ -582,7 +583,7 @@ const TemplateBuilder = () => {
                               design: { ...prev.design, fontFamily: e.target.value },
                               preview: { ...prev.preview, fontFamily: e.target.value }
                             }))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                           >
                             <option value="Arial">Arial</option>
                             <option value="Helvetica">Helvetica</option>
@@ -594,7 +595,7 @@ const TemplateBuilder = () => {
                         
                         <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                               Layout
                           </label>
                           <select
@@ -603,7 +604,7 @@ const TemplateBuilder = () => {
                                 ...prev,
                                 design: { ...prev.design, layout: e.target.value }
                               }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                             >
                               {layouts.map(layout => (
                                 <option key={layout.id} value={layout.id}>{layout.name}</option>
@@ -612,7 +613,7 @@ const TemplateBuilder = () => {
                         </div>
                           
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
                               Aspect Ratio
                           </label>
                             <select
@@ -621,7 +622,7 @@ const TemplateBuilder = () => {
                                 ...prev,
                                 design: { ...prev.design, aspectRatio: e.target.value }
                               }))}
-                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                             >
                               {aspectRatios.map(ratio => (
                                 <option key={ratio.id} value={ratio.id}>{ratio.name}</option>
@@ -634,7 +635,7 @@ const TemplateBuilder = () => {
 
                     {/* Status Settings */}
                         <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Status Settings</h3>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-4">Status Settings</h3>
                       
                       <div className="space-y-4">
                         <div className="flex items-center">
@@ -642,9 +643,9 @@ const TemplateBuilder = () => {
                             type="checkbox"
                             checked={formData.isActive}
                             onChange={(e) => setFormData(prev => ({ ...prev, isActive: e.target.checked }))}
-                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            className="h-4 w-4 text-emerald-600 dark:text-emerald-400 focus:ring-emerald-500 border-gray-300 dark:border-slate-600 rounded"
                           />
-                          <label className="ml-2 block text-sm text-gray-700">
+                          <label className="ml-2 block text-sm text-gray-700 dark:text-slate-300">
                             Active (visible to users)
                           </label>
                         </div>
@@ -654,9 +655,9 @@ const TemplateBuilder = () => {
                             type="checkbox"
                             checked={formData.isFeatured}
                             onChange={(e) => setFormData(prev => ({ ...prev, isFeatured: e.target.checked }))}
-                            className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded"
+                            className="h-4 w-4 text-yellow-600 dark:text-yellow-400 focus:ring-yellow-500 border-gray-300 dark:border-slate-600 rounded"
                           />
-                          <label className="ml-2 block text-sm text-gray-700">
+                          <label className="ml-2 block text-sm text-gray-700 dark:text-slate-300">
                             Featured (highlighted in template selection)
                           </label>
                         </div>
@@ -667,15 +668,15 @@ const TemplateBuilder = () => {
                   {/* Right Column - Design Elements */}
                   <div className="space-y-6">
                         <div>
-                      <h3 className="text-lg font-medium text-gray-900 mb-4">Design Elements</h3>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-4">Design Elements</h3>
                       
-                      <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                      <div className="bg-gray-50 dark:bg-slate-900 rounded-lg p-4 mb-4">
                         <div className="flex items-center justify-between mb-4">
-                          <span className="text-sm font-medium text-gray-700">Elements ({formData.design.elements.length})</span>
+                          <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Elements ({formData.design.elements.length})</span>
                           <button
                             type="button"
                             onClick={addElement}
-                            className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                            className="flex items-center px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm"
                           >
                             <FiPlus className="mr-1 h-4 w-4" />
                             Add Element
@@ -684,15 +685,15 @@ const TemplateBuilder = () => {
                         
                         <div className="space-y-3">
                           {formData.design.elements.map((element, index) => (
-                            <div key={index} className="bg-white rounded-lg p-3 border border-gray-200">
+                            <div key={index} className="bg-white dark:bg-slate-800 rounded-lg p-3 border border-gray-200 dark:border-slate-700">
                               <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-gray-700">
+                                <span className="text-sm font-medium text-gray-700 dark:text-slate-300">
                                   Element {index + 1} - {element.type}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => removeElement(index)}
-                                  className="text-red-600 hover:text-red-700"
+                                  className="text-red-600 dark:text-red-400 hover:text-red-700 dark:text-red-300"
                                 >
                                   <FiTrash2 className="h-4 w-4" />
                                 </button>
@@ -704,34 +705,34 @@ const TemplateBuilder = () => {
                                   placeholder="X"
                                   value={element.x}
                                   onChange={(e) => updateElement(index, 'x', parseInt(e.target.value))}
-                                  className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                  className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm"
                                 />
                                 <input
                                   type="number"
                                   placeholder="Y"
                                   value={element.y}
                                   onChange={(e) => updateElement(index, 'y', parseInt(e.target.value))}
-                                  className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                  className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm"
                                 />
                                 <input
                                   type="text"
                                   placeholder="Text"
                                   value={element.text || ''}
                                   onChange={(e) => updateElement(index, 'text', e.target.value)}
-                                  className="px-2 py-1 border border-gray-300 rounded text-sm col-span-2"
+                                  className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm col-span-2"
                                 />
                           <input
                             type="number"
                                   placeholder="Font Size"
                                   value={element.fontSize}
                                   onChange={(e) => updateElement(index, 'fontSize', parseInt(e.target.value))}
-                                  className="px-2 py-1 border border-gray-300 rounded text-sm"
+                                  className="px-2 py-1 border border-gray-300 dark:border-slate-600 rounded text-sm"
                                 />
                                 <input
                                   type="color"
                                   value={element.fill}
                                   onChange={(e) => updateElement(index, 'fill', e.target.value)}
-                                  className="w-full h-8 border border-gray-300 rounded"
+                                  className="w-full h-8 border border-gray-300 dark:border-slate-600 rounded"
                                 />
                               </div>
                             </div>
@@ -743,18 +744,18 @@ const TemplateBuilder = () => {
           </div>
 
                 {/* Form Actions */}
-                <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200 dark:border-slate-700">
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    className="px-6 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-700 transition-colors"
                   >
                     Cancel
                   </button>
                   
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                    className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center"
                   >
                     <FiSave className="mr-2" />
                     {editingTemplate ? 'Update Template' : 'Create Template'}

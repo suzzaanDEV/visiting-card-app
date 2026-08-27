@@ -6,6 +6,10 @@ import { clearAuthError } from '../../features/auth/authSlice';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { FaIdCard, FaEye, FaEyeSlash, FaEnvelope, FaLock, FaUser, FaCamera } from 'react-icons/fa';
+import { isStrongPassword, isValidEmail } from '../../utils/validation';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Card from '../../components/ui/Card';
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -17,27 +21,24 @@ const RegisterPage = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  
+
   const { isAuthenticated, isLoading, error, user } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    // Redirect if already authenticated
-    // If authenticated and email verified, go dashboard; otherwise go verify email
     if (isAuthenticated && user?.isEmailVerified) {
       navigate('/dashboard');
     } else if (isAuthenticated && user?.email && user?.isEmailVerified === false) {
       navigate('/verify-email', { state: { email: user.email } });
     }
-    
-    // Show error toast if there's an error
+
     if (error) {
       toast.error(error);
       dispatch(clearAuthError());
     }
-  }, [isAuthenticated, error, dispatch, navigate]);
+  }, [isAuthenticated, error, user, dispatch, navigate]);
 
   const handleChange = (e) => {
     const { name, value, files } = e.target;
@@ -49,10 +50,17 @@ const RegisterPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate inputs
-    if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
+
+    if (!formData.name.trim() || !formData.email.trim() || !formData.password || !formData.confirmPassword) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+    if (formData.name.trim().length < 2) {
+      toast.error('Name must be at least 2 characters long');
+      return;
+    }
+    if (!isValidEmail(formData.email)) {
+      toast.error('Please enter a valid email address');
       return;
     }
 
@@ -61,205 +69,169 @@ const RegisterPage = () => {
       return;
     }
 
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters long');
+    if (!isStrongPassword(formData.password)) {
+      toast.error('Password must be at least 8 characters long');
       return;
     }
-    
-    // Generate username from name (lowercase, no spaces, alphanumeric only)
+
     const username = formData.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    
-    // Prepare user data
+
     const userData = {
       username: username,
-      name: formData.name,
-      email: formData.email,
+      name: formData.name.trim(),
+      email: formData.email.trim().toLowerCase(),
       password: formData.password,
       profilePicture: formData.profilePicture
     };
-    
+
     try {
       const result = await dispatch(register(userData)).unwrap();
-      toast.success('Account created! Check your email for the verification code.');
-      navigate('/verify-email', { state: { email: formData.email } });
+      if (result.devOtp) {
+        toast.success('Account created! Use the development OTP on the next screen.');
+      } else {
+        toast.success('Account created! Check your email for the verification code.');
+      }
+      navigate('/verify-email', {
+        state: {
+          email: formData.email.trim().toLowerCase(),
+          devOtp: result.devOtp,
+          pendingId: result.pendingId || null,
+        },
+      });
     } catch (err) {
       toast.error(err || 'Registration failed');
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center px-4 py-8">
+    <div className="min-h-screen bg-brand-background dark:bg-slate-950 flex items-center justify-center px-4 py-16 transition-colors duration-200">
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-8"
+          className="text-center mb-8 select-none"
         >
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
-              <FaIdCard className="text-white text-2xl" />
+            <div className="w-16 h-16 bg-brand-primary text-white rounded-2xl flex items-center justify-center shadow-lg">
+              <FaIdCard className="text-2xl" />
             </div>
           </div>
-                          <h1 className="text-3xl font-bold text-white mb-2">Join Cardly</h1>
-          <p className="text-gray-300">Create your account and start networking</p>
+          <h1 className="text-3xl font-bold text-brand-text dark:text-white mb-2">Join Cardly</h1>
+          <p className="text-brand-textMuted">Create your account and start networking</p>
         </motion.div>
 
-        {/* Register Form */}
+        {/* Register Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 shadow-2xl"
         >
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name Field */}
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-200 mb-2">
-                Full Name
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaUser className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="Enter your full name"
-                  required
-                />
-              </div>
-            </div>
+          <Card elevation="lg" className="p-8">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Name Field */}
+              <Input
+                label="Full Name"
+                id="name"
+                name="name"
+                type="text"
+                icon={FaUser}
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Enter your full name"
+                required
+              />
 
-            {/* Email Field */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-200 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaEnvelope className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-            </div>
-            
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-200 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-12 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="Create a password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                >
-                  {showPassword ? (
-                    <FaEyeSlash className="h-5 w-5 text-gray-400 hover:text-gray-300" />
-                  ) : (
-                    <FaEye className="h-5 w-5 text-gray-400 hover:text-gray-300" />
-                  )}
-                </button>
-              </div>
-            </div>
+              {/* Email Field */}
+              <Input
+                label="Email Address"
+                id="email"
+                name="email"
+                type="email"
+                icon={FaEnvelope}
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter your email"
+                required
+              />
 
-            {/* Confirm Password Field */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-200 mb-2">
-                Confirm Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-12 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="Confirm your password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                >
-                  {showConfirmPassword ? (
-                    <FaEyeSlash className="h-5 w-5 text-gray-400 hover:text-gray-300" />
-                  ) : (
-                    <FaEye className="h-5 w-5 text-gray-400 hover:text-gray-300" />
-                  )}
-                </button>
-              </div>
-            </div>
+              {/* Password Field */}
+              <Input
+                label="Password"
+                id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                icon={FaLock}
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Create a password"
+                required
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="p-1 rounded text-brand-textMuted hover:text-brand-primary transition-colors cursor-pointer"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
+                  </button>
+                }
+              />
 
-            {/* Profile Picture Field */}
-            <div>
-              <label htmlFor="profilePicture" className="block text-sm font-medium text-gray-200 mb-2">
-                Profile Picture (Optional)
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaCamera className="h-5 w-5 text-gray-400" />
+              {/* Confirm Password Field */}
+              <Input
+                label="Confirm Password"
+                id="confirmPassword"
+                name="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                icon={FaLock}
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Confirm your password"
+                required
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="p-1 rounded text-brand-textMuted hover:text-brand-primary transition-colors cursor-pointer"
+                    aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                  >
+                    {showConfirmPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
+                  </button>
+                }
+              />
+
+              {/* Profile Picture Field */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-brand-text dark:text-brand-text/90 tracking-wide uppercase">
+                  Profile Picture (Optional)
+                </label>
+                <div className="relative flex items-center">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-brand-textMuted">
+                    <FaCamera className="h-5 w-5" />
+                  </div>
+                  <input
+                    id="profilePicture"
+                    name="profilePicture"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleChange}
+                    className="w-full pl-11 pr-4 py-2 bg-brand-surface dark:bg-slate-800 text-brand-text border border-brand-border dark:border-slate-700 rounded-xl transition-all duration-200 outline-none text-sm file:mr-4 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-brand-primary/10 file:text-brand-primary hover:file:bg-brand-primary/20 file:cursor-pointer"
+                  />
                 </div>
-                <input
-                  id="profilePicture"
-                  name="profilePicture"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
               </div>
-            </div>
-            
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Creating Account...
-                </div>
-              ) : (
-                'Create Account'
-              )}
-            </button>
-          </form>
+
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                isLoading={isLoading}
+                className="w-full justify-center mt-2"
+              >
+                Create Account
+              </Button>
+            </form>
+          </Card>
         </motion.div>
 
         {/* Sign In Link */}
@@ -269,9 +241,9 @@ const RegisterPage = () => {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="text-center mt-6"
         >
-          <p className="text-gray-300">
+          <p className="text-brand-textMuted text-sm">
             Already have an account?{' '}
-            <Link to="/login" className="text-blue-400 hover:text-blue-300 font-semibold transition-colors">
+            <Link to="/login" className="text-brand-primary hover:text-brand-primaryHover font-bold transition-colors">
               Sign In
             </Link>
           </p>
@@ -284,7 +256,7 @@ const RegisterPage = () => {
           transition={{ duration: 0.6, delay: 0.6 }}
           className="text-center mt-4"
         >
-          <Link to="/" className="text-gray-400 hover:text-white transition-colors text-sm">
+          <Link to="/" className="text-brand-textMuted hover:text-brand-text transition-colors text-sm font-medium">
             ← Back to Home
           </Link>
         </motion.div>

@@ -158,11 +158,38 @@ exports.toggleFeatured = async (req, res, next) => {
   }
 };
 
+// Upload template background image
+exports.uploadBackground = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+    const Template = require('../models/templateModel');
+    let imageUrl;
+    if (req.file.path) {
+      imageUrl = req.file.path;
+    } else if (req.file.location) {
+      imageUrl = req.file.location;
+    } else if (req.file.buffer) {
+      const ext = (req.file.mimetype || 'image/png').split('/')[1];
+      const base64 = req.file.buffer.toString('base64');
+      imageUrl = `data:${req.file.mimetype};base64,${base64}`;
+    } else {
+      imageUrl = `/uploads/${req.file.filename || 'background.png'}`;
+    }
+    const template = await Template.findOneAndUpdate(
+      { id: req.params.templateId },
+      { $set: { 'design.backgroundImage': imageUrl } },
+      { new: true }
+    );
+    if (!template) return res.status(404).json({ error: 'Template not found' });
+    res.json({ success: true, imageUrl, template });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
 // Get all templates (admin view)
 exports.getAllTemplatesAdmin = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, category, search, featured } = req.query;
-    const filters = { category, featured: featured === 'true', search };
+    const filters = { all: true, category, featured: featured === 'true', search };
     
     const templates = await templateService.getAllTemplates(filters);
     

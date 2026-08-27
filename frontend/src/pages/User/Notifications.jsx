@@ -1,336 +1,296 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
-  FiBell, FiCheck, FiX, FiUser, FiShield, FiHeart, FiShare2,
-  FiTrash, FiEye, FiRefreshCw
+  FiBell, FiCheck, FiX, FiShield, FiHeart, FiShare2,
+  FiTrash, FiEye, FiRefreshCw, FiBellOff, FiAlertCircle,
+  FiUser, FiMail, FiSmartphone, FiZap,
 } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
+import {
+  fetchNotifications,
+  fetchNotificationStats,
+  markNotificationRead,
+  markAllNotificationsRead,
+  deleteNotification,
+  approveAccessRequest,
+  rejectAccessRequest
+} from '../../features/notifications/notificationsThunks';
+import { setPushPermission, setPushSubscribed } from '../../features/notifications/notificationsSlice';
+import { isPushSupported, requestPermission, subscribeToPush, isSubscribed } from '../../utils/pushNotifications';
+import { ListSkeleton } from '../../components/UI/LoadingSkeleton';
+import EmptyState from '../../components/UI/EmptyState';
+
+const POLL_INTERVAL = 30000;
+
+const NOTIF_TYPE_CONFIG = {
+  card_loved: { icon: FiHeart, color: 'text-red-500', nav: (n) => n.data?.cardId ? `/cards/${n.data.cardId}` : null },
+  card_shared: { icon: FiShare2, color: 'text-emerald-500', nav: (n) => n.data?.cardId ? `/cards/${n.data.cardId}` : null },
+  access_request: { icon: FiShield, color: 'text-blue-500', nav: () => '/access-requests' },
+  access_approved: { icon: FiCheck, color: 'text-green-500', nav: () => '/access-requests' },
+  access_rejected: { icon: FiX, color: 'text-red-500', nav: () => '/access-requests' },
+  card_viewed: { icon: FiEye, color: 'text-purple-500', nav: (n) => n.data?.cardId ? `/cards/${n.data.cardId}` : null },
+  system: { icon: FiAlertCircle, color: 'text-yellow-500', nav: () => null },
+  welcome: { icon: FiZap, color: 'text-emerald-500', nav: () => '/dashboard' },
+  default: { icon: FiBell, color: 'text-gray-500 dark:text-slate-400', nav: () => null },
+};
 
 const Notifications = () => {
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all, unread, read
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const { items: notifications, unreadCount, loading, stats } = useSelector((s) => s.notifications);
+  const [filter, setFilter] = useState('all');
+  const [pushStatus, setPushStatus] = useState('unsupported');
+
+  const load = useCallback(() => {
+    dispatch(fetchNotifications({ page: 1, limit: 50 }));
+    dispatch(fetchNotificationStats());
+  }, [dispatch]);
 
   useEffect(() => {
-    fetchNotifications();
-  }, []);
+    load();
+    const id = setInterval(load, POLL_INTERVAL);
+    return () => clearInterval(id);
+  }, [load]);
 
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        toast.error('Authentication required');
-        return;
-      }
+  useEffect(() => {
+    if (isPushSupported()) {
+      const perm = Notification.permission;
+      setPushStatus(perm);
+      dispatch(setPushPermission(perm));
+      isSubscribed().then((sub) => dispatch(setPushSubscribed(sub)));
+    }
+  }, [dispatch]);
 
-      const response = await fetch('/api/notifications', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setNotifications(data.notifications || []);
-        setUnreadCount(data.unreadCount || 0);
+  const handleEnablePush = async () => {
+    const perm = await requestPermission();
+    setPushStatus(perm);
+    dispatch(setPushPermission(perm));
+    if (perm === 'granted') {
+      const result = await subscribeToPush();
+      if (result.success) {
+        dispatch(setPushSubscribed(true));
+        toast.success('Push notifications enabled');
       } else {
-        console.error('Failed to fetch notifications:', response.status);
-        toast.error('Failed to load notifications');
+        toast.error('Failed to enable push notifications');
       }
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
-      toast.error('Failed to load notifications');
-    } finally {
-      setLoading(false);
+    } else if (perm === 'denied') {
+      toast.error('Notifications blocked by browser');
     }
   };
 
-  const markAsRead = async (notificationId) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/notifications/${notificationId}/read`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        setNotifications(prev => 
-          prev.map(notif => 
-            notif._id === notificationId 
-              ? { ...notif, isRead: true }
-              : notif
-          )
-        );
-        setUnreadCount(prev => Math.max(0, prev - 1));
-        toast.success('Notification marked as read');
-      }
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
-      toast.error('Failed to mark notification as read');
-    }
-  };
-
-  const markAllAsRead = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/notifications/mark-all-read', {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        setNotifications(prev => prev.map(notif => ({ ...notif, isRead: true })));
-        setUnreadCount(0);
-        toast.success('All notifications marked as read');
-      }
-    } catch (error) {
-      console.error('Error marking all notifications as read:', error);
-      toast.error('Failed to mark all notifications as read');
-    }
-  };
-
-  const deleteNotification = async (notificationId) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/notifications/${notificationId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        setNotifications(prev => prev.filter(notif => notif._id !== notificationId));
-        toast.success('Notification deleted');
-      }
-    } catch (error) {
-      console.error('Error deleting notification:', error);
-      toast.error('Failed to delete notification');
-    }
-  };
+  const getTypeConfig = (type) => NOTIF_TYPE_CONFIG[type] || NOTIF_TYPE_CONFIG.default;
 
   const getNotificationIcon = (type) => {
-    switch (type) {
-      case 'access_request':
-        return <FiShield className="w-4 h-4 text-blue-500" />;
-      case 'access_approved':
-        return <FiCheck className="w-4 h-4 text-green-500" />;
-      case 'access_rejected':
-        return <FiX className="w-4 h-4 text-red-500" />;
-      case 'card_loved':
-        return <FiHeart className="w-4 h-4 text-red-500" />;
-      case 'card_shared':
-        return <FiShare2 className="w-4 h-4 text-blue-500" />;
-      default:
-        return <FiBell className="w-4 h-4 text-gray-500" />;
-    }
+    const cfg = getTypeConfig(type);
+    const Icon = cfg.icon;
+    return <Icon className={`w-4 h-4 ${cfg.color}`} />;
   };
 
   const formatTimeAgo = (dateString) => {
-    const now = new Date();
-    const date = new Date(dateString);
-    const diffInSeconds = Math.floor((now - date) / 1000);
-
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    const diff = Math.floor((Date.now() - new Date(dateString)) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return `${Math.floor(diff / 86400)}d ago`;
   };
 
-  const getFilteredNotifications = () => {
-    let filtered = notifications;
+  const tabFilters = [
+    { key: 'all', label: 'All' },
+    { key: 'unread', label: 'Unread' },
+    { key: 'card', label: 'Cards' },
+    { key: 'access', label: 'Access' },
+    { key: 'system', label: 'System' },
+  ];
 
-    if (filter === 'unread') {
-      filtered = filtered.filter(notif => !notif.isRead);
-    } else if (filter === 'read') {
-      filtered = filtered.filter(notif => notif.isRead);
-    }
+  const filtered = notifications.filter((n) => {
+    if (filter === 'unread') return !n.isRead;
+    if (filter === 'card') return ['card_loved', 'card_shared', 'card_viewed'].includes(n.type);
+    if (filter === 'access') return ['access_request', 'access_approved', 'access_rejected'].includes(n.type);
+    if (filter === 'system') return ['system', 'welcome', undefined].includes(n.type);
+    return true;
+  });
 
-    return filtered;
+  const filterCounts = {
+    all: notifications.length,
+    unread: unreadCount,
+    card: notifications.filter((n) => ['card_loved', 'card_shared', 'card_viewed'].includes(n.type)).length,
+    access: notifications.filter((n) => ['access_request', 'access_approved', 'access_rejected'].includes(n.type)).length,
+    system: notifications.filter((n) => ['system', 'welcome', undefined].includes(n.type)).length,
   };
 
-  const NotificationCard = ({ notification }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`bg-white rounded-xl shadow-lg border p-6 hover:shadow-xl transition-all ${
-        !notification.isRead ? 'border-blue-200 bg-blue-50' : 'border-gray-200'
-      }`}
-    >
-      <div className="flex items-start space-x-3">
-        <div className="flex-shrink-0 mt-1">
-          {getNotificationIcon(notification.type)}
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">
-                {notification.title}
-              </p>
-              <p className="text-sm text-gray-600 mt-1">
-                {notification.message}
-              </p>
-              <p className="text-xs text-gray-400 mt-2">
-                {formatTimeAgo(notification.createdAt)}
-              </p>
-            </div>
-            <div className="flex items-center space-x-1 ml-2">
-              {!notification.isRead && (
-                <button
-                  onClick={() => markAsRead(notification._id)}
-                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                  title="Mark as read"
-                >
-                  <FiEye className="w-3 h-3" />
-                </button>
-              )}
-              <button
-                onClick={() => deleteNotification(notification._id)}
-                className="p-1 text-gray-400 hover:text-red-600 transition-colors"
-                title="Delete notification"
-              >
-                <FiTrash className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
+  const handleMarkRead = (id) => { dispatch(markNotificationRead(id)); };
+  const handleMarkAllRead = () => { dispatch(markAllNotificationsRead()); toast.success('All notifications marked as read'); };
+  const handleDelete = (id) => { dispatch(deleteNotification(id)); };
 
-  const filteredNotifications = getFilteredNotifications();
+  const handleNotificationClick = (n) => {
+    if (!n.isRead) dispatch(markNotificationRead(n._id));
+    const cfg = getTypeConfig(n.type);
+    const path = cfg.nav(n);
+    if (path) navigate(path);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-green-50 dark:from-slate-950 dark:to-slate-950 py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Notifications</h1>
-              <p className="text-gray-600 mt-2">Manage your notifications and stay updated</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-slate-100">Notifications</h1>
+              <p className="text-gray-600 dark:text-slate-400 mt-2">Stay updated on your cards</p>
             </div>
-            <div className="flex items-center space-x-3">
-              {unreadCount > 0 && (
-                <button
-                  onClick={markAllAsRead}
-                  className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <FiEye className="w-4 h-4" />
-                  <span>Mark all read</span>
+            <div className="flex items-center space-x-3 flex-wrap">
+              {isPushSupported() && pushStatus !== 'granted' && (
+                <button onClick={handleEnablePush} className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm">
+                  <FiBell className="w-4 h-4" /><span>Enable Push</span>
                 </button>
               )}
-              <button
-                onClick={fetchNotifications}
-                className="flex items-center space-x-2 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors"
-              >
-                <FiRefreshCw className="w-4 h-4" />
-                <span>Refresh</span>
+              {isPushSupported() && pushStatus === 'granted' && (
+                <span className="flex items-center space-x-2 text-green-600 dark:text-green-400 text-sm">
+                  <FiBell className="w-4 h-4" /><span>Push enabled</span>
+                </span>
+              )}
+              {unreadCount > 0 && (
+                <button onClick={handleMarkAllRead} className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm">
+                  <FiEye className="w-4 h-4" /><span>Mark all read</span>
+                </button>
+              )}
+              <button onClick={load} className="flex items-center space-x-2 bg-slate-200 dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
+                <FiRefreshCw className="w-4 h-4" /><span>Refresh</span>
               </button>
             </div>
           </div>
 
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-slate-700">
               <div className="flex items-center">
-                <div className="bg-blue-100 p-3 rounded-full">
-                  <FiBell className="h-6 w-6 text-blue-600" />
+                <div className="bg-emerald-100 dark:bg-emerald-900/40 p-3 rounded-full">
+                  <FiBell className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Total Notifications</p>
-                  <p className="text-2xl font-bold text-gray-900">{notifications.length}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-slate-400">Total</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{stats.total || notifications.length}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-slate-700">
               <div className="flex items-center">
-                <div className="bg-red-100 p-3 rounded-full">
-                  <FiEye className="h-6 w-6 text-red-600" />
+                <div className="bg-red-100 dark:bg-red-900/40 p-3 rounded-full">
+                  <FiBellOff className="h-6 w-6 text-red-600 dark:text-red-400" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Unread</p>
-                  <p className="text-2xl font-bold text-gray-900">{unreadCount}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-slate-400">Unread</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{stats.unread || unreadCount}</p>
                 </div>
               </div>
             </div>
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-200">
+            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-gray-200 dark:border-slate-700">
               <div className="flex items-center">
-                <div className="bg-green-100 p-3 rounded-full">
-                  <FiCheck className="h-6 w-6 text-green-600" />
+                <div className="bg-green-100 dark:bg-green-900/40 p-3 rounded-full">
+                  <FiCheck className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-600">Read</p>
-                  <p className="text-2xl font-bold text-gray-900">{notifications.length - unreadCount}</p>
+                  <p className="text-sm font-medium text-gray-600 dark:text-slate-400">Today</p>
+                  <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{stats.today || 0}</p>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Filters */}
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                filter === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              All ({notifications.length})
-            </button>
-            <button
-              onClick={() => setFilter('unread')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                filter === 'unread'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Unread ({unreadCount})
-            </button>
-            <button
-              onClick={() => setFilter('read')}
-              className={`px-4 py-2 rounded-lg transition-colors ${
-                filter === 'read'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              Read ({notifications.length - unreadCount})
-            </button>
+          {/* Tab Filters */}
+          <div className="flex space-x-1 bg-white dark:bg-slate-800 rounded-xl p-1 border border-gray-200 dark:border-slate-700 overflow-x-auto">
+            {tabFilters.map((f) => (
+              <button key={f.key} onClick={() => setFilter(f.key)}
+                className={`flex items-center space-x-1.5 px-4 py-2 rounded-lg transition-colors text-sm font-medium whitespace-nowrap ${
+                  filter === f.key
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-700'
+                }`}>
+                <span>{f.label}</span>
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${filter === f.key ? 'bg-emerald-500 text-emerald-100' : 'bg-gray-100 dark:bg-slate-700 text-gray-500 dark:text-slate-400'}`}>
+                  {filterCounts[f.key]}
+                </span>
+              </button>
+            ))}
           </div>
 
-          {/* Notifications List */}
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            </div>
-          ) : filteredNotifications.length === 0 ? (
-            <div className="text-center py-12">
-              <FiBell className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No notifications found</h3>
-              <p className="text-gray-600">
-                {filter === 'all' 
-                  ? "You don't have any notifications yet."
-                  : filter === 'unread'
-                  ? "You don't have any unread notifications."
-                  : "You don't have any read notifications."
+          {/* Notification List */}
+          {loading && notifications.length === 0 ? (
+            <ListSkeleton count={5} />
+          ) : filtered.length === 0 ? (
+            <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700">
+              <EmptyState
+                icon={<FiBell className="h-10 w-10" />}
+                title={
+                  filter === 'unread' ? 'All caught up!' : 'No notifications'
                 }
-              </p>
+                description={
+                  filter === 'unread'
+                    ? "You've read all your notifications. Check back later for updates."
+                    : filter === 'all'
+                      ? "You'll see notifications here when activity happens on your cards."
+                      : `No ${filter} notifications to show.`
+                }
+              />
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredNotifications.map((notification) => (
-                <NotificationCard key={notification._id} notification={notification} />
-              ))}
+            <div className="space-y-3">
+              {filtered.map((n) => {
+                const navPath = getTypeConfig(n.type).nav(n);
+                return (
+                  <motion.div key={n._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                    className={`bg-white dark:bg-slate-800 rounded-xl shadow-sm border p-4 transition-all ${
+                      navPath ? 'cursor-pointer hover:shadow-md' : 'hover:shadow-sm'
+                    } ${!n.isRead ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-900/20' : 'border-gray-200 dark:border-slate-700'}`}
+                    onClick={() => handleNotificationClick(n)}>
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0 mt-1">{getNotificationIcon(n.type)}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2">
+                              <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{n.title}</p>
+                              {!n.isRead && <span className="w-2 h-2 bg-emerald-500 rounded-full flex-shrink-0" />}
+                            </div>
+                            <p className="text-sm text-gray-600 dark:text-slate-400 mt-1">{n.message}</p>
+                            <div className="flex items-center space-x-3 mt-2">
+                              <p className="text-xs text-gray-400 dark:text-slate-500">{formatTimeAgo(n.createdAt)}</p>
+                              {n.type && (
+                                <span className="text-xs text-gray-400 dark:text-slate-500 capitalize bg-gray-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">
+                                  {n.type.replace(/_/g, ' ')}
+                                </span>
+                              )}
+                            </div>
+                            {n.type === 'access_request' && n.data?.requestId && (
+                              <div className="flex space-x-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                                <button onClick={() => dispatch(approveAccessRequest({ requestId: n.data.requestId }))} className="flex items-center space-x-1 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors">
+                                  <FiCheck className="w-3 h-3" /><span>Accept</span>
+                                </button>
+                                <button onClick={() => dispatch(rejectAccessRequest({ requestId: n.data.requestId }))} className="flex items-center space-x-1 bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-700 transition-colors">
+                                  <FiX className="w-3 h-3" /><span>Reject</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex items-center space-x-1 ml-2" onClick={(e) => e.stopPropagation()}>
+                            {!n.isRead && (
+                              <button onClick={() => handleMarkRead(n._id)} className="p-1.5 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors rounded" title="Mark as read">
+                                <FiEye className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button onClick={() => handleDelete(n._id)} className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors rounded" title="Delete">
+                              <FiTrash className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -339,4 +299,4 @@ const Notifications = () => {
   );
 };
 
-export default Notifications; 
+export default Notifications;

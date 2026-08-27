@@ -1,11 +1,7 @@
 
-import React, { useEffect, useState } from 'react'; // Added useState
 import { FiAlertCircle, FiLoader, FiPlusCircle, FiLogIn, FiExternalLink, FiBookmark, FiImage } from 'react-icons/fi'; // Added FiBookmark, FiImage
 import { FaQrcode } from 'react-icons/fa';
-import { useDispatch, useSelector } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
-import { fetchUserCards } from '../../features/cards/cardsThunks';
-import { clearCardError } from '../../features/cards/cardsSlice';
+import { Link } from 'react-router-dom';
 // Removed unused import: FiGrid
 
 // --- SavedCardItem Component Definition (from user prompt) ---

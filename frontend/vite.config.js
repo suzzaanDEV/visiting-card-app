@@ -1,21 +1,26 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    react()
-  ],
+  plugins: [react()],
   resolve: {
-    extensions: ['.js', '.jsx', '.ts', '.tsx']
+    extensions: ['.js', '.jsx', '.ts', '.tsx'],
   },
   optimizeDeps: {
-    include: ['@reduxjs/toolkit', 'react-redux']
+    include: ['@reduxjs/toolkit', 'react-redux'],
   },
   build: {
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
-      external: []
-    }
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          redux: ['@reduxjs/toolkit', 'react-redux'],
+          charts: ['recharts', 'chart.js', 'react-chartjs-2'],
+          motion: ['framer-motion'],
+        },
+      },
+    },
   },
   server: {
     proxy: {
@@ -24,7 +29,18 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
         ws: true,
-      }
-    }
-  }
-})
+      },
+    },
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.js'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      reportsDirectory: './coverage',
+      include: ['src/utils/**', 'src/features/auth/**'],
+    },
+  },
+});

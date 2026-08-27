@@ -1,5 +1,6 @@
 // cloudinary.js (or cloudinaryConfig.js)
 const cloudinary = require('cloudinary').v2;
+const logger = require('./logger');
 
 // Enhanced Cloudinary configuration with error handling
 const cloudinaryConfig = {
@@ -16,15 +17,15 @@ const validateCloudinaryConfig = () => {
   const { cloud_name, api_key, api_secret } = cloudinaryConfig;
   
   if (!cloud_name || cloud_name === 'demo') {
-    console.warn('  Cloudinary cloud_name not configured, using demo mode');
+    logger.warn('Cloudinary cloud_name not configured, using demo mode');
   }
   
   if (!api_key || api_key === 'demo') {
-    console.warn('  Cloudinary api_key not configured, using demo mode');
+    logger.warn('Cloudinary api_key not configured, using demo mode');
   }
   
   if (!api_secret || api_secret === 'demo') {
-    console.warn('  Cloudinary api_secret not configured, using demo mode');
+    logger.warn('Cloudinary api_secret not configured, using demo mode');
   }
   
   return cloud_name !== 'demo' && api_key !== 'demo' && api_secret !== 'demo';
@@ -36,7 +37,7 @@ const uploadToCloudinary = async (file, options = {}) => {
     const isConfigured = validateCloudinaryConfig();
     
     if (!isConfigured) {
-      console.warn('⚠️  Cloudinary not properly configured, returning demo URL');
+      logger.warn('Cloudinary not properly configured, returning demo URL');
       return {
         secure_url: 'https://via.placeholder.com/400x300/4F46E5/FFFFFF?text=Demo+Image',
         public_id: 'demo-image',
@@ -58,10 +59,10 @@ const uploadToCloudinary = async (file, options = {}) => {
 
     const result = await cloudinary.uploader.upload(file, uploadOptions);
     
-    console.log(`✅ Image uploaded to Cloudinary: ${result.public_id}`);
+    logger.info(`Image uploaded to Cloudinary: ${result.public_id}`);
     return result;
   } catch (error) {
-    console.error('❌ Cloudinary upload error:', error.message);
+    logger.error(`Cloudinary upload error: ${error.message}`);
     throw new Error(`Failed to upload image: ${error.message}`);
   }
 };
@@ -72,15 +73,15 @@ const deleteFromCloudinary = async (publicId) => {
     const isConfigured = validateCloudinaryConfig();
     
     if (!isConfigured) {
-      console.warn('⚠️  Cloudinary not configured, skipping delete');
+      logger.warn('Cloudinary not configured, skipping delete');
       return { result: 'ok' };
     }
 
     const result = await cloudinary.uploader.destroy(publicId);
-    console.log(`✅ Image deleted from Cloudinary: ${publicId}`);
+    logger.info(`Image deleted from Cloudinary: ${publicId}`);
     return result;
   } catch (error) {
-    console.error('❌ Cloudinary delete error:', error.message);
+    logger.error(`Cloudinary delete error: ${error.message}`);
     throw new Error(`Failed to delete image: ${error.message}`);
   }
 };

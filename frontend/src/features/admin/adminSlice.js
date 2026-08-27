@@ -52,6 +52,17 @@ const adminSlice = createSlice({
       loading: false,
       error: null
     },
+    policies: [],
+    contactMessages: [],
+    contactTotal: 0,
+    contactPage: 1,
+    contactTotalPages: 1,
+    auditLogs: [],
+    auditStats: null,
+    categories: [],
+    broadcasts: { data: [], total: 0, page: 1, loading: false, error: null },
+    broadcastStats: null,
+    notificationTemplates: [],
     loading: false,
     error: null
   },
@@ -102,7 +113,7 @@ const adminSlice = createSlice({
       .addCase(adminThunks.fetchUsers.fulfilled, (state, action) => {
         state.users.loading = false;
         state.users.data = action.payload.users || action.payload;
-        state.users.total = action.payload.total || action.payload.length;
+        state.users.total = action.payload.pagination?.total || action.payload.length;
       })
       .addCase(adminThunks.fetchUsers.rejected, (state, action) => {
         state.users.loading = false;
@@ -113,7 +124,7 @@ const adminSlice = createSlice({
       .addCase(adminThunks.banUser.fulfilled, (state, action) => {
         const index = state.users.data.findIndex(user => user._id === action.payload.userId);
         if (index !== -1) {
-          state.users.data[index].isBanned = action.payload.isBanned;
+          state.users.data[index].isActive = action.payload.user?.isActive;
         }
       })
       
@@ -138,7 +149,7 @@ const adminSlice = createSlice({
       .addCase(adminThunks.fetchAdminCards.fulfilled, (state, action) => {
         state.cards.loading = false;
         state.cards.data = action.payload.cards || action.payload;
-        state.cards.total = action.payload.total || action.payload.length;
+        state.cards.total = action.payload.pagination?.total || action.payload.length;
       })
       .addCase(adminThunks.fetchAdminCards.rejected, (state, action) => {
         state.cards.loading = false;
@@ -149,7 +160,7 @@ const adminSlice = createSlice({
       .addCase(adminThunks.featureCard.fulfilled, (state, action) => {
         const index = state.cards.data.findIndex(card => card._id === action.payload.cardId);
         if (index !== -1) {
-          state.cards.data[index].isFeatured = action.payload.isFeatured;
+          state.cards.data[index].featured = action.payload.featured;
         }
       })
       
@@ -161,7 +172,7 @@ const adminSlice = createSlice({
       // Get Card Analytics
       .addCase(adminThunks.getCardAnalytics.fulfilled, (state, action) => {
         // Store card analytics if needed
-        const { cardId, analytics } = action.payload;
+        const { cardId: _cardId, analytics: _analytics } = action.payload;
         // Implementation depends on how you want to handle card analytics
       })
       
@@ -173,7 +184,7 @@ const adminSlice = createSlice({
       .addCase(adminThunks.fetchTemplates.fulfilled, (state, action) => {
         state.templates.loading = false;
         state.templates.data = action.payload.templates || action.payload;
-        state.templates.total = action.payload.total || action.payload.length;
+        state.templates.total = action.payload.pagination?.total || action.payload.length;
       })
       .addCase(adminThunks.fetchTemplates.rejected, (state, action) => {
         state.templates.loading = false;
@@ -204,8 +215,7 @@ const adminSlice = createSlice({
         state.analytics.error = null;
       })
       .addCase(adminThunks.fetchAnalytics.fulfilled, (state, action) => {
-        state.analytics.loading = false;
-        state.analytics = action.payload;
+        state.analytics = { ...action.payload, loading: false, error: null };
       })
       .addCase(adminThunks.fetchAnalytics.rejected, (state, action) => {
         state.analytics.loading = false;
@@ -220,7 +230,7 @@ const adminSlice = createSlice({
       .addCase(adminThunks.fetchAccessRequests.fulfilled, (state, action) => {
         state.accessRequests.loading = false;
         state.accessRequests.data = action.payload.requests || action.payload;
-        state.accessRequests.total = action.payload.total || action.payload.length;
+        state.accessRequests.total = action.payload.pagination?.total || action.payload.length;
       })
       .addCase(adminThunks.fetchAccessRequests.rejected, (state, action) => {
         state.accessRequests.loading = false;
@@ -243,6 +253,77 @@ const adminSlice = createSlice({
           state.accessRequests.data[index].status = 'rejected';
           state.accessRequests.data[index].rejectedAt = new Date().toISOString();
         }
+      })
+      // Policies
+      .addCase(adminThunks.fetchPolicies.fulfilled, (state, action) => { state.policies = action.payload; })
+      .addCase(adminThunks.createPolicy.fulfilled, (state, action) => { state.policies.unshift(action.payload); })
+      .addCase(adminThunks.deletePolicy.fulfilled, (state, action) => { state.policies = state.policies.filter(p => p.slug !== action.payload.slug); })
+      // Contact Messages
+      .addCase(adminThunks.fetchContactMessages.fulfilled, (state, action) => {
+        state.contactMessages = action.payload.messages || [];
+        state.contactTotal = action.payload.total || 0;
+        state.contactPage = action.payload.page || 1;
+        state.contactTotalPages = action.payload.totalPages || 1;
+      })
+      // Audit Logs
+      .addCase(adminThunks.fetchAuditLogs.fulfilled, (state, action) => { state.auditLogs = action.payload; })
+      .addCase(adminThunks.fetchAuditStats.fulfilled, (state, action) => { state.auditStats = action.payload; })
+      // Categories
+      .addCase(adminThunks.fetchCategoriesAdmin.fulfilled, (state, action) => { state.categories = action.payload; })
+      // ─── Broadcasts ─────────────────────────────────────────────────────
+      .addCase(adminThunks.fetchBroadcasts.pending, (state) => { state.broadcasts.loading = true; state.broadcasts.error = null; })
+      .addCase(adminThunks.fetchBroadcasts.fulfilled, (state, action) => {
+        state.broadcasts.loading = false;
+        state.broadcasts.data = action.payload.broadcasts || action.payload.data || [];
+        state.broadcasts.total = action.payload.total || action.payload.broadcasts?.length || state.broadcasts.data.length;
+        state.broadcasts.page = action.payload.page || 1;
+      })
+      .addCase(adminThunks.fetchBroadcasts.rejected, (state, action) => { state.broadcasts.loading = false; state.broadcasts.error = action.payload; })
+      .addCase(adminThunks.createBroadcast.fulfilled, (state, action) => {
+        const b = action.payload.broadcast || action.payload;
+        state.broadcasts.data.unshift(b);
+        state.broadcasts.total += 1;
+      })
+      .addCase(adminThunks.updateBroadcast.fulfilled, (state, action) => {
+        const updated = action.payload.broadcast || action.payload;
+        const idx = state.broadcasts.data.findIndex((b) => b._id === updated._id);
+        if (idx !== -1) state.broadcasts.data[idx] = updated;
+      })
+      .addCase(adminThunks.deleteBroadcast.fulfilled, (state, action) => {
+        state.broadcasts.data = state.broadcasts.data.filter((b) => b._id !== action.payload.id);
+        state.broadcasts.total = Math.max(0, state.broadcasts.total - 1);
+      })
+      .addCase(adminThunks.sendBroadcast.fulfilled, (state, action) => {
+        const updated = action.payload.broadcast || action.payload;
+        const idx = state.broadcasts.data.findIndex((b) => b._id === updated._id);
+        if (idx !== -1) state.broadcasts.data[idx] = updated;
+      })
+      .addCase(adminThunks.scheduleBroadcast.fulfilled, (state, action) => {
+        const updated = action.payload.broadcast || action.payload;
+        const idx = state.broadcasts.data.findIndex((b) => b._id === updated._id);
+        if (idx !== -1) state.broadcasts.data[idx] = updated;
+      })
+      .addCase(adminThunks.cancelBroadcast.fulfilled, (state, action) => {
+        const updated = action.payload.broadcast || action.payload;
+        const idx = state.broadcasts.data.findIndex((b) => b._id === updated._id);
+        if (idx !== -1) state.broadcasts.data[idx] = updated;
+      })
+      .addCase(adminThunks.fetchBroadcastStats.fulfilled, (state, action) => { state.broadcastStats = action.payload; })
+      // ─── Notification Templates ─────────────────────────────────────────
+      .addCase(adminThunks.fetchNotificationTemplates.fulfilled, (state, action) => {
+        state.notificationTemplates = action.payload.templates || action.payload.data || action.payload || [];
+      })
+      .addCase(adminThunks.createNotificationTemplate.fulfilled, (state, action) => {
+        const t = action.payload.template || action.payload;
+        state.notificationTemplates.unshift(t);
+      })
+      .addCase(adminThunks.updateNotificationTemplate.fulfilled, (state, action) => {
+        const updated = action.payload.template || action.payload;
+        const idx = state.notificationTemplates.findIndex((t) => t._id === updated._id);
+        if (idx !== -1) state.notificationTemplates[idx] = updated;
+      })
+      .addCase(adminThunks.deleteNotificationTemplate.fulfilled, (state, action) => {
+        state.notificationTemplates = state.notificationTemplates.filter((t) => t._id !== action.payload.id);
       });
   }
 });

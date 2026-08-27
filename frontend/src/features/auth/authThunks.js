@@ -1,83 +1,112 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
+import { API_BASE_URL } from '../../services/apiService';
+import { fetchCurrentUser, refreshSession } from '../../services/authService';
+import { clearAuth, getToken, normalizeUser, saveAuth } from '../../utils/authStorage';
 
-// Register user
+const authUrl = (path) => `${API_BASE_URL}/auth${path}`;
+
+const persistAuthResponse = (data) => {
+  const user = normalizeUser(data.user);
+  saveAuth({
+    token: data.token,
+    refreshToken: data.refreshToken,
+    user,
+  });
+  return user;
+};
+
 export const register = createAsyncThunk(
   'auth/register',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/auth/register', {
+      const response = await fetch(authUrl('/register'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),
       });
 
       const data = await response.json();
-
       if (!response.ok) {
         return rejectWithValue(data.error || 'Registration failed');
       }
 
-      // Store token in localStorage
-      localStorage.setItem('token', data.token);
-      return data.user;
+      // If server issued tokens, persist them; otherwise treat as pending verification
+      if (data.token) {
+        const user = persistAuthResponse(data);
+        return { user, devOtp: data.devOtp, otpMessage: data.otpMessage };
+      }
+      // Save pending email for prefill in verify flow
+      if (data.user?.email) sessionStorage.setItem('pendingEmail', data.user.email);
+      if (data.pendingId) sessionStorage.setItem('pendingId', data.pendingId);
+      return { pendingEmail: data.user?.email || null, pendingId: data.pendingId || null, devOtp: data.devOtp, otpMessage: data.otpMessage };
     } catch (error) {
       return rejectWithValue(error.message || 'Registration failed');
     }
   }
 );
 
-// Request email OTP
 export const requestEmailOtp = createAsyncThunk(
   'auth/requestEmailOtp',
-  async (email, { rejectWithValue }) => {
+  async (payload, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/auth/verify-email/request', {
+      // payload can be a string email or an object { email, pendingId }
+      let body = {};
+      if (typeof payload === 'string') body = { email: payload };
+      else body = payload || {};
+
+      const response = await fetch(authUrl('/verify-email/request'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
       if (!response.ok) {
         return rejectWithValue(data.error || 'Failed to send verification code');
       }
-      return data.message || 'Verification code sent';
+      return data;
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to send verification code');
     }
   }
 );
 
-// Verify email OTP
 export const verifyEmailOtp = createAsyncThunk(
   'auth/verifyEmailOtp',
-  async ({ email, otp }, { rejectWithValue }) => {
+  async ({ email, otp, userId }, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/auth/verify-email', {
+      const body = { otp };
+      if (userId) body.userId = userId;
+      else body.email = email;
+
+      const response = await fetch(authUrl('/verify-email'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, otp }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
       if (!response.ok) {
         return rejectWithValue(data.error || 'Invalid verification code');
       }
-      return data.message || 'Email verified';
+
+      const user = normalizeUser(data.user);
+      // Persist tokens returned by server
+      if (data.token) {
+        saveAuth({ token: data.token, refreshToken: data.refreshToken, user });
+      }
+      return { message: data.message, user };
     } catch (error) {
       return rejectWithValue(error.message || 'Verification failed');
     }
   }
 );
 
-// Forgot password
 export const forgotPassword = createAsyncThunk(
   'auth/forgotPassword',
   async (email, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/auth/forgot-password', {
+      const response = await fetch(authUrl('/forgot-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -87,19 +116,18 @@ export const forgotPassword = createAsyncThunk(
       if (!response.ok) {
         return rejectWithValue(data.error || 'Failed to send reset link');
       }
-      return data.message || 'Reset link sent';
+      return data;
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to send reset link');
     }
   }
 );
 
-// Reset password
 export const resetPassword = createAsyncThunk(
   'auth/resetPassword',
   async ({ token, newPassword }, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/auth/reset-password', {
+      const response = await fetch(authUrl('/reset-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, newPassword }),
@@ -116,182 +144,171 @@ export const resetPassword = createAsyncThunk(
   }
 );
 
-// Login user
 export const login = createAsyncThunk(
   'auth/login',
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      const response = await fetch('/api/auth/login', {
+      const response = await fetch(authUrl('/login'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
       if (response.status === 429) {
-        // Rate limit exceeded
         const retryAfter = response.headers.get('retry-after') || '15 minutes';
-        throw new Error(`Rate limit exceeded. Please wait ${retryAfter} before trying again.`);
+        return rejectWithValue(`Rate limit exceeded. Please wait ${retryAfter} before trying again.`);
       }
 
       const data = await response.json();
-
       if (!response.ok) {
         return rejectWithValue(data.error || data.message || 'Login failed');
       }
 
-      // Store token in localStorage
-      localStorage.setItem('token', data.token);
-      
-      return data.user;
+      return persistAuthResponse(data);
     } catch (error) {
       return rejectWithValue(error.message || 'Login failed');
     }
   }
 );
 
-// Logout user
 export const logout = createAsyncThunk(
   'auth/logout',
-  async (_, { rejectWithValue }) => {
+  async () => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       if (token) {
-        await fetch('/api/auth/logout', {
+        await fetch(authUrl('/logout'), {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
       }
-      
-      // Remove token from localStorage
-      localStorage.removeItem('token');
+      clearAuth();
       return null;
-    } catch (error) {
-      // Even if the API call fails, we should still logout locally
-      localStorage.removeItem('token');
+    } catch {
+      clearAuth();
       return null;
     }
   }
 );
 
-// Check authentication status
 export const checkAuthStatus = createAsyncThunk(
   'auth/checkAuthStatus',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
+      const user = await fetchCurrentUser();
+      if (!user) {
+        clearAuth();
         return rejectWithValue('No token found');
       }
-
-      const response = await fetch('/api/auth/check', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        localStorage.removeItem('token');
-        return rejectWithValue('Token invalid');
-      }
-
-      const data = await response.json();
-      return data.user;
+      return user;
     } catch (error) {
-      localStorage.removeItem('token');
-      return rejectWithValue(error.message || 'Authentication check failed');
+      try {
+        const user = await refreshSession();
+        return user;
+      } catch {
+        clearAuth();
+        return rejectWithValue(error.message || 'Authentication check failed');
+      }
     }
   }
 );
 
-// Get user profile
 export const getUserProfile = createAsyncThunk(
   'auth/getUserProfile',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
+      const user = await fetchCurrentUser();
+      if (!user) {
         return rejectWithValue('No token found');
       }
-
-      const response = await fetch('/api/auth/profile', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        return rejectWithValue('Failed to get profile');
-      }
-
-      const data = await response.json();
-      return data.user;
+      return user;
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to get profile');
     }
   }
 );
 
-// Update user profile
 export const updateUserProfile = createAsyncThunk(
   'auth/updateUserProfile',
   async (profileData, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       if (!token) {
         return rejectWithValue('No token found');
       }
 
-      const response = await fetch('/api/auth/profile', {
+      const response = await fetch(authUrl('/profile'), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(profileData),
       });
 
+      const data = await response.json();
       if (!response.ok) {
-        const data = await response.json();
         return rejectWithValue(data.error || 'Failed to update profile');
       }
 
-      const data = await response.json();
-      return data.user;
+      const user = normalizeUser(data.user);
+      saveAuth({ token, user });
+      return user;
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to update profile');
     }
   }
 );
 
-// Get user stats
 export const getUserStats = createAsyncThunk(
   'auth/getUserStats',
   async (_, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       if (!token) {
         return rejectWithValue('No token found');
       }
 
-      const response = await fetch('/api/auth/stats', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+      const response = await fetch(authUrl('/stats'), {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
         return rejectWithValue('Failed to get stats');
       }
 
-      const data = await response.json();
-      return data;
+      return await response.json();
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to get stats');
+    }
+  }
+);
+
+export const changePassword = createAsyncThunk(
+  'auth/changePassword',
+  async ({ currentPassword, newPassword }, { rejectWithValue }) => {
+    try {
+      const token = getToken();
+      if (!token) {
+        return rejectWithValue('No token found');
+      }
+
+      const response = await fetch(authUrl('/change-password'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return rejectWithValue(data.error || 'Failed to change password');
+      }
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to change password');
     }
   }
 );

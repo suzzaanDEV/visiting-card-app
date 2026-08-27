@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { motion, AnimatePresence } from 'framer-motion';
+import Konva from 'konva';
 import { Stage, Layer, Rect, Circle, Text, Transformer, Image as KonvaImage, Group, Star, Line } from 'react-konva';
 import { SketchPicker } from 'react-color';
 import {
@@ -39,7 +41,7 @@ const ImageFromSrc = ({ shapeProps, isSelected, onSelect, onChange }) => {
             onClick={onSelect} // Propagate select event
             onTap={onSelect}   // Propagate select event for touch
             onDragEnd={(e) => { onChange({ ...shapeProps, x: e.target.x(), y: e.target.y() }); }}
-            onTransformEnd={(e) => {
+            onTransformEnd={() => {
                 const node = shapeRef.current; if (!node) return;
                 const scaleX = node.scaleX(); const scaleY = node.scaleY();
                 node.scaleX(1); node.scaleY(1);
@@ -55,7 +57,7 @@ const ImageFromSrc = ({ shapeProps, isSelected, onSelect, onChange }) => {
 
 // --- Custom Filter Effects ---
 const FilterPreview = ({ filter, onClick }) => {
-    const size = 40;
+    const _size = 40;
     const sampleRef = useRef();
 
     return (
@@ -65,7 +67,7 @@ const FilterPreview = ({ filter, onClick }) => {
         >
             <div
                 ref={sampleRef}
-                className="w-10 h-10 rounded border border-gray-300 overflow-hidden"
+                className="w-10 h-10 rounded border border-gray-300 dark:border-slate-600 overflow-hidden"
                 style={{
                     background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
                     filter: filter.css
@@ -87,6 +89,7 @@ const NewCard = () => {
     const [historyIndex, setHistoryIndex] = useState(0);
     const [cardTitle, setCardTitle] = useState('My New Card');
     const [cardId, setCardId] = useState(null); // To track existing card ID for updates
+    const [activeTab, setActiveTab] = useState('layers'); // 'layers', 'properties', 'effects'
     const [isPublic, setIsPublic] = useState(true);
     const [backgroundColor, setBackgroundColor] = useState('#FFFFFF');
     const [showBgPicker, setShowBgPicker] = useState(false);
@@ -96,7 +99,7 @@ const NewCard = () => {
     const [zoom, setZoom] = useState(1);
     const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
     const [isShiftDown, setIsShiftDown] = useState(false); // State for Shift key
-    const [isAltDown, setIsAltDown] = useState(false); // State for Alt key
+    const [, setIsAltDown] = useState(false); // State for Alt key
     const [isSpaceDown, setIsSpaceDown] = useState(false); // For panning
     const [isDrawing, setIsDrawing] = useState(false);
     const [drawMode, setDrawMode] = useState(null); // null | 'brush' | 'eraser'
@@ -111,9 +114,7 @@ const NewCard = () => {
     const [showRulers, setShowRulers] = useState(false);
     const [canvasSize, setCanvasSize] = useState({ width: 800, height: 480 });
     const [lastSaved, setLastSaved] = useState(null);
-    const [showEffectsPanel, setShowEffectsPanel] = useState(false);
-    const [activeTab, setActiveTab] = useState('layers'); // 'layers', 'effects', 'filters'
-    const [filterPresets, setFilterPresets] = useState([
+    const [filterPresets,] = useState([
         { id: 'none', name: 'None', css: 'none' },
         { id: 'grayscale', name: 'Grayscale', css: 'grayscale(1)' },
         { id: 'sepia', name: 'Sepia', css: 'sepia(0.7)' },
@@ -127,17 +128,40 @@ const NewCard = () => {
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
     const [showTooltip, setShowTooltip] = useState(false);
 
+    // Onboarding / preview state
+    const [showOnboarding, setShowOnboarding] = useState(() => localStorage.getItem('cardEditorVisited') !== 'true');
+    const [showMobilePreview, setShowMobilePreview] = useState(false);
+
     // Add form state for card details
     const [showCardForm, setShowCardForm] = useState(true);
     const [cardFormData, setCardFormData] = useState({
         fullName: '',
         jobTitle: '',
+        department: '',
         email: '',
         phone: '',
+        mobile: '',
+        fax: '',
         website: '',
         company: '',
         address: '',
-        bio: ''
+        city: '',
+        state: '',
+        country: '',
+        postalCode: '',
+        bio: '',
+        tagline: '',
+        companyTagline: '',
+        socialLinks: {
+            linkedin: '',
+            twitter: '',
+            github: '',
+            instagram: '',
+            facebook: '',
+            youtube: '',
+            dribbble: '',
+            behance: ''
+        }
     });
     
     // Add some default elements when the form is submitted
@@ -192,9 +216,6 @@ const NewCard = () => {
     const fileInputRef = useRef(null);
     const containerRef = useRef(null);
     const textEditAreaRef = useRef(null);
-    const saveTimeoutRef = useRef(null);
-    const rulerHorizontalRef = useRef(null);
-    const rulerVerticalRef = useRef(null);
 
     // --- History Management ---
     const saveToHistory = useCallback((newElementsState) => {
@@ -207,7 +228,6 @@ const NewCard = () => {
 
     const undo = useCallback(() => {
         if (historyIndex > 0) {
-            console.log("Undo");
             const prevIndex = historyIndex - 1;
             setHistoryIndex(prevIndex);
             setElements(historyStack[prevIndex]);
@@ -218,7 +238,6 @@ const NewCard = () => {
 
     const redo = useCallback(() => {
         if (historyIndex < historyStack.length - 1) {
-            console.log("Redo");
             const nextIndex = historyIndex + 1;
             setHistoryIndex(nextIndex);
             setElements(historyStack[nextIndex]);
@@ -393,8 +412,6 @@ const NewCard = () => {
     const dispatch = useDispatch();
     // --- Save Logic ---
     const handleSave = useCallback(async () => {
-        console.log("Save triggered");
-        
         // Validate required fields
         if (!cardFormData.fullName || cardFormData.fullName.trim() === '') {
             alert('Full name is required');
@@ -414,38 +431,43 @@ const NewCard = () => {
             elements: elements
         };
         const designJsonString = JSON.stringify(designData);
-        console.log("Serialized Design JSON:", designJsonString.substring(0, 100) + "...");
 
         transformerRef.current?.show();
         stageRef.current.batchDraw();
 
         const cardDataPayload = {
-            id: cardId, // Include ID for updates
+            id: cardId,
             title: cardTitle,
-            privacy: isPublic ? 'public' : 'private', // Send privacy field
+            privacy: isPublic ? 'public' : 'private',
             isPublic: isPublic,
             designJson: designJsonString,
-            // Include card form data
             fullName: cardFormData.fullName,
             jobTitle: cardFormData.jobTitle,
+            department: cardFormData.department,
             email: cardFormData.email,
             phone: cardFormData.phone,
+            mobile: cardFormData.mobile,
+            fax: cardFormData.fax,
             website: cardFormData.website,
             company: cardFormData.company,
             address: cardFormData.address,
-            bio: cardFormData.bio
+            city: cardFormData.city,
+            state: cardFormData.state,
+            country: cardFormData.country,
+            postalCode: cardFormData.postalCode,
+            bio: cardFormData.bio,
+            tagline: cardFormData.tagline,
+            companyTagline: cardFormData.companyTagline,
+            socialLinks: cardFormData.socialLinks
         };
-        console.log(`Dispatching ${cardId ? 'updateCard' : 'createCard'} with payload:`, cardDataPayload);
 
         try {
             // Actual dispatch
             if (cardId) {
-                const result = await dispatch(updateCard({ cardId, cardData: cardDataPayload })).unwrap();
-                console.log('Update result:', result);
+                await dispatch(updateCard({ cardId, cardData: cardDataPayload })).unwrap();
                 setLastSaved(new Date());
             } else {
                 const result = await dispatch(createCard(cardDataPayload)).unwrap();
-                console.log('Create result:', result);
                 setCardId(result.card?._id || result._id);
                 setLastSaved(new Date());
             }
@@ -457,6 +479,16 @@ const NewCard = () => {
             alert(`Error saving card: ${err?.message || 'Unknown error'}`);
         }
     }, [dispatch, cardId, cardTitle, isPublic, elements, backgroundColor, layers, canvasSize, cardFormData]);
+
+    // Auto-dismiss onboarding overlay after 10 seconds
+    useEffect(() => {
+        if (!showOnboarding) return;
+        const timer = setTimeout(() => {
+            localStorage.setItem('cardEditorVisited', 'true');
+            setShowOnboarding(false);
+        }, 10000);
+        return () => clearTimeout(timer);
+    }, [showOnboarding]);
 
 
     // --- Keyboard Shortcuts & Key State Handling ---
@@ -699,7 +731,7 @@ const NewCard = () => {
     };
 
     // --- Drawing Mode ---
-    const startDrawing = (e) => {
+    const startDrawing = () => {
         if (!drawMode || layers[activeLayerIndex]?.locked) return;
 
         const stage = stageRef.current;
@@ -716,7 +748,7 @@ const NewCard = () => {
         setCurrentPathPoints([stageX, stageY]);
     };
 
-    const continueDrawing = (e) => {
+    const continueDrawing = () => {
         if (!isDrawing || !drawMode) return;
 
         const stage = stageRef.current;
@@ -812,7 +844,7 @@ const NewCard = () => {
     const handleContextMenu = (e) => {
         e.evt.preventDefault();
         const stage = stageRef.current; if (!stage) return;
-        const pointerPos = stage.getPointerPosition();
+        const _pointerPos = stage.getPointerPosition();
         const containerRect = containerRef.current?.getBoundingClientRect();
         const menuX = (e.evt.clientX - (containerRect?.left || 0));
         const menuY = (e.evt.clientY - (containerRect?.top || 0));
@@ -823,7 +855,7 @@ const NewCard = () => {
 
     // Close context menu effect
     useEffect(() => {
-        const handleClickOutside = (e) => { setContextMenu(prev => ({ ...prev, visible: false })); };
+        const handleClickOutside = () => { setContextMenu(prev => ({ ...prev, visible: false })); };
         if (contextMenu.visible) document.addEventListener('click', handleClickOutside);
         else document.removeEventListener('click', handleClickOutside);
         return () => document.removeEventListener('click', handleClickOutside);
@@ -856,7 +888,7 @@ const NewCard = () => {
         textarea.style.width = textNode.width() * textNode.scaleX() * zoom + 'px';
         textarea.style.height = textNode.height() * textNode.scaleY() * zoom + 'px';
         textarea.style.fontSize = (element.fontSize || 16) * zoom + 'px';
-        textarea.style.border = '1px solid #6366f1';
+        textarea.style.border = '1px solid #22C55E';
         textarea.style.padding = '0px';
         textarea.style.margin = '0px';
         textarea.style.overflow = 'hidden';
@@ -1015,7 +1047,6 @@ const NewCard = () => {
         if (autoSaveTimerRef.current) clearInterval(autoSaveTimerRef.current);
         autoSaveTimerRef.current = setInterval(() => {
             if (isDirtyRef.current && cardId) {
-                console.log("Auto-saving changes...");
                 handleSave();
             }
         }, 20000); // Auto-save every 20 seconds
@@ -1203,22 +1234,51 @@ const NewCard = () => {
     // --- Render ---
     const stageWidth = canvasSize.width;
     const stageHeight = canvasSize.height;
-    const themeColor = 'indigo'; // Use Tailwind color name
+    const themeColor = 'green'; // Use Tailwind color name
 
     return (
-        <div className="flex flex-col h-screen bg-gray-200 overflow-hidden font-sans">
+        <div className="flex flex-col h-screen bg-gray-200 dark:bg-slate-950 overflow-hidden font-sans">
             {/* Card Form Modal */}
             {showCardForm && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-6">Card Information</h2>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-2">Card Information</h2>
+                        <p className="text-sm text-gray-500 dark:text-slate-400 mb-4">Fill in your details to get started</p>
+
+                        {/* Live Initials Avatar Preview */}
+                        <div className="flex items-center gap-4 mb-6 p-4 bg-gray-50 dark:bg-slate-700 rounded-xl border border-gray-100 dark:border-slate-600">
+                            <div className="w-16 h-16 rounded-full bg-emerald-500 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-emerald-200 flex-shrink-0 transition-all duration-300">
+                                {cardFormData.fullName
+                                    ? cardFormData.fullName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+                                    : <FiEdit size={24} className="opacity-50" />
+                                }
+                            </div>
+                            <div className="min-w-0">
+                                <div className="text-sm font-bold text-gray-900 dark:text-slate-100 truncate">{cardFormData.fullName || 'Your Name'}</div>
+                                <div className="text-xs text-gray-500 dark:text-slate-400 truncate">{cardFormData.jobTitle || 'Job Title'}</div>
+                                {cardFormData.company && <div className="text-xs text-emerald-600 dark:text-emerald-400 truncate">{cardFormData.company}</div>}
+                            </div>
+                        </div>
+
+                        <style>{`
+                            .float-field { position: relative; }
+                            .float-field input, .float-field textarea { padding-top: 1.25rem; padding-bottom: 0.5rem; }
+                            .float-field label { position: absolute; top: 0.625rem; left: 0.75rem; font-size: 0.75rem; color: #9ca3af; pointer-events: none; transition: all 0.2s ease; transform-origin: left; }
+                            .float-field input:focus + label,
+                            .float-field input:not(:placeholder-shown) + label,
+                            .float-field textarea:focus + label,
+                            .float-field textarea:not(:placeholder-shown) + label { top: 0.25rem; font-size: 0.625rem; color: #059669; transform: translateY(-2px); }
+                            .float-field input:focus, .float-field textarea:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); }
+                            .float-field .focus-line { position: absolute; bottom: 0; left: 50%; width: 0; height: 2px; background: #10b981; transition: all 0.3s ease; transform: translateX(-50%); border-radius: 1px; }
+                            .float-field input:focus ~ .focus-line,
+                            .float-field textarea:focus ~ .focus-line { width: 100%; }
+                        `}</style>
                         
                         <form onSubmit={(e) => {
                             e.preventDefault();
                             if (cardFormData.fullName.trim()) {
                                 setCardTitle(cardFormData.fullName + "'s Card");
                                 setShowCardForm(false);
-                                // Initialize default elements after form is submitted
                                 setTimeout(() => {
                                     initializeDefaultElements();
                                 }, 100);
@@ -1226,117 +1286,269 @@ const NewCard = () => {
                                 alert('Full name is required');
                             }
                         }}>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Full Name *
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={cardFormData.fullName}
-                                        onChange={(e) => setCardFormData(prev => ({ ...prev, fullName: e.target.value }))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        placeholder="Bikash Kumar Tamang"
-                                        required
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Job Title
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={cardFormData.jobTitle}
-                                        onChange={(e) => setCardFormData(prev => ({ ...prev, jobTitle: e.target.value }))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        placeholder="Software Engineer"
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Email
-                                    </label>
-                                    <input
-                                        type="email"
-                                        value={cardFormData.email}
-                                        onChange={(e) => setCardFormData(prev => ({ ...prev, email: e.target.value }))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        placeholder="bikash.tamang@cardly.com"
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Phone
-                                    </label>
-                                    <input
-                                        type="tel"
-                                        value={cardFormData.phone}
-                                        onChange={(e) => setCardFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        placeholder="+(977) 9xxxxxxxxx"
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Company
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={cardFormData.company}
-                                        onChange={(e) => setCardFormData(prev => ({ ...prev, company: e.target.value }))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        placeholder="Company Name"
-                                    />
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Website
-                                    </label>
-                                    <input
-                                        type="url"
-                                        value={cardFormData.website}
-                                        onChange={(e) => setCardFormData(prev => ({ ...prev, website: e.target.value }))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        placeholder="www.yourwebsite.com"
-                                    />
+                            {/* Basic Info */}
+                            <div className="mb-4">
+                                <h3 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-3">Basic Info</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="float-field">
+                                        <input
+                                            type="text"
+                                            value={cardFormData.fullName}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, fullName: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                            required
+                                        />
+                                        <label>Full Name *</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field">
+                                        <input
+                                            type="text"
+                                            value={cardFormData.jobTitle}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, jobTitle: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>Job Title</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field">
+                                        <input
+                                            type="text"
+                                            value={cardFormData.company}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, company: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>Company</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field">
+                                        <input
+                                            type="text"
+                                            value={cardFormData.department}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, department: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>Department</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field md:col-span-2">
+                                        <input
+                                            type="text"
+                                            value={cardFormData.tagline}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, tagline: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                            maxLength={100}
+                                        />
+                                        <label>Personal Tagline</label>
+                                        <div className="focus-line"></div>
+                                    </div>
                                 </div>
                             </div>
-                            
-                            <div className="mb-6">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Address
-                                </label>
-                                <textarea
-                                    value={cardFormData.address}
-                                    onChange={(e) => setCardFormData(prev => ({ ...prev, address: e.target.value }))}
-                                    rows={2}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                    placeholder="123 Thamel Marg, Kathmandu&#10;Nepal 44600"
-                                />
+
+                            {/* Contact */}
+                            <div className="mb-4">
+                                <h3 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-3">Contact</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="float-field">
+                                        <input
+                                            type="email"
+                                            value={cardFormData.email}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, email: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>Email</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field">
+                                        <input
+                                            type="tel"
+                                            value={cardFormData.phone}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, phone: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>Phone</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field">
+                                        <input
+                                            type="tel"
+                                            value={cardFormData.mobile}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, mobile: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>Mobile</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field">
+                                        <input
+                                            type="tel"
+                                            value={cardFormData.fax}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, fax: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>Fax</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field md:col-span-2">
+                                        <input
+                                            type="url"
+                                            value={cardFormData.website}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, website: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>Website</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                </div>
                             </div>
-                            
+
+                            {/* Location */}
+                            <div className="mb-4">
+                                <h3 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-3">Location</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="float-field md:col-span-2">
+                                        <input
+                                            type="text"
+                                            value={cardFormData.address}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, address: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>Street Address</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field">
+                                        <input
+                                            type="text"
+                                            value={cardFormData.city}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, city: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>City</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field">
+                                        <input
+                                            type="text"
+                                            value={cardFormData.state}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, state: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>State / Province</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field">
+                                        <input
+                                            type="text"
+                                            value={cardFormData.country}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, country: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>Country</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field">
+                                        <input
+                                            type="text"
+                                            value={cardFormData.postalCode}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, postalCode: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                        />
+                                        <label>Postal Code</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Social Links */}
+                            <div className="mb-4">
+                                <h3 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-3">Social Links</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {[
+                                        { key: 'linkedin', label: 'LinkedIn' },
+                                        { key: 'twitter', label: 'Twitter / X' },
+                                        { key: 'github', label: 'GitHub' },
+                                        { key: 'instagram', label: 'Instagram' },
+                                        { key: 'facebook', label: 'Facebook' },
+                                        { key: 'youtube', label: 'YouTube' }
+                                    ].map(({ key, label }) => (
+                                        <div className="float-field" key={key}>
+                                            <input
+                                                type="url"
+                                                value={cardFormData.socialLinks[key]}
+                                                onChange={(e) => setCardFormData(prev => ({ ...prev, socialLinks: { ...prev.socialLinks, [key]: e.target.value } }))}
+                                                className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                                placeholder=" "
+                                            />
+                                            <label>{label}</label>
+                                            <div className="focus-line"></div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* About */}
                             <div className="mb-6">
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Bio
-                                </label>
-                                <textarea
-                                    value={cardFormData.bio}
-                                    onChange={(e) => setCardFormData(prev => ({ ...prev, bio: e.target.value }))}
-                                    rows={3}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                    placeholder="Tell us about yourself..."
-                                />
+                                <h3 className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-wider mb-3">About</h3>
+                                <div className="space-y-4">
+                                    <div className="float-field">
+                                        <textarea
+                                            value={cardFormData.bio}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, bio: e.target.value }))}
+                                            rows={3}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                            maxLength={500}
+                                        />
+                                        <label>Bio</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                    
+                                    <div className="float-field">
+                                        <input
+                                            type="text"
+                                            value={cardFormData.companyTagline}
+                                            onChange={(e) => setCardFormData(prev => ({ ...prev, companyTagline: e.target.value }))}
+                                            className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200 rounded-md focus:outline-none transition-all duration-200"
+                                            placeholder=" "
+                                            maxLength={200}
+                                        />
+                                        <label>Company Tagline</label>
+                                        <div className="focus-line"></div>
+                                    </div>
+                                </div>
                             </div>
                             
                             <div className="flex justify-end gap-3">
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                                    className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
                                 >
                                     Start Editing
                                 </button>
@@ -1347,15 +1559,15 @@ const NewCard = () => {
             )}
             
             {/* Top Toolbar */}
-            <div className="bg-white border-b border-gray-300 px-3 py-1 flex items-center gap-2 shadow-sm z-10 flex-shrink-0">
-                <span className="text-sm font-semibold text-gray-600 mr-4">Editor</span>
+            <div className="bg-white dark:bg-slate-900 border-b border-gray-300 dark:border-slate-700 px-3 py-1 flex items-center gap-2 shadow-sm z-10 flex-shrink-0">
+                <span className="text-sm font-semibold text-gray-600 dark:text-slate-400 mr-4">Editor</span>
 
                 {/* History Controls */}
                 <button
                     onClick={undo}
                     disabled={historyIndex <= 0}
                     title="Undo (Ctrl+Z)"
-                    className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     onMouseEnter={(e) => showTooltipFor("Undo (Ctrl+Z)", e)}
                     onMouseLeave={hideTooltip}
                 >
@@ -1365,20 +1577,20 @@ const NewCard = () => {
                     onClick={redo}
                     disabled={historyIndex >= historyStack.length - 1}
                     title="Redo (Ctrl+Y)"
-                    className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     onMouseEnter={(e) => showTooltipFor("Redo (Ctrl+Y)", e)}
                     onMouseLeave={hideTooltip}
                 >
                     <FiCornerUpRight size={18} />
                 </button>
 
-                <span className="border-l h-5 mx-2"></span>
+                <span className="border-l border-gray-300 dark:border-slate-700 h-5 mx-2"></span>
 
                 {/* Zoom Controls */}
                 <button
                     onClick={zoomOut}
                     title="Zoom Out"
-                    className="p-1 rounded hover:bg-gray-200"
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800"
                     onMouseEnter={(e) => showTooltipFor("Zoom Out", e)}
                     onMouseLeave={hideTooltip}
                 >
@@ -1388,7 +1600,7 @@ const NewCard = () => {
                 <button
                     onClick={zoomIn}
                     title="Zoom In"
-                    className="p-1 rounded hover:bg-gray-200"
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800"
                     onMouseEnter={(e) => showTooltipFor("Zoom In", e)}
                     onMouseLeave={hideTooltip}
                 >
@@ -1397,21 +1609,21 @@ const NewCard = () => {
                 <button
                     onClick={resetZoom}
                     title="Reset Zoom"
-                    className="p-1 rounded hover:bg-gray-200"
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800"
                     onMouseEnter={(e) => showTooltipFor("Reset Zoom", e)}
                     onMouseLeave={hideTooltip}
                 >
                     <FiMaximize2 size={18} />
                 </button>
 
-                <span className="border-l h-5 mx-2"></span>
+                <span className="border-l border-gray-300 dark:border-slate-700 h-5 mx-2"></span>
 
                 {/* Arrange Controls */}
                 <button
                     onClick={() => moveElementLayer('forward')}
                     disabled={selectedIds.length !== 1 || layers[activeLayerIndex]?.locked}
                     title="Bring Forward"
-                    className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     onMouseEnter={(e) => showTooltipFor("Bring Forward", e)}
                     onMouseLeave={hideTooltip}
                 >
@@ -1421,7 +1633,7 @@ const NewCard = () => {
                     onClick={() => moveElementLayer('backward')}
                     disabled={selectedIds.length !== 1 || layers[activeLayerIndex]?.locked}
                     title="Send Backward"
-                    className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     onMouseEnter={(e) => showTooltipFor("Send Backward", e)}
                     onMouseLeave={hideTooltip}
                 >
@@ -1431,7 +1643,7 @@ const NewCard = () => {
                     onClick={() => moveElementLayer('front')}
                     disabled={selectedIds.length !== 1 || layers[activeLayerIndex]?.locked}
                     title="Bring to Front"
-                    className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     onMouseEnter={(e) => showTooltipFor("Bring to Front", e)}
                     onMouseLeave={hideTooltip}
                 >
@@ -1441,14 +1653,14 @@ const NewCard = () => {
                     onClick={() => moveElementLayer('back')}
                     disabled={selectedIds.length !== 1 || layers[activeLayerIndex]?.locked}
                     title="Send to Back"
-                    className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     onMouseEnter={(e) => showTooltipFor("Send to Back", e)}
                     onMouseLeave={hideTooltip}
                 >
                     <FiChevronsDown size={18} />
                 </button>
 
-                <span className="border-l h-5 mx-2"></span>
+                <span className="border-l border-gray-300 dark:border-slate-700 h-5 mx-2"></span>
 
                 {/* Alignment Tools */}
                 <div className="flex items-center gap-1">
@@ -1456,7 +1668,7 @@ const NewCard = () => {
                         onClick={() => alignSelectedElements('left')}
                         disabled={selectedIds.length <= 1 || layers[activeLayerIndex]?.locked}
                         title="Align Left"
-                        className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                         onMouseEnter={(e) => showTooltipFor("Align Left", e)}
                         onMouseLeave={hideTooltip}
                     >
@@ -1466,7 +1678,7 @@ const NewCard = () => {
                         onClick={() => alignSelectedElements('center')}
                         disabled={selectedIds.length <= 1 || layers[activeLayerIndex]?.locked}
                         title="Align Center"
-                        className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                         onMouseEnter={(e) => showTooltipFor("Align Center", e)}
                         onMouseLeave={hideTooltip}
                     >
@@ -1476,7 +1688,7 @@ const NewCard = () => {
                         onClick={() => alignSelectedElements('right')}
                         disabled={selectedIds.length <= 1 || layers[activeLayerIndex]?.locked}
                         title="Align Right"
-                        className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                         onMouseEnter={(e) => showTooltipFor("Align Right", e)}
                         onMouseLeave={hideTooltip}
                     >
@@ -1484,14 +1696,14 @@ const NewCard = () => {
                     </button>
                 </div>
 
-                <span className="border-l h-5 mx-2"></span>
+                <span className="border-l border-gray-300 dark:border-slate-700 h-5 mx-2"></span>
 
                 {/* Group/Ungroup */}
                 <button
                     onClick={groupSelectedElements}
                     disabled={selectedIds.length <= 1 || layers[activeLayerIndex]?.locked}
                     title="Group Elements (Ctrl+G)"
-                    className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     onMouseEnter={(e) => showTooltipFor("Group Elements (Ctrl+G)", e)}
                     onMouseLeave={hideTooltip}
                 >
@@ -1502,20 +1714,20 @@ const NewCard = () => {
                     disabled={selectedIds.length !== 1 || layers[activeLayerIndex]?.locked ||
                         !elements.find(el => el.id === selectedIds[0] && el.type === 'Group')}
                     title="Ungroup Elements (Ctrl+Shift+G)"
-                    className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
                     onMouseEnter={(e) => showTooltipFor("Ungroup Elements (Ctrl+Shift+G)", e)}
                     onMouseLeave={hideTooltip}
                 >
                     <FaObjectUngroup size={16} />
                 </button>
 
-                <span className="border-l h-5 mx-2"></span>
+                <span className="border-l border-gray-300 dark:border-slate-700 h-5 mx-2"></span>
 
                 {/* Grid Control */}
                 <button
                     onClick={() => setSnapToGrid(!snapToGrid)}
                     title={`${snapToGrid ? 'Disable' : 'Enable'} Snap to Grid`}
-                    className={`p-1 rounded ${snapToGrid ? 'bg-indigo-100 text-indigo-700' : 'hover:bg-gray-200'}`}
+                    className={`p-1 rounded ${snapToGrid ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'hover:bg-gray-200 dark:hover:bg-slate-800'}`}
                     onMouseEnter={(e) => showTooltipFor(`${snapToGrid ? 'Disable' : 'Enable'} Snap to Grid`, e)}
                     onMouseLeave={hideTooltip}
                 >
@@ -1524,20 +1736,20 @@ const NewCard = () => {
 
                 {/* Canvas Size Controls */}
                 <div className="flex items-center gap-1 ml-3">
-                    <span className="text-xs text-gray-500">Canvas:</span>
+                    <span className="text-xs text-gray-500 dark:text-slate-400">Canvas:</span>
                     <input
                         type="number"
                         value={canvasSize.width}
                         onChange={(e) => updateCanvasSize(e.target.value, canvasSize.height)}
-                        className="w-16 px-1 py-0.5 text-xs border border-gray-300 rounded"
+                        className="w-16 px-1 py-0.5 text-xs border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded"
                         min="100"
                     />
-                    <span className="text-xs text-gray-500">×</span>
+                    <span className="text-xs text-gray-500 dark:text-slate-400">×</span>
                     <input
                         type="number"
                         value={canvasSize.height}
                         onChange={(e) => updateCanvasSize(canvasSize.width, e.target.value)}
-                        className="w-16 px-1 py-0.5 text-xs border border-gray-300 rounded"
+                        className="w-16 px-1 py-0.5 text-xs border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded"
                         min="100"
                     />
                 </div>
@@ -1546,7 +1758,7 @@ const NewCard = () => {
 
                 {/* Last Saved Indicator */}
                 {lastSaved && (
-                    <span className="text-xs text-gray-500 mr-2">
+                    <span className="text-xs text-gray-500 dark:text-slate-400 mr-2">
                         Last saved: {lastSaved.toLocaleTimeString()}
                     </span>
                 )}
@@ -1567,7 +1779,7 @@ const NewCard = () => {
 
             <div className="flex flex-grow overflow-hidden">
                 {/* Toolbox Panel (Left) */}
-                <div className={`w-16 bg-white p-2 flex flex-col items-center gap-1 border-r border-gray-300 shadow-sm text-gray-700 pt-3 flex-shrink-0 overflow-y-auto`}>
+                <div className={`w-16 bg-white dark:bg-slate-900 p-2 flex flex-col items-center gap-1 border-r border-gray-300 dark:border-slate-700 shadow-sm text-gray-700 dark:text-slate-300 pt-3 flex-shrink-0 overflow-y-auto`}>
                     {/* Tool Buttons */}
                     <button
                         onClick={() => addElement('rect')}
@@ -1624,7 +1836,7 @@ const NewCard = () => {
                         <FaSlash className="mx-auto" size={20} />
                     </button>
 
-                    <div className="w-full border-t border-gray-200 my-2"></div>
+                    <div className="w-full border-t border-gray-200 dark:border-slate-700 my-2"></div>
 
                     {/* Drawing Tools */}
                     <button
@@ -1651,7 +1863,7 @@ const NewCard = () => {
                         <div className="my-1 w-full">
                             <div className="relative">
                                 <div
-                                    className="w-8 h-8 mx-auto rounded border border-gray-300 cursor-pointer"
+                                    className="w-8 h-8 mx-auto rounded border border-gray-300 dark:border-slate-600 cursor-pointer"
                                     style={{ backgroundColor: brushColor }}
                                     onClick={() => setShowBrushPicker(!showBrushPicker)}
                                 ></div>
@@ -1671,9 +1883,9 @@ const NewCard = () => {
                                     max="20"
                                     value={brushSize}
                                     onChange={(e) => setBrushSize(Number(e.target.value))}
-                                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                    className="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
                                 />
-                                <span className="block text-center text-xs mt-1">{brushSize}px</span>
+                                <span className="block text-center text-xs mt-1 dark:text-slate-400">{brushSize}px</span>
                             </div>
                         </div>
                     )}
@@ -1691,7 +1903,7 @@ const NewCard = () => {
                 {/* Canvas Area (Center) */}
                 <div
                     ref={containerRef}
-                    className="flex-grow flex items-center justify-center p-4 overflow-auto bg-gray-300 relative"
+                    className="flex-grow flex items-center justify-center p-4 overflow-auto bg-gray-300 dark:bg-slate-950 relative"
                     onMouseMove={(e) => {
                         if (isDrawing) {
                             continueDrawing(e);
@@ -1965,21 +2177,21 @@ const NewCard = () => {
 
                     {/* Context Menu */}
                     {contextMenu.visible && (
-                        <div className="absolute bg-white border border-gray-300 rounded shadow-lg py-1 z-50 text-xs" style={{ top: contextMenu.y + 5, left: contextMenu.x + 5 }}>
+                        <div className="absolute bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded shadow-lg py-1 z-50 text-xs" style={{ top: contextMenu.y + 5, left: contextMenu.x + 5 }}>
                             {contextMenu.targetId && (
                                 <>
-                                    <button onClick={() => moveElementLayer('forward')} className="block w-full text-left px-3 py-1 hover:bg-gray-100">Bring Forward</button>
-                                    <button onClick={() => moveElementLayer('backward')} className="block w-full text-left px-3 py-1 hover:bg-gray-100">Send Backward</button>
-                                    <button onClick={() => moveElementLayer('front')} className="block w-full text-left px-3 py-1 hover:bg-gray-100">Bring to Front</button>
-                                    <button onClick={() => moveElementLayer('back')} className="block w-full text-left px-3 py-1 hover:bg-gray-100">Send to Back</button>
-                                    <div className="border-t my-1"></div>
-                                    <button onClick={duplicateSelectedElements} className="block w-full text-left px-3 py-1 hover:bg-gray-100">Duplicate</button>
-                                    <div className="border-t my-1"></div>
-                                    <button onClick={deleteSelectedElements} className="block w-full text-left px-3 py-1 text-red-600 hover:bg-red-50">Delete</button>
+                                    <button onClick={() => moveElementLayer('forward')} className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-slate-200">Bring Forward</button>
+                                    <button onClick={() => moveElementLayer('backward')} className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-slate-200">Send Backward</button>
+                                    <button onClick={() => moveElementLayer('front')} className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-slate-200">Bring to Front</button>
+                                    <button onClick={() => moveElementLayer('back')} className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-slate-200">Send to Back</button>
+                                    <div className="border-t my-1 dark:border-slate-700"></div>
+                                    <button onClick={duplicateSelectedElements} className="block w-full text-left px-3 py-1 hover:bg-gray-100 dark:hover:bg-slate-700 dark:text-slate-200">Duplicate</button>
+                                    <div className="border-t my-1 dark:border-slate-700"></div>
+                                    <button onClick={deleteSelectedElements} className="block w-full text-left px-3 py-1 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30">Delete</button>
                                 </>
                             )}
                             {!contextMenu.targetId && (
-                                <span className="block px-3 py-1 text-gray-400 italic">Canvas Options</span>
+                                <span className="block px-3 py-1 text-gray-400 dark:text-slate-500 italic">Canvas Options</span>
                             )}
                         </div>
                     )}
@@ -2006,26 +2218,171 @@ const NewCard = () => {
                             ></div>
                         </div>
                     )}
+
+                    {/* Floating Toolbar */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-slate-700/50 px-6 py-3 flex items-center gap-3">
+                        <button
+                            onClick={undo}
+                            disabled={historyIndex <= 0}
+                            className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Undo (Ctrl+Z)"
+                        >
+                            <FiCornerUpLeft size={16} />
+                        </button>
+                        <button
+                            onClick={redo}
+                            disabled={historyIndex >= historyStack.length - 1}
+                            className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                            title="Redo (Ctrl+Y)"
+                        >
+                            <FiCornerUpRight size={16} />
+                        </button>
+
+                        <div className="w-px h-5 bg-gray-300 dark:bg-slate-700"></div>
+
+                        <button
+                            onClick={zoomOut}
+                            className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
+                            title="Zoom Out"
+                        >
+                            <FiZoomOut size={16} />
+                        </button>
+                        <span className="text-xs font-semibold text-gray-600 dark:text-slate-400 w-12 text-center">{Math.round(zoom * 100)}%</span>
+                        <button
+                            onClick={zoomIn}
+                            className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-800 transition-colors"
+                            title="Zoom In"
+                        >
+                            <FiZoomIn size={16} />
+                        </button>
+
+                        <div className="w-px h-5 bg-gray-300 dark:bg-slate-700"></div>
+
+                        <button
+                            onClick={() => setSnapToGrid(!snapToGrid)}
+                            className={`p-1.5 rounded-lg transition-colors ${snapToGrid ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-400'}`}
+                            title={`${snapToGrid ? 'Disable' : 'Enable'} Grid`}
+                        >
+                            <FiGrid size={16} />
+                        </button>
+
+                        <div className="w-px h-5 bg-gray-300 dark:bg-slate-700"></div>
+
+                        <button
+                            onClick={() => setShowMobilePreview(true)}
+                            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white transition-colors flex items-center gap-1.5"
+                            title="Preview on Mobile"
+                        >
+                            <FiEye size={14} />
+                            Preview
+                        </button>
+
+                        <div className="relative group">
+                            <button className="p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-800 text-gray-500 dark:text-slate-400 transition-colors" title="Keyboard Shortcuts">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M6 16h8" /></svg>
+                            </button>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+                                <div className="bg-gray-900 text-white text-xs rounded-xl px-4 py-3 shadow-2xl whitespace-nowrap">
+                                    <div className="font-semibold text-gray-300 mb-1.5 pb-1 border-b border-gray-700">Keyboard Shortcuts</div>
+                                    <div className="space-y-1">
+                                        <div className="flex justify-between gap-6"><span className="text-gray-400">Undo</span><kbd className="bg-gray-700 px-1.5 py-0.5 rounded text-[10px]">Ctrl+Z</kbd></div>
+                                        <div className="flex justify-between gap-6"><span className="text-gray-400">Redo</span><kbd className="bg-gray-700 px-1.5 py-0.5 rounded text-[10px]">Ctrl+Y</kbd></div>
+                                        <div className="flex justify-between gap-6"><span className="text-gray-400">Save</span><kbd className="bg-gray-700 px-1.5 py-0.5 rounded text-[10px]">Ctrl+S</kbd></div>
+                                        <div className="flex justify-between gap-6"><span className="text-gray-400">Delete</span><kbd className="bg-gray-700 px-1.5 py-0.5 rounded text-[10px]">Del</kbd></div>
+                                        <div className="flex justify-between gap-6"><span className="text-gray-400">Select All</span><kbd className="bg-gray-700 px-1.5 py-0.5 rounded text-[10px]">Ctrl+A</kbd></div>
+                                        <div className="flex justify-between gap-6"><span className="text-gray-400">Duplicate</span><kbd className="bg-gray-700 px-1.5 py-0.5 rounded text-[10px]">Ctrl+D</kbd></div>
+                                    </div>
+                                    <div className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 bg-gray-900 transform rotate-45 -mt-1"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Mobile Preview Modal */}
+                    {showMobilePreview && (
+                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60]" onClick={() => setShowMobilePreview(false)}>
+                            <div onClick={e => e.stopPropagation()} className="relative">
+                                <button
+                                    onClick={() => setShowMobilePreview(false)}
+                                    className="absolute -top-10 right-0 text-white hover:text-gray-300 text-sm"
+                                >
+                                    Close ✕
+                                </button>
+                                <div className="bg-white dark:bg-slate-800 rounded-[2rem] shadow-2xl p-2 border-4 border-gray-800 dark:border-slate-600" style={{ width: 375, height: 667 }}>
+                                    <div className="w-full h-full rounded-[1.5rem] overflow-hidden relative bg-gray-50 dark:bg-slate-900">
+                                        <div className="text-center pt-8 pb-2 px-4">
+                                            <h3 className="text-sm font-bold text-gray-900 dark:text-slate-100">Mobile Card Preview</h3>
+                                            <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-0.5">375 × 667</p>
+                                        </div>
+                                        <div className="px-4 space-y-3">
+                                            {(cardFormData.fullName || cardFormData.jobTitle || cardFormData.company) ? (
+                                                <>
+                                                    <div className="flex items-center gap-3 bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm">
+                                                        <div className="w-14 h-14 rounded-full bg-emerald-500 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
+                                                            {cardFormData.fullName ? cardFormData.fullName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() : '?'}
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <div className="text-sm font-bold text-gray-900 dark:text-slate-100 truncate">{cardFormData.fullName || 'Your Name'}</div>
+                                                            <div className="text-xs text-gray-500 dark:text-slate-400 truncate">{cardFormData.jobTitle || 'Job Title'}</div>
+                                                            {cardFormData.company && <div className="text-xs text-gray-400 dark:text-slate-500 truncate">{cardFormData.company}</div>}
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-white dark:bg-slate-800 rounded-xl p-3 shadow-sm space-y-2">
+                                                        {cardFormData.email && (
+                                                            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-400">
+                                                                <span className="w-5 text-center text-emerald-500">@</span>
+                                                                <span className="truncate">{cardFormData.email}</span>
+                                                            </div>
+                                                        )}
+                                                        {cardFormData.phone && (
+                                                            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-400">
+                                                                <span className="w-5 text-center text-emerald-500">#</span>
+                                                                <span>{cardFormData.phone}</span>
+                                                            </div>
+                                                        )}
+                                                        {cardFormData.website && (
+                                                            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-400">
+                                                                <span className="w-5 text-center text-emerald-500">~</span>
+                                                                <span className="truncate">{cardFormData.website}</span>
+                                                            </div>
+                                                        )}
+                                                        {cardFormData.address && (
+                                                            <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-slate-400">
+                                                                <span className="w-5 text-center text-emerald-500">*</span>
+                                                                <span className="truncate">{cardFormData.address}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                <div className="text-center text-gray-400 dark:text-slate-500 text-xs py-8">Fill in the form to see your card preview</div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Properties & Layers Panel (Right) */}
-                <div className="w-full lg:w-72 bg-white flex flex-col border-t lg:border-l border-gray-300 shadow-sm flex-shrink-0">
+                <div className="w-full lg:w-72 bg-white dark:bg-slate-900 flex flex-col border-t lg:border-l border-gray-300 dark:border-slate-700 shadow-sm flex-shrink-0">
                     {/* Tabs Navigation */}
-                    <div className="flex border-b border-gray-200">
+                    <div className="flex border-b border-gray-200 dark:border-slate-700">
                         <button
-                            className={`flex-1 px-4 py-2 text-xs font-medium ${activeTab === 'layers' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`flex-1 px-4 py-2 text-xs font-medium ${activeTab === 'layers' ? 'text-green-600 dark:text-green-400 border-b-2 border-green-500' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
                             onClick={() => setActiveTab('layers')}
                         >
                             Layers
                         </button>
                         <button
-                            className={`flex-1 px-4 py-2 text-xs font-medium ${activeTab === 'properties' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`flex-1 px-4 py-2 text-xs font-medium ${activeTab === 'properties' ? 'text-green-600 dark:text-green-400 border-b-2 border-green-500' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
                             onClick={() => setActiveTab('properties')}
                         >
                             Properties
                         </button>
                         <button
-                            className={`flex-1 px-4 py-2 text-xs font-medium ${activeTab === 'effects' ? 'text-indigo-600 border-b-2 border-indigo-500' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`flex-1 px-4 py-2 text-xs font-medium ${activeTab === 'effects' ? 'text-green-600 dark:text-green-400 border-b-2 border-green-500' : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'}`}
                             onClick={() => setActiveTab('effects')}
                         >
                             Effects
@@ -2036,32 +2393,32 @@ const NewCard = () => {
                     {activeTab === 'properties' && (
                         <div className="p-3 overflow-y-auto flex-grow">
                             {/* General Card Settings */}
-                            <div className='pb-3 mb-3 border-b'>
-                                <h3 className="text-xs font-semibold mb-2 text-gray-500 uppercase tracking-wider">Card</h3>
+                            <div className='pb-3 mb-3 border-b dark:border-slate-700'>
+                                <h3 className="text-xs font-semibold mb-2 text-gray-500 dark:text-slate-400 uppercase tracking-wider">Card</h3>
                                 <div className="mb-2">
-                                    <label htmlFor="cardTitle" className="block text-xs font-medium text-gray-600 mb-1">Title</label>
+                                    <label htmlFor="cardTitle" className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Title</label>
                                     <div className="flex gap-1">
                                         <input
                                             type="text"
                                             id="cardTitle"
                                             value={cardTitle}
                                             onChange={(e) => { setCardTitle(e.target.value); isDirtyRef.current = true; }}
-                                            className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                            className="flex-1 px-2 py-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                         />
                                         <button
                                             onClick={() => setShowCardForm(true)}
                                             title="Edit Card Information"
-                                            className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded border border-gray-300 transition-colors"
+                                            className="px-2 py-1 text-xs bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 rounded border border-gray-300 dark:border-slate-600 transition-colors"
                                         >
                                             <FiEdit size={12} />
                                         </button>
                                     </div>
                                 </div>
                                 <div className="mb-2 relative">
-                                    <label className="block text-xs font-medium text-gray-600 mb-1">Background</label>
+                                    <label className="block text-xs font-medium text-gray-600 dark:text-slate-400 mb-1">Background</label>
                                     <div
                                         onClick={() => setShowBgPicker(s => !s)}
-                                        className="w-full h-6 rounded border border-gray-300 cursor-pointer"
+                                        className="w-full h-6 rounded border border-gray-300 dark:border-slate-600 cursor-pointer"
                                         style={{ backgroundColor: backgroundColor }}
                                     ></div>
                                     {showBgPicker && (
@@ -2079,40 +2436,40 @@ const NewCard = () => {
                                             type="checkbox"
                                             checked={isPublic}
                                             onChange={(e) => { setIsPublic(e.target.checked); isDirtyRef.current = true; }}
-                                            className="rounded text-indigo-600 focus:ring-indigo-500 h-3.5 w-3.5 border-gray-300"
+                                            className="rounded text-green-600 focus:ring-green-500 h-3.5 w-3.5 border-gray-300"
                                         />
-                                        <span className="text-xs text-gray-700">Make Public</span>
+                                        <span className="text-xs text-gray-700 dark:text-slate-300">Make Public</span>
                                     </label>
                                 </div>
                             </div>
 
                             {/* Selected Element Properties */}
-                            <h3 className="text-xs font-semibold mb-2 text-gray-500 uppercase tracking-wider">Selection ({selectedIds.length})</h3>
+                            <h3 className="text-xs font-semibold mb-2 text-gray-500 dark:text-slate-400 uppercase tracking-wider">Selection ({selectedIds.length})</h3>
                             {selectedElement ? (
                                 <div className="space-y-2 text-xs">
                                     {/* Type Indicator */}
-                                    <div className="text-xs text-gray-500 mb-1">
+                                    <div className="text-xs text-gray-500 dark:text-slate-400 mb-1">
                                         Type: <span className="font-medium">{selectedElement.type}</span>
                                     </div>
 
                                     {/* Position & Dimensions */}
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
-                                            <label className="block text-xs font-medium text-gray-500">X</label>
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-slate-400">X</label>
                                             <input
                                                 type="number"
                                                 value={Math.round(selectedElement.x)}
                                                 onChange={(e) => handlePropertyChange('x', e.target.value)}
-                                                className="w-full px-2 py-0.5 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full px-2 py-0.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-medium text-gray-500">Y</label>
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-slate-400">Y</label>
                                             <input
                                                 type="number"
                                                 value={Math.round(selectedElement.y)}
                                                 onChange={(e) => handlePropertyChange('y', e.target.value)}
-                                                className="w-full px-2 py-0.5 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full px-2 py-0.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                             />
                                         </div>
                                     </div>
@@ -2121,21 +2478,21 @@ const NewCard = () => {
                                     {(selectedElement.type === 'Rect' || selectedElement.type === 'Image' || selectedElement.type === 'Group') && (
                                         <div className="grid grid-cols-2 gap-2">
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-500">Width</label>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-slate-400">Width</label>
                                                 <input
                                                     type="number"
                                                     value={Math.round(selectedElement.width || 0)}
                                                     onChange={(e) => handlePropertyChange('width', e.target.value)}
-                                                    className="w-full px-2 py-0.5 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    className="w-full px-2 py-0.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-500">Height</label>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-slate-400">Height</label>
                                                 <input
                                                     type="number"
                                                     value={Math.round(selectedElement.height || 0)}
                                                     onChange={(e) => handlePropertyChange('height', e.target.value)}
-                                                    className="w-full px-2 py-0.5 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    className="w-full px-2 py-0.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                                 />
                                             </div>
                                         </div>
@@ -2144,12 +2501,12 @@ const NewCard = () => {
                                     {/* Radius (for circles) */}
                                     {selectedElement.type === 'Circle' && (
                                         <div>
-                                            <label className="block text-xs font-medium text-gray-500">Radius</label>
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-slate-400">Radius</label>
                                             <input
                                                 type="number"
                                                 value={Math.round(selectedElement.radius || 0)}
                                                 onChange={(e) => handlePropertyChange('radius', e.target.value)}
-                                                className="w-full px-2 py-0.5 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full px-2 py-0.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                             />
                                         </div>
                                     )}
@@ -2158,32 +2515,32 @@ const NewCard = () => {
                                     {selectedElement.type === 'Star' && (
                                         <div className="grid grid-cols-2 gap-2">
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-500">Points</label>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-slate-400">Points</label>
                                                 <input
                                                     type="number"
                                                     min="3"
                                                     max="20"
                                                     value={selectedElement.numPoints || 5}
                                                     onChange={(e) => handlePropertyChange('numPoints', e.target.value)}
-                                                    className="w-full px-2 py-0.5 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    className="w-full px-2 py-0.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-500">Inner Radius</label>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-slate-400">Inner Radius</label>
                                                 <input
                                                     type="number"
                                                     value={Math.round(selectedElement.innerRadius || 0)}
                                                     onChange={(e) => handlePropertyChange('innerRadius', e.target.value)}
-                                                    className="w-full px-2 py-0.5 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    className="w-full px-2 py-0.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                                 />
                                             </div>
                                             <div className="col-span-2">
-                                                <label className="block text-xs font-medium text-gray-500">Outer Radius</label>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-slate-400">Outer Radius</label>
                                                 <input
                                                     type="number"
                                                     value={Math.round(selectedElement.outerRadius || 0)}
                                                     onChange={(e) => handlePropertyChange('outerRadius', e.target.value)}
-                                                    className="w-full px-2 py-0.5 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    className="w-full px-2 py-0.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                                 />
                                             </div>
                                         </div>
@@ -2192,20 +2549,20 @@ const NewCard = () => {
                                     {/* Corner Radius (for rectangles) */}
                                     {selectedElement.type === 'Rect' && (
                                         <div>
-                                            <label className="block text-xs font-medium text-gray-500">Corner Radius</label>
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-slate-400">Corner Radius</label>
                                             <input
                                                 type="number"
                                                 min="0"
                                                 value={selectedElement.cornerRadius || 0}
                                                 onChange={(e) => handlePropertyChange('cornerRadius', e.target.value)}
-                                                className="w-full px-2 py-0.5 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full px-2 py-0.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                             />
                                         </div>
                                     )}
 
                                     {/* Rotation for all elements */}
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-500">Rotation (°)</label>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-slate-400">Rotation (°)</label>
                                         <div className="flex items-center">
                                             <input
                                                 type="range"
@@ -2213,15 +2570,15 @@ const NewCard = () => {
                                                 max="360"
                                                 value={Math.round(selectedElement.rotation || 0)}
                                                 onChange={(e) => handlePropertyChange('rotation', e.target.value)}
-                                                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                                className="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
                                             />
-                                            <span className="ml-2 w-8 text-right">{Math.round(selectedElement.rotation || 0)}°</span>
+                                            <span className="ml-2 w-8 text-right dark:text-slate-400">{Math.round(selectedElement.rotation || 0)}°</span>
                                         </div>
                                     </div>
 
                                     {/* Opacity for all elements */}
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-500">Opacity</label>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-slate-400">Opacity</label>
                                         <div className="flex items-center">
                                             <input
                                                 type="range"
@@ -2230,19 +2587,19 @@ const NewCard = () => {
                                                 step="0.05"
                                                 value={selectedElement.opacity ?? 1}
                                                 onChange={(e) => handlePropertyChange('opacity', e.target.value)}
-                                                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                                className="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
                                             />
-                                            <span className="ml-2 w-8 text-right">{Math.round((selectedElement.opacity ?? 1) * 100)}%</span>
+                                            <span className="ml-2 w-8 text-right dark:text-slate-400">{Math.round((selectedElement.opacity ?? 1) * 100)}%</span>
                                         </div>
                                     </div>
 
                                     {/* Fill Color */}
                                     {(selectedElement.type === 'Rect' || selectedElement.type === 'Circle' || selectedElement.type === 'Text' || selectedElement.type === 'Star') && (
                                         <div className="relative">
-                                            <label className="block text-xs font-medium text-gray-500 mb-1">Fill</label>
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Fill</label>
                                             <div
                                                 onClick={() => setShowElementColorPicker(prev => prev?.type === 'fill' ? null : { type: 'fill' })}
-                                                className="w-full h-6 rounded border border-gray-300 cursor-pointer"
+                                                className="w-full h-6 rounded border border-gray-300 dark:border-slate-600 cursor-pointer"
                                                 style={{ backgroundColor: selectedElement.fill }}
                                             ></div>
                                             {showElementColorPicker?.type === 'fill' && (
@@ -2257,10 +2614,10 @@ const NewCard = () => {
                                     {(selectedElement.type === 'Rect' || selectedElement.type === 'Circle' || selectedElement.type === 'Star' || selectedElement.type === 'Line') && (
                                         <div className="relative grid grid-cols-3 gap-2 items-end">
                                             <div className="col-span-2">
-                                                <label className="block text-xs font-medium text-gray-500 mb-1">Stroke</label>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Stroke</label>
                                                 <div
                                                     onClick={() => setShowElementColorPicker(prev => prev?.type === 'stroke' ? null : { type: 'stroke' })}
-                                                    className="w-full h-6 rounded border border-gray-300 cursor-pointer"
+                                                    className="w-full h-6 rounded border border-gray-300 dark:border-slate-600 cursor-pointer"
                                                     style={{ backgroundColor: selectedElement.stroke || 'transparent' }}
                                                 ></div>
                                                 {showElementColorPicker?.type === 'stroke' && (
@@ -2273,13 +2630,13 @@ const NewCard = () => {
                                                 )}
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-500 mb-1">Width</label>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Width</label>
                                                 <input
                                                     type="number"
                                                     min="0"
                                                     value={selectedElement.strokeWidth || 0}
                                                     onChange={(e) => handlePropertyChange('strokeWidth', e.target.value)}
-                                                    className="w-full px-2 py-0.5 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    className="w-full px-2 py-0.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                                 />
                                             </div>
                                         </div>
@@ -2289,32 +2646,32 @@ const NewCard = () => {
                                     {selectedElement.type === 'Text' && (
                                         <>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-500 mb-1">Text</label>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Text</label>
                                                 <textarea
                                                     value={selectedElement.text}
                                                     onChange={(e) => handlePropertyChange('text', e.target.value)}
                                                     rows={2}
-                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    className="w-full px-2 py-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                                 />
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div>
-                                                    <label className="block text-xs font-medium text-gray-500 mb-1">Font Size</label>
+                                                    <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Font Size</label>
                                                     <input
                                                         type="number"
                                                         min="1"
                                                         value={selectedElement.fontSize}
                                                         onChange={(e) => handlePropertyChange('fontSize', e.target.value)}
-                                                        className="w-full px-2 py-0.5 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500"
+                                                        className="w-full px-2 py-0.5 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-medium text-gray-500 mb-1">Font Family</label>
+                                                    <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Font Family</label>
                                                     <select
                                                         value={selectedElement.fontFamily || 'Arial'}
                                                         onChange={(e) => handlePropertyChange('fontFamily', e.target.value)}
-                                                        className="w-full px-2 py-1 border border-gray-300 rounded text-xs shadow-sm focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 leading-tight"
+                                                        className="w-full px-2 py-1 border border-gray-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 rounded text-xs shadow-sm focus:ring-1 focus:ring-green-500 focus:border-green-500 leading-tight"
                                                     >
                                                         <option>Arial</option>
                                                         <option>Verdana</option>
@@ -2329,22 +2686,22 @@ const NewCard = () => {
 
                                             {/* Text alignment */}
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-500 mb-1">Alignment</label>
-                                                <div className="flex border border-gray-300 rounded">
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Alignment</label>
+                                                <div className="flex border border-gray-300 dark:border-slate-600 rounded">
                                                     <button
-                                                        className={`flex-1 p-1 ${selectedElement.align === 'left' || !selectedElement.align ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-gray-100'}`}
+                                                        className={`flex-1 p-1 ${selectedElement.align === 'left' || !selectedElement.align ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'hover:bg-gray-100 dark:hover:bg-slate-700'}`}
                                                         onClick={() => handlePropertyChange('align', 'left')}
                                                     >
                                                         <FiAlignLeft className="mx-auto" size={14} />
                                                     </button>
                                                     <button
-                                                        className={`flex-1 p-1 ${selectedElement.align === 'center' ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-gray-100'}`}
+                                                        className={`flex-1 p-1 ${selectedElement.align === 'center' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'hover:bg-gray-100 dark:hover:bg-slate-700'}`}
                                                         onClick={() => handlePropertyChange('align', 'center')}
                                                     >
                                                         <FiAlignCenter className="mx-auto" size={14} />
                                                     </button>
                                                     <button
-                                                        className={`flex-1 p-1 ${selectedElement.align === 'right' ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-gray-100'}`}
+                                                        className={`flex-1 p-1 ${selectedElement.align === 'right' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'hover:bg-gray-100 dark:hover:bg-slate-700'}`}
                                                         onClick={() => handlePropertyChange('align', 'right')}
                                                     >
                                                         <FiAlignRight className="mx-auto" size={14} />
@@ -2354,10 +2711,10 @@ const NewCard = () => {
 
                                             {/* Text styling */}
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-500 mb-1">Style</label>
-                                                <div className="flex border border-gray-300 rounded">
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-slate-400 mb-1">Style</label>
+                                                <div className="flex border border-gray-300 dark:border-slate-600 rounded">
                                                     <button
-                                                        className={`flex-1 p-1 ${selectedElement.fontStyle === 'bold' || selectedElement.fontStyle?.includes('bold') ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-gray-100'}`}
+                                                        className={`flex-1 p-1 ${selectedElement.fontStyle === 'bold' || selectedElement.fontStyle?.includes('bold') ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'hover:bg-gray-100 dark:hover:bg-slate-700'}`}
                                                         onClick={() => {
                                                             const current = selectedElement.fontStyle || '';
                                                             const hasBold = current.includes('bold');
@@ -2370,7 +2727,7 @@ const NewCard = () => {
                                                         <FaBold className="mx-auto" size={14} />
                                                     </button>
                                                     <button
-                                                        className={`flex-1 p-1 ${selectedElement.fontStyle === 'italic' || selectedElement.fontStyle?.includes('italic') ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-gray-100'}`}
+                                                        className={`flex-1 p-1 ${selectedElement.fontStyle === 'italic' || selectedElement.fontStyle?.includes('italic') ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'hover:bg-gray-100 dark:hover:bg-slate-700'}`}
                                                         onClick={() => {
                                                             const current = selectedElement.fontStyle || '';
                                                             const hasItalic = current.includes('italic');
@@ -2383,7 +2740,7 @@ const NewCard = () => {
                                                         <FaItalic className="mx-auto" size={14} />
                                                     </button>
                                                     <button
-                                                        className={`flex-1 p-1 ${selectedElement.textDecoration === 'underline' ? 'bg-indigo-100 text-indigo-800' : 'hover:bg-gray-100'}`}
+                                                        className={`flex-1 p-1 ${selectedElement.textDecoration === 'underline' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'hover:bg-gray-100 dark:hover:bg-slate-700'}`}
                                                         onClick={() => {
                                                             const newDecoration = selectedElement.textDecoration === 'underline' ? null : 'underline';
                                                             handlePropertyChange('textDecoration', newDecoration);
@@ -2397,25 +2754,25 @@ const NewCard = () => {
                                     )}
 
                                     {/* Delete and Duplicate Buttons */}
-                                    <div className="pt-3 mt-3 border-t flex space-x-2">
+                                    <div className="pt-3 mt-3 border-t dark:border-slate-700 flex space-x-2">
                                         <button
                                             onClick={deleteSelectedElements}
-                                            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1 text-xs font-medium rounded shadow-sm bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-red-400 transition-colors"
+                                            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1 text-xs font-medium rounded shadow-sm bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-red-400 transition-colors"
                                         >
                                             <FiTrash2 /> Delete
                                         </button>
                                         <button
                                             onClick={duplicateSelectedElements}
-                                            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1 text-xs font-medium rounded shadow-sm bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-blue-400 transition-colors"
+                                            className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1 text-xs font-medium rounded shadow-sm bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-emerald-400 transition-colors"
                                         >
                                             <FiCopy /> Duplicate
                                         </button>
                                     </div>
                                 </div>
-                            ) : (<p className="text-xs text-gray-500 italic">Select element(s) to edit.</p>)}
+                            ) : (<p className="text-xs text-gray-500 dark:text-slate-400 italic">Select element(s) to edit.</p>)}
 
                             {saveError && (
-                                <div className="mt-4 p-2 bg-red-100 border border-red-300 text-red-700 text-xs rounded">
+                                <div className="mt-4 p-2 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 text-xs rounded">
                                     Save Error: {saveError}
                                 </div>
                             )}
@@ -2426,11 +2783,11 @@ const NewCard = () => {
                     {activeTab === 'layers' && (
                         <div className="p-3 overflow-y-auto flex-grow">
                             <div className="flex justify-between items-center mb-2">
-                                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Layers</h3>
+                                <h3 className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Layers</h3>
                                 <button
                                     onClick={addLayer}
                                     title="Add Layer"
-                                    className="p-1 text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded"
+                                    className="p-1 text-gray-500 dark:text-slate-400 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 rounded"
                                 >
                                     <FiPlus size={16} />
                                 </button>
@@ -2440,10 +2797,10 @@ const NewCard = () => {
                                 {layers.map((layer, index) => (
                                     <div
                                         key={layer.id}
-                                        className={`flex items-center gap-2 p-1.5 rounded text-xs cursor-pointer border ${activeLayerIndex === index ? 'bg-indigo-100 border-indigo-300' : 'bg-white border-transparent hover:bg-gray-50'}`}
+                                        className={`flex items-center gap-2 p-1.5 rounded text-xs cursor-pointer border ${activeLayerIndex === index ? 'bg-green-100 border-green-300 dark:bg-green-900/30 dark:border-green-800' : 'bg-white dark:bg-slate-800 border-transparent hover:bg-gray-50 dark:hover:bg-slate-700'}`}
                                         onClick={() => selectLayer(index)}
                                     >
-                                        <span className="flex-grow truncate text-gray-700 font-medium">{layer.name}</span>
+                                        <span className="flex-grow truncate text-gray-700 dark:text-slate-300 font-medium">{layer.name}</span>
 
                                         <div className="flex items-center gap-1">
                                             {/* Edit Layer Name */}
@@ -2454,7 +2811,7 @@ const NewCard = () => {
                                                     if (newName !== null) renameLayer(index, newName);
                                                 }}
                                                 title="Rename Layer"
-                                                className="p-0.5 rounded hover:bg-gray-200 text-gray-400"
+                                                className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-400 dark:text-slate-500"
                                             >
                                                 <FiEdit size={12} />
                                             </button>
@@ -2463,7 +2820,7 @@ const NewCard = () => {
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); toggleLayerLock(index); }}
                                                 title={layer.locked ? "Unlock Layer" : "Lock Layer"}
-                                                className={`p-0.5 rounded hover:bg-gray-200 ${layer.locked ? 'text-red-500' : 'text-gray-400'}`}
+                                                className={`p-0.5 rounded hover:bg-gray-200 dark:hover:bg-slate-700 ${layer.locked ? 'text-red-500 dark:text-red-400' : 'text-gray-400 dark:text-slate-500'}`}
                                             >
                                                 {layer.locked ? <FiLock size={12} /> : <FiUnlock size={12} />}
                                             </button>
@@ -2472,7 +2829,7 @@ const NewCard = () => {
                                             <button
                                                 onClick={(e) => { e.stopPropagation(); toggleLayerVisibility(index); }}
                                                 title={layer.visible ? "Hide Layer" : "Show Layer"}
-                                                className={`p-0.5 rounded hover:bg-gray-200 ${layer.visible ? 'text-gray-500' : 'text-gray-400'}`}
+                                                className={`p-0.5 rounded hover:bg-gray-200 dark:hover:bg-slate-700 ${layer.visible ? 'text-gray-500 dark:text-slate-400' : 'text-gray-400 dark:text-slate-500'}`}
                                             >
                                                 {layer.visible ? <FiEye size={12} /> : <FiEyeOff size={12} />}
                                             </button>
@@ -2482,7 +2839,7 @@ const NewCard = () => {
                                                 onClick={(e) => { e.stopPropagation(); moveLayer(index, 'up'); }}
                                                 disabled={index === 0}
                                                 title="Move Layer Up"
-                                                className={`p-0.5 rounded hover:bg-gray-200 text-gray-400 ${index === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                className={`p-0.5 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-400 dark:text-slate-500 ${index === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
                                                 <FiArrowUp size={12} />
                                             </button>
@@ -2492,7 +2849,7 @@ const NewCard = () => {
                                                 onClick={(e) => { e.stopPropagation(); moveLayer(index, 'down'); }}
                                                 disabled={index === layers.length - 1}
                                                 title="Move Layer Down"
-                                                className={`p-0.5 rounded hover:bg-gray-200 text-gray-400 ${index === layers.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                className={`p-0.5 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-400 dark:text-slate-500 ${index === layers.length - 1 ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
                                                 <FiArrowDown size={12} />
                                             </button>
@@ -2507,7 +2864,7 @@ const NewCard = () => {
                                                         }
                                                     }}
                                                     title="Delete Layer"
-                                                    className="p-0.5 rounded hover:bg-red-100 text-red-400"
+                                                    className="p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-400 dark:text-red-500"
                                                 >
                                                     <FiTrash2 size={12} />
                                                 </button>
@@ -2523,10 +2880,10 @@ const NewCard = () => {
                     {activeTab === 'effects' && (
                         <div className="p-3 overflow-y-auto flex-grow">
                             <div className="mb-4">
-                                <h3 className="text-xs font-semibold mb-2 text-gray-500 uppercase tracking-wider">Filters</h3>
+                                <h3 className="text-xs font-semibold mb-2 text-gray-500 dark:text-slate-400 uppercase tracking-wider">Filters</h3>
                                 {selectedIds.length > 0 ? (
                                     <>
-                                        <p className="text-xs text-gray-500 mb-2">Apply visual effects to selected element(s):</p>
+                                        <p className="text-xs text-gray-500 dark:text-slate-400 mb-2">Apply visual effects to selected element(s):</p>
                                         <div className="grid grid-cols-4 gap-2">
                                             {filterPresets.map(filter => (
                                                 <FilterPreview
@@ -2538,20 +2895,20 @@ const NewCard = () => {
                                         </div>
                                     </>
                                 ) : (
-                                    <p className="text-xs text-gray-500 italic">Select element(s) to apply effects</p>
+                                    <p className="text-xs text-gray-500 dark:text-slate-400 italic">Select element(s) to apply effects</p>
                                 )}
                             </div>
 
-                            <div className="border-t pt-4 mt-4">
-                                <h3 className="text-xs font-semibold mb-2 text-gray-500 uppercase tracking-wider">Display Settings</h3>
+                            <div className="border-t dark:border-slate-700 pt-4 mt-4">
+                                <h3 className="text-xs font-semibold mb-2 text-gray-500 dark:text-slate-400 uppercase tracking-wider">Display Settings</h3>
 
                                 {/* Grid Controls */}
                                 <div className="mb-3">
                                     <div className="flex items-center justify-between mb-1">
-                                        <label className="text-xs font-medium text-gray-600">Snap to Grid</label>
+                                        <label className="text-xs font-medium text-gray-600 dark:text-slate-400">Snap to Grid</label>
                                         <button
                                             onClick={() => setSnapToGrid(!snapToGrid)}
-                                            className={`relative inline-flex ${snapToGrid ? 'bg-indigo-600' : 'bg-gray-200'} items-center h-4 rounded-full w-8 transition-colors ease-in-out duration-200`}
+                                            className={`relative inline-flex ${snapToGrid ? 'bg-green-600' : 'bg-gray-200 dark:bg-slate-700'} items-center h-4 rounded-full w-8 transition-colors ease-in-out duration-200`}
                                         >
                                             <span
                                                 className={`inline-block w-3 h-3 transform bg-white rounded-full transition ease-in-out duration-200 ${snapToGrid ? 'translate-x-4' : 'translate-x-1'}`}
@@ -2561,7 +2918,7 @@ const NewCard = () => {
 
                                     {snapToGrid && (
                                         <div className="flex items-center gap-2 mt-2">
-                                            <label className="text-xs text-gray-500">Grid Size:</label>
+                                            <label className="text-xs text-gray-500 dark:text-slate-400">Grid Size:</label>
                                             <input
                                                 type="range"
                                                 min="5"
@@ -2569,19 +2926,19 @@ const NewCard = () => {
                                                 step="5"
                                                 value={gridSize}
                                                 onChange={(e) => setGridSize(Number(e.target.value))}
-                                                className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                                className="w-full h-1.5 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer"
                                             />
-                                            <span className="text-xs text-gray-500 w-8 text-right">{gridSize}px</span>
+                                            <span className="text-xs text-gray-500 dark:text-slate-400 w-8 text-right">{gridSize}px</span>
                                         </div>
                                     )}
                                 </div>
 
                                 {/* Rulers Toggle */}
                                 <div className="flex items-center justify-between mb-3">
-                                    <label className="text-xs font-medium text-gray-600">Show Rulers</label>
+                                    <label className="text-xs font-medium text-gray-600 dark:text-slate-400">Show Rulers</label>
                                     <button
                                         onClick={() => setShowRulers(!showRulers)}
-                                        className={`relative inline-flex ${showRulers ? 'bg-indigo-600' : 'bg-gray-200'} items-center h-4 rounded-full w-8 transition-colors ease-in-out duration-200`}
+                                        className={`relative inline-flex ${showRulers ? 'bg-green-600' : 'bg-gray-200 dark:bg-slate-700'} items-center h-4 rounded-full w-8 transition-colors ease-in-out duration-200`}
                                     >
                                         <span
                                             className={`inline-block w-3 h-3 transform bg-white rounded-full transition ease-in-out duration-200 ${showRulers ? 'translate-x-4' : 'translate-x-1'}`}
@@ -2593,6 +2950,77 @@ const NewCard = () => {
                     )}
                 </div>
             </div>
+
+            {/* Onboarding Overlay */}
+            <AnimatePresence>
+                {showOnboarding && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[70]"
+                        onClick={() => { localStorage.setItem('cardEditorVisited', 'true'); setShowOnboarding(false); }}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                            transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                            onClick={e => e.stopPropagation()}
+                            className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4 relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+                            <div className="text-center mb-6">
+                                <motion.div
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 15, delay: 0.2 }}
+                                    className="w-16 h-16 bg-emerald-100 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                                >
+                                    <FiEdit className="text-emerald-600" size={28} />
+                                </motion.div>
+                                <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Welcome to the Card Editor!</h2>
+                                <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">Create beautiful business cards in minutes</p>
+                            </div>
+
+                            <div className="space-y-4 mb-8">
+                                {[
+                                    { step: '1', title: 'Fill in your card details', desc: 'Enter your name, title, and contact info', color: 'bg-emerald-500' },
+                                    { step: '2', title: 'Customize your design on the canvas', desc: 'Drag, resize, and style elements freely', color: 'bg-emerald-500' },
+                                    { step: '3', title: 'Save and share your card', desc: 'Download or share your digital business card', color: 'bg-emerald-500' }
+                                ].map((item, i) => (
+                                    <motion.div
+                                        key={item.step}
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: 0.3 + i * 0.15 }}
+                                        className="flex items-start gap-4"
+                                    >
+                                        <div className={`${item.color} text-white w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 mt-0.5`}>
+                                            {item.step}
+                                        </div>
+                                        <div>
+                                            <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">{item.title}</div>
+                                            <div className="text-xs text-gray-500 dark:text-slate-400">{item.desc}</div>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+
+                            <motion.button
+                                whileHover={{ scale: 1.02 }}
+                                whileTap={{ scale: 0.98 }}
+                                onClick={() => { localStorage.setItem('cardEditorVisited', 'true'); setShowOnboarding(false); }}
+                                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition-colors shadow-lg shadow-emerald-200"
+                            >
+                                Get Started
+                            </motion.button>
+                            <p className="text-center text-[10px] text-gray-400 mt-3">This will auto-close in 10 seconds</p>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

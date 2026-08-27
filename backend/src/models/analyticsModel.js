@@ -62,7 +62,7 @@ analyticsSchema.statics.getAnalyticsSummary = async function(cardId, period = '3
   const summary = await this.aggregate([
     {
       $match: {
-        cardId: mongoose.Types.ObjectId(cardId),
+        cardId: new mongoose.Types.ObjectId(cardId),
         timestamp: { $gte: startDate }
       }
     },
@@ -154,7 +154,7 @@ analyticsSchema.statics.getUserEngagement = async function(userId, period = '30d
   const engagement = await this.aggregate([
     {
       $match: {
-        userId: mongoose.Types.ObjectId(userId),
+        userId: new mongoose.Types.ObjectId(userId),
         timestamp: { $gte: startDate }
       }
     },

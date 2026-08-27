@@ -3,7 +3,7 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 // Fetch saved cards with pagination
 export const fetchSavedCards = createAsyncThunk(
   'library/fetchSavedCards',
-  async ({ page = 1, limit = 10, search = '', category = '' }, { rejectWithValue }) => {
+  async ({ page = 1, limit = 10 }, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/library?page=${page}&limit=${limit}`, {

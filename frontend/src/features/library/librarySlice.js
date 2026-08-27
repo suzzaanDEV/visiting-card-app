@@ -101,7 +101,7 @@ const librarySlice = createSlice({
       // Don't set loading for check actions to avoid UI blocking
       state.error = null;
     });
-    builder.addCase(libraryThunks.checkCardSaved.fulfilled, (state, action) => {
+    builder.addCase(libraryThunks.checkCardSaved.fulfilled, () => {
       // This might be used to update a card's saved status in the main cards list
       // Implementation depends on how you want to handle this
     });

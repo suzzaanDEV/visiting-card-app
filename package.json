@@ -9,7 +9,14 @@
     "client": "cd frontend && npm run dev",
     "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
     "build": "cd frontend && npm run build",
-    "start": "cd backend && npm start"
+    "start": "cd backend && npm start",
+    "test": "cd backend && npm run test:ci && cd ../frontend && npm run test",
+    "test:backend": "cd backend && npm run test:ci",
+    "test:frontend": "cd frontend && npm run test",
+    "seed:admin": "cd backend && npm run seed:admin",
+    "seed:templates": "cd backend && npm run seed:templates",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down"
   },
   "keywords": [
     "react",

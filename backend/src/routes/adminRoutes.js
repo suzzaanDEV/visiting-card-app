@@ -3,13 +3,24 @@ const router = express.Router();
 const { authenticateAdmin } = require('../middleware/adminMiddleware');
 const adminController = require('../controllers/adminController');
 
+// Public routes (no auth required)
+router.get('/settings/public', adminController.getPublicSettings);
+router.get('/categories', adminController.getCardCategories);
+
 // Admin authentication
 router.post('/login', adminController.adminLogin);
+router.post('/verify-otp', adminController.verifyAdminOtp);
 router.post('/logout', authenticateAdmin, adminController.adminLogout);
 
 // Dashboard
 router.get('/dashboard', authenticateAdmin, adminController.getDashboard);
 router.get('/realtime', authenticateAdmin, adminController.getRealTimeData);
+
+// Admin profile
+router.get('/profile', authenticateAdmin, adminController.getAdminProfile);
+router.put('/profile', authenticateAdmin, adminController.updateAdminProfile);
+router.put('/profile/password', authenticateAdmin, adminController.changeAdminPassword);
+router.post('/profile/2fa/toggle', authenticateAdmin, adminController.toggleAdminTwoFactor);
 
 // User management
 router.get('/users', authenticateAdmin, adminController.getAllUsers);
@@ -42,8 +53,8 @@ router.put('/templates/:templateId/featured', authenticateAdmin, adminController
 
 // Analytics
 router.get('/analytics', authenticateAdmin, adminController.getAnalytics);
-router.get('/analytics/cards', authenticateAdmin, adminController.getCardAnalytics);
-router.get('/analytics/users', authenticateAdmin, adminController.getUserAnalytics);
+router.get('/analytics/cards/:cardId', authenticateAdmin, adminController.getCardAnalytics);
+router.get('/analytics/users/:userId', authenticateAdmin, adminController.getUserAnalytics);
 
 // Settings
 router.get('/settings', authenticateAdmin, adminController.getSettings);

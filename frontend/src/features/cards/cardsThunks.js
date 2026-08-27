@@ -3,7 +3,7 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 // Fetch user's cards with pagination
 export const fetchUserCards = createAsyncThunk(
   'cards/fetchUserCards',
-  async ({ page = 1, limit = 10 }, { rejectWithValue }) => {
+  async ({ page = 1 }, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`/api/cards/my?page=${page}`, {
@@ -37,7 +37,7 @@ export const fetchPublicCard = createAsyncThunk(
   async (cardId, { rejectWithValue }) => {
     try {
       const response = await fetch(`/api/cards/public/view/${cardId}`);
-      
+
       if (!response.ok) {
         throw new Error('Card not found');
       }
@@ -61,7 +61,7 @@ export const fetchCard = createAsyncThunk(
           'Authorization': `Bearer ${token}`,
         },
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Card not found');
@@ -82,15 +82,15 @@ export const fetchCardByShortLink = createAsyncThunk(
     try {
       const token = localStorage.getItem('token');
       const headers = {};
-      
+
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      
+
       const response = await fetch(`/api/cards/c/${shortLink}`, {
         headers
       });
-      
+
       if (!response.ok) {
         throw new Error('Card not found');
       }
@@ -161,10 +161,10 @@ export const createCardFromTemplate = createAsyncThunk(
   async (cardData, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem('token');
-      
+
       // Create FormData if cardImage exists, otherwise send as JSON
       let body, headers;
-      
+
       if (cardData.cardImage) {
         const formData = new FormData();
         Object.keys(cardData).forEach(key => {
@@ -185,7 +185,7 @@ export const createCardFromTemplate = createAsyncThunk(
           'Authorization': `Bearer ${token}`,
         };
       }
-      
+
       const response = await fetch('/api/cards/from-template', {
         method: 'POST',
         headers,
@@ -277,7 +277,47 @@ export const toggleCardLove = createAsyncThunk(
       }
 
       const data = await response.json();
-      return { cardId, isLoved: data.isLoved };
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Fetch card suggestions (random popular public cards)
+export const fetchSuggestions = createAsyncThunk(
+  'cards/fetchSuggestions',
+  async ({ limit = 6 } = {}, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/cards/suggestions?limit=${limit}`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch suggestions');
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Fetch content-based card recommendations for a given cardId
+export const fetchRecommendations = createAsyncThunk(
+  'cards/fetchRecommendations',
+  async ({ cardId, limit = 6 } = {}, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/search/recommendations/${cardId}?limit=${limit}`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch recommendations');
+      }
+
+      const data = await response.json();
+      return data;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -353,27 +393,75 @@ export const fetchCardTemplates = createAsyncThunk(
   }
 );
 
+// Fetch popular public cards (sorted by views)
+export const fetchPopularCards = createAsyncThunk(
+  'cards/fetchPopular',
+  async ({ limit = 8, page = 1 } = {}, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/cards/public?limit=${limit}&page=${page}&sortBy=views`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch popular cards');
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Fetch recent public cards (sorted by createdAt)
+export const fetchRecentCards = createAsyncThunk(
+  'cards/fetchRecent',
+  async ({ limit = 8, page = 1 } = {}, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/cards/public?limit=${limit}&page=${page}&sortBy=createdAt`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch recent cards');
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+// Fetch featured public cards
+export const fetchFeaturedCards = createAsyncThunk(
+  'cards/fetchFeatured',
+  async ({ limit = 4 } = {}, { rejectWithValue }) => {
+    try {
+      const response = await fetch(`/api/cards/public?limit=${limit}&sortBy=featured`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to fetch featured cards');
+      }
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 // Fetch public cards for discovery
 export const fetchPublicCards = createAsyncThunk(
   'cards/fetchPublicCards',
-  async ({ page = 1, limit = 10, category, search, privacy }, { rejectWithValue }) => {
+  async ({ page = 1, limit = 10, category, search, industry, location, privacy, sortBy } = {}, { rejectWithValue }) => {
     try {
       let url = `/api/cards/public?page=${page}&limit=${limit}`;
-      
-      if (category) {
-        url += `&category=${encodeURIComponent(category)}`;
-      }
-      
-      if (search) {
-        url += `&search=${encodeURIComponent(search)}`;
-      }
 
-      if (privacy) {
-        url += `&privacy=${encodeURIComponent(privacy)}`;
-      }
+      if (category) url += `&category=${encodeURIComponent(category)}`;
+      if (search) url += `&search=${encodeURIComponent(search)}`;
+      if (industry) url += `&industry=${encodeURIComponent(industry)}`;
+      if (location) url += `&location=${encodeURIComponent(location)}`;
+      if (privacy) url += `&privacy=${encodeURIComponent(privacy)}`;
+      if (sortBy) url += `&sortBy=${encodeURIComponent(sortBy)}`;
 
       const response = await fetch(url);
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to fetch public cards');

@@ -6,7 +6,15 @@ exports.trackInteraction = async (req, res, next) => {
   try {
     const { cardId, actionType } = req.body;
     const userId = req.user?.userId;
-    
+
+    const ALLOWED_ACTION_TYPES = ['view', 'love', 'unlove', 'share', 'download', 'save', 'qr_scan', 'link_click'];
+    if (!cardId) {
+      return res.status(400).json({ error: 'cardId is required' });
+    }
+    if (!actionType || !ALLOWED_ACTION_TYPES.includes(actionType)) {
+      return res.status(400).json({ error: `actionType must be one of: ${ALLOWED_ACTION_TYPES.join(', ')}` });
+    }
+
     const metadata = {
       userAgent: req.headers['user-agent'],
       ipAddress: req.ip || req.connection.remoteAddress,

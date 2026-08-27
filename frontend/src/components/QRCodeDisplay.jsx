@@ -1,138 +1,97 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { QRCodeCanvas } from 'qrcode.react';
-import { FiDownload, FiX, FiShare2, FiEye, FiUser, FiBriefcase, FiMail, FiPhone, FiGlobe, FiMapPin } from 'react-icons/fi';
-import { FaQrcode, FaMobile, FaBookmark } from 'react-icons/fa';
-import html2canvas from 'html2canvas';
+import { FiDownload, FiX, FiShare2, FiUser, FiMail, FiPhone, FiGlobe, FiMapPin } from 'react-icons/fi';
+import { FaQrcode, FaMobile, FaImage } from 'react-icons/fa';
+import toast from 'react-hot-toast';
+import PremiumQRCard, { renderPremiumCardToCanvas } from './PremiumQRCard';
 
 const QRCodeDisplay = ({ card, isOpen, onClose }) => {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSavingContact, setIsSavingContact] = useState(false);
+  const premiumCardRef = useRef(null);
 
   if (!isOpen || !card) return null;
 
   const cardUrl = `${window.location.origin}/c/${card.shortLink}`;
 
-  const handleDownloadQR = () => {
+  const handleDownloadPremiumPNG = async () => {
     setIsDownloading(true);
     try {
-      // Create a temporary canvas to get the QR code as image
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = 300;
-      canvas.height = 300;
-
-      // Create QR code data URL
       const qrCanvas = document.querySelector('#qr-code-canvas');
-      if (qrCanvas) {
-        ctx.drawImage(qrCanvas, 0, 0, 300, 300);
-        
-        // Download the image
-        const link = document.createElement('a');
-        link.download = `${card.fullName || 'card'}_QR.png`;
-        link.href = canvas.toDataURL();
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      const qrDataURL = qrCanvas ? qrCanvas.toDataURL('image/png') : null;
+      const canvas = await renderPremiumCardToCanvas(card, qrDataURL, 3);
+      const link = document.createElement('a');
+      link.download = `${(card.fullName || 'card').replace(/\s+/g, '_')}_QR_Premium.png`;
+      link.href = canvas.toDataURL('image/png');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success('Premium QR downloaded!');
     } catch (error) {
-      console.error('Failed to download QR code:', error);
+      console.error('Premium PNG download error:', error);
+      toast.error('Failed to download');
     } finally {
       setIsDownloading(false);
     }
   };
 
-  const handleDownloadCardWithQR = async () => {
+  const handleDownloadPremiumSVG = async () => {
     setIsDownloading(true);
     try {
-      // Create a canvas to combine card image and QR code
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      canvas.width = 800;
-      canvas.height = 600;
+      const container = premiumCardRef.current;
+      if (!container) {
+        toast.error('Preview not ready');
+        return;
+      }
 
-      // Create card template
-      const cardDiv = document.createElement('div');
-      cardDiv.style.width = '400px';
-      cardDiv.style.height = '250px';
-      cardDiv.style.position = 'absolute';
-      cardDiv.style.left = '-9999px';
-      document.body.appendChild(cardDiv);
+      const svgEl = container.querySelector('svg');
+      if (!svgEl) {
+        toast.error('QR code not ready');
+        return;
+      }
 
-      // Render card template
-      const cardElement = document.createElement('div');
-      cardElement.innerHTML = `
-        <div style="
-          width: 400px; 
-          height: 250px; 
-          background: ${card.backgroundColor || '#667eea'}; 
-          color: ${card.textColor || '#ffffff'}; 
-          border-radius: 16px; 
-          padding: 20px; 
-          display: flex; 
-          flex-direction: column; 
-          justify-content: space-between;
-          font-family: ${card.fontFamily || 'Arial'};
-        ">
-          <div style="text-align: center;">
-            <div style="width: 60px; height: 60px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold;">
-              ${card.fullName?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
-            </div>
-            <h2 style="margin: 0 0 5px; font-size: 24px;">${card.fullName}</h2>
-            <p style="margin: 0 0 3px; opacity: 0.9; font-size: 16px;">${card.jobTitle}</p>
-            <p style="margin: 0; opacity: 0.8; font-size: 14px;">${card.company}</p>
-          </div>
-          <div style="font-size: 12px;">
-            ${card.email ? `<div style="margin-bottom: 5px;">📧 ${card.email}</div>` : ''}
-            ${card.phone ? `<div style="margin-bottom: 5px;">📞 ${card.phone}</div>` : ''}
-            ${card.website ? `<div style="margin-bottom: 5px;">🌐 ${card.website}</div>` : ''}
-            ${card.address ? `<div>📍 ${card.address}</div>` : ''}
-          </div>
-        </div>
-      `;
-      cardDiv.appendChild(cardElement);
+      const serializer = new XMLSerializer();
+      let svgStr = serializer.serializeToString(svgEl);
 
-      // Convert card to image
-      const cardImage = await html2canvas(cardElement.firstChild);
-      
-      // Draw card on canvas
-      ctx.drawImage(cardImage, 50, 50, 400, 250);
+      if (!svgStr.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)) {
+        svgStr = svgStr.replace(/^<svg/, '<svg xmlns="http://www.w3.org/2000/svg"');
+      }
+      svgStr = svgStr.replace(/^<svg/, '<?xml version="1.0" encoding="UTF-8"?>\n<svg');
 
-      // Generate QR code
-      const qrCanvas = document.createElement('canvas');
-      const qrCtx = qrCanvas.getContext('2d');
-      qrCanvas.width = 200;
-      qrCanvas.height = 200;
-      
-      // Simple QR code generation (you might want to use a proper QR library)
-      qrCtx.fillStyle = '#000';
-      qrCtx.fillRect(0, 0, 200, 200);
-      qrCtx.fillStyle = '#fff';
-      qrCtx.fillRect(10, 10, 180, 180);
-      
-      // Draw QR code on canvas
-      ctx.drawImage(qrCanvas, 550, 50, 200, 200);
-
-      // Add text
-      ctx.fillStyle = '#333';
-      ctx.font = '16px Arial';
-      ctx.fillText('Digital Business Card', 50, 30);
-      ctx.font = '12px Arial';
-      ctx.fillText('Scan QR code to view online', 550, 280);
-
-      // Download the image
+      const blob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.download = `${card.fullName?.replace(/\s+/g, '_')}_Digital_Card.png`;
-      link.href = canvas.toDataURL();
+      link.download = `${(card.fullName || 'card').replace(/\s+/g, '_')}_QR.svg`;
+      link.href = url;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      document.body.removeChild(cardDiv);
-
+      URL.revokeObjectURL(url);
+      toast.success('SVG downloaded!');
     } catch (error) {
-      console.error('Download error:', error);
+      console.error('SVG download error:', error);
+      toast.error('Failed to download SVG');
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleDownloadBasicQR = () => {
+    try {
+      const canvas = document.querySelector('#qr-code-canvas');
+      if (canvas) {
+        const link = document.createElement('a');
+        link.download = `${(card.fullName || 'card').replace(/\s+/g, '_')}_QR.png`;
+        link.href = canvas.toDataURL();
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success('QR code downloaded!');
+      }
+    } catch (error) {
+      console.error('QR download error:', error);
+      toast.error('Failed to download QR');
     }
   };
 
@@ -145,9 +104,8 @@ const QRCodeDisplay = ({ card, isOpen, onClose }) => {
           url: cardUrl
         });
       } else {
-        // Fallback: copy to clipboard
         await navigator.clipboard.writeText(cardUrl);
-        alert('Link copied to clipboard!');
+        toast.success('Link copied!');
       }
     } catch (error) {
       console.error('Failed to share:', error);
@@ -157,7 +115,6 @@ const QRCodeDisplay = ({ card, isOpen, onClose }) => {
   const handleSaveToContacts = async () => {
     setIsSavingContact(true);
     try {
-      // Create vCard format
       const vCard = [
         'BEGIN:VCARD',
         'VERSION:3.0',
@@ -172,19 +129,19 @@ const QRCodeDisplay = ({ card, isOpen, onClose }) => {
         'END:VCARD'
       ].join('\n');
 
-      // Create blob and download
       const blob = new Blob([vCard], { type: 'text/vcard' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${card.fullName?.replace(/\s+/g, '_')}.vcf`;
+      link.download = `${(card.fullName || 'contact').replace(/\s+/g, '_')}.vcf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
+      toast.success('Contact saved!');
     } catch (error) {
       console.error('Failed to save contact:', error);
+      toast.error('Failed to save contact');
     } finally {
       setIsSavingContact(false);
     }
@@ -203,185 +160,168 @@ const QRCodeDisplay = ({ card, isOpen, onClose }) => {
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-white rounded-2xl p-8 max-w-2xl w-full shadow-2xl"
+          className="bg-white dark:bg-slate-800 rounded-2xl max-w-5xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 dark:border-slate-700"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold text-gray-900">QR Code & Card Info</h3>
+          <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-slate-700">
+            <div className="flex items-center gap-3">
+              <div className="bg-amber-100 dark:bg-amber-900/40 p-2.5 rounded-xl">
+                <FaQrcode className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">QR Code</h3>
+                <p className="text-xs text-gray-500 dark:text-slate-400">Preview &amp; download your premium QR card</p>
+              </div>
+            </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-300 transition-colors p-2 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700"
             >
-              <FiX className="w-6 h-6" />
+              <FiX className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Column - QR Code */}
-            <div className="text-center">
-              <h4 className="text-lg font-medium text-gray-900 mb-4">QR Code</h4>
-              
-              {/* QR Code */}
-              <div className="flex justify-center mb-6">
-                <div className="bg-white p-4 rounded-lg shadow-lg">
-                  <QRCodeCanvas
-                    id="qr-code-canvas"
-                    value={cardUrl}
-                    size={200}
-                    level="H"
-                    includeMargin={true}
-                    style={{
-                      background: 'white',
-                      borderRadius: '8px'
-                    }}
-                  />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+            {/* Left — Premium QR Preview */}
+            <div className="flex flex-col items-center p-8 bg-gradient-to-b from-gray-50/80 to-white dark:from-slate-900/50 dark:to-slate-800 border-r border-gray-100 dark:border-slate-700">
+              <p className="text-xs font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-6">Preview</p>
+
+              <div className="w-full max-w-[360px] flex justify-center">
+                <div
+                  ref={premiumCardRef}
+                  style={{ transform: 'scale(0.58)', transformOrigin: 'top center', width: 480, height: 780, marginBottom: -330 }}
+                >
+                  <PremiumQRCard card={card} qrUrl={cardUrl} />
                 </div>
               </div>
 
-              {/* Card Info */}
-              <div className="text-center mb-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-2">
-                  {card.fullName}
-                </h4>
-                {card.jobTitle && (
-                  <p className="text-gray-600 mb-1">{card.jobTitle}</p>
-                )}
-                {card.company && (
-                  <p className="text-gray-500 text-sm">{card.company}</p>
-                )}
+              {/* Hidden canvas QR for basic download */}
+              <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
+                <QRCodeCanvas
+                  id="qr-code-canvas"
+                  value={cardUrl}
+                  size={300}
+                  level="H"
+                  includeMargin={true}
+                />
               </div>
 
-              {/* Privacy Notice */}
-              {card.privacy === 'private' && (
-                <div className="mb-6 p-3 bg-orange-50 rounded-lg">
-                  <p className="text-sm text-orange-700 text-center">
-                    <strong>Private Card:</strong> This card is only accessible via QR code
-                  </p>
-                </div>
-              )}
-
-              {/* QR Actions */}
-              <div className="space-y-3">
+              {/* Download buttons */}
+              <div className="w-full max-w-xs space-y-2.5 mt-4">
                 <button
-                  onClick={handleDownloadQR}
+                  onClick={handleDownloadPremiumPNG}
                   disabled={isDownloading}
-                  className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-amber-600 to-amber-700 text-white py-3 px-5 rounded-xl hover:from-amber-700 hover:to-amber-800 transition-all disabled:opacity-50 font-semibold text-sm shadow-lg shadow-amber-600/20"
+                >
+                  <FaImage className="w-4 h-4" />
+                  {isDownloading ? 'Downloading...' : 'Download Premium QR (PNG)'}
+                </button>
+
+                <button
+                  onClick={handleDownloadPremiumSVG}
+                  disabled={isDownloading}
+                  className="w-full flex items-center justify-center gap-2.5 bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-200 border border-gray-200 dark:border-slate-600 py-3 px-5 rounded-xl hover:bg-gray-50 dark:hover:bg-slate-600 transition-all disabled:opacity-50 font-semibold text-sm"
                 >
                   <FiDownload className="w-4 h-4" />
-                  {isDownloading ? 'Downloading...' : 'Download QR'}
+                  {isDownloading ? 'Downloading...' : 'Download QR (SVG)'}
                 </button>
-                
+
                 <button
-                  onClick={handleDownloadCardWithQR}
+                  onClick={handleDownloadBasicQR}
                   disabled={isDownloading}
-                  className="w-full flex items-center justify-center gap-2 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2.5 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 py-2 px-4 rounded-xl hover:bg-gray-100 dark:hover:bg-slate-700 transition-all text-xs font-medium"
                 >
-                  <FaQrcode className="w-4 h-4" />
-                  {isDownloading ? 'Creating...' : 'Download Card + QR'}
+                  <FiDownload className="w-3.5 h-3.5" />
+                  Basic QR only
                 </button>
               </div>
             </div>
 
-            {/* Right Column - Contact Info */}
-            <div>
-              <h4 className="text-lg font-medium text-gray-900 mb-4">Contact Information</h4>
-              
+            {/* Right — Contact Info & Actions */}
+            <div className="p-8">
+              <h4 className="text-sm font-bold text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-5">Contact Information</h4>
+
               <div className="space-y-3 mb-6">
+                {card.fullName && (
+                  <div className="flex items-center p-3.5 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
+                    <FiUser className="h-5 w-5 mr-3 text-amber-500" />
+                    <div>
+                      <p className="text-[11px] text-gray-400 dark:text-slate-500 font-semibold uppercase tracking-wide">Name</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-slate-100">{card.fullName}</p>
+                    </div>
+                  </div>
+                )}
                 {card.email && (
-                  <div className="flex items-center p-3 bg-blue-50 rounded-lg">
-                    <FiMail className="h-5 w-5 mr-3 text-blue-500" />
+                  <div className="flex items-center p-3.5 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
+                    <FiMail className="h-5 w-5 mr-3 text-emerald-500" />
                     <div>
-                      <p className="text-sm text-gray-500 font-medium">Email</p>
-                      <a 
-                        href={`mailto:${card.email}`}
-                        className="text-blue-700 hover:text-blue-800 transition-colors font-medium"
-                      >
-                        {card.email}
-                      </a>
+                      <p className="text-[11px] text-gray-400 dark:text-slate-500 font-semibold uppercase tracking-wide">Email</p>
+                      <a href={`mailto:${card.email}`} className="text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors">{card.email}</a>
                     </div>
                   </div>
                 )}
-
                 {card.phone && (
-                  <div className="flex items-center p-3 bg-green-50 rounded-lg">
-                    <FiPhone className="h-5 w-5 mr-3 text-green-500" />
+                  <div className="flex items-center p-3.5 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
+                    <FiPhone className="h-5 w-5 mr-3 text-blue-500" />
                     <div>
-                      <p className="text-sm text-gray-500 font-medium">Phone</p>
-                      <a 
-                        href={`tel:${card.phone}`}
-                        className="text-green-700 hover:text-green-800 transition-colors font-medium"
-                      >
-                        {card.phone}
-                      </a>
+                      <p className="text-[11px] text-gray-400 dark:text-slate-500 font-semibold uppercase tracking-wide">Phone</p>
+                      <a href={`tel:${card.phone}`} className="text-sm font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-colors">{card.phone}</a>
                     </div>
                   </div>
                 )}
-
                 {card.website && (
-                  <div className="flex items-center p-3 bg-purple-50 rounded-lg">
-                    <FiGlobe className="h-5 w-5 mr-3 text-purple-500" />
+                  <div className="flex items-center p-3.5 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
+                    <FiGlobe className="h-5 w-5 mr-3 text-violet-500" />
                     <div>
-                      <p className="text-sm text-gray-500 font-medium">Website</p>
-                      <a 
+                      <p className="text-[11px] text-gray-400 dark:text-slate-500 font-semibold uppercase tracking-wide">Website</p>
+                      <a
                         href={card.website.startsWith('http') ? card.website : `https://${card.website}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-purple-700 hover:text-purple-800 transition-colors font-medium"
+                        className="text-sm font-bold text-violet-600 dark:text-violet-400 hover:text-violet-700 transition-colors"
                       >
                         {card.website}
                       </a>
                     </div>
                   </div>
                 )}
-
                 {card.address && (
-                  <div className="flex items-center p-3 bg-orange-50 rounded-lg">
-                    <FiMapPin className="h-5 w-5 mr-3 text-orange-500" />
+                  <div className="flex items-center p-3.5 bg-gray-50 dark:bg-slate-700/50 rounded-xl">
+                    <FiMapPin className="h-5 w-5 mr-3 text-rose-500" />
                     <div>
-                      <p className="text-sm text-gray-500 font-medium">Address</p>
-                      <p className="text-orange-700 font-medium">{card.address}</p>
-                    </div>
-                  </div>
-                )}
-
-                {card.bio && (
-                  <div className="flex items-start p-3 bg-gray-50 rounded-lg">
-                    <FiUser className="h-5 w-5 mr-3 text-gray-500 mt-1" />
-                    <div>
-                      <p className="text-sm text-gray-500 font-medium">Bio</p>
-                      <p className="text-gray-700 leading-relaxed">{card.bio}</p>
+                      <p className="text-[11px] text-gray-400 dark:text-slate-500 font-semibold uppercase tracking-wide">Address</p>
+                      <p className="text-sm font-bold text-gray-900 dark:text-slate-100">{card.address}</p>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Actions */}
-              <div className="space-y-3">
+              <div className="space-y-2.5">
                 <button
                   onClick={handleShare}
-                  className="w-full flex items-center justify-center gap-2 bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-200 py-3 px-4 rounded-xl hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors font-semibold text-sm"
                 >
                   <FiShare2 className="w-4 h-4" />
                   Share Card
                 </button>
-                
                 <button
                   onClick={handleSaveToContacts}
                   disabled={isSavingContact}
-                  className="w-full flex items-center justify-center gap-2 bg-orange-100 text-orange-700 py-3 px-4 rounded-lg hover:bg-orange-200 transition-colors disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 py-3 px-4 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors font-semibold text-sm disabled:opacity-50"
                 >
                   <FaMobile className="w-4 h-4" />
                   {isSavingContact ? 'Saving...' : 'Save to Contacts'}
                 </button>
               </div>
-            </div>
-          </div>
 
-          {/* URL Display */}
-          <div className="mt-6 p-3 bg-gray-50 rounded-lg">
-            <p className="text-xs text-gray-500 mb-1">Card URL:</p>
-            <p className="text-sm text-gray-700 break-all">{cardUrl}</p>
+              {/* Card URL */}
+              <div className="mt-5 p-3 bg-gray-50 dark:bg-slate-900 rounded-xl">
+                <p className="text-[10px] text-gray-400 dark:text-slate-500 font-semibold uppercase tracking-wide mb-1">Card URL</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400 break-all leading-relaxed">{cardUrl}</p>
+              </div>
+            </div>
           </div>
         </motion.div>
       </motion.div>
@@ -389,4 +329,4 @@ const QRCodeDisplay = ({ card, isOpen, onClose }) => {
   );
 };
 
-export default QRCodeDisplay; 
+export default QRCodeDisplay;

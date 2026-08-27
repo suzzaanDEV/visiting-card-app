@@ -58,10 +58,6 @@ const authenticateToken = async (req, res, next) => {
       return res.status(401).json({ error: 'User account not found or inactive' });
     }
 
-    // Update last login time
-    user.lastLoginAt = new Date();
-    await user.save();
-
     req.user = decoded; // { userId, email }
     req.userInfo = user; // Full user object
     logger.info(`Token verified for user: ${decoded.email}`);

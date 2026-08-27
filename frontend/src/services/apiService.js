@@ -1,4 +1,5 @@
-// API Service Configuration
+import { getToken } from '../utils/authStorage';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050/api';
 
 // Validate API URL on load
@@ -11,7 +12,7 @@ export const apiCall = async (endpoint, options = {}) => {
   // Ensure endpoint starts with /
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${API_BASE_URL}${normalizedEndpoint}`;
-  const token = localStorage.getItem('token');
+  const token = getToken();
   
   const defaultHeaders = {
     'Content-Type': 'application/json',
@@ -37,7 +38,7 @@ export const apiCall = async (endpoint, options = {}) => {
       let errorData = {};
       try {
         errorData = isJson ? await response.json() : { error: await response.text() || `HTTP error! status: ${response.status}` };
-      } catch (parseError) {
+      } catch {
         errorData = { error: `HTTP error! status: ${response.status}` };
       }
       throw new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);

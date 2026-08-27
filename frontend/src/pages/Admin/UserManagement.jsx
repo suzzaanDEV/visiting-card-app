@@ -55,7 +55,7 @@ const UserManagement = () => {
       if (response.ok) {
         const data = await response.json();
         setUsers(data.users || []);
-        setTotalPages(data.totalPages || 1);
+        setTotalPages(data.pagination?.pages || 1);
       } else {
         console.error('Failed to fetch users:', response.status);
         toast.error('Failed to load users');
@@ -156,8 +156,8 @@ const UserManagement = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200 ${
-          isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+        className={`bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6 hover:shadow-md transition-all duration-200 ${
+          isSelected ? 'ring-2 ring-emerald-500 bg-emerald-100 dark:bg-emerald-900/40' : ''
         }`}
       >
         <div className="flex items-start justify-between">
@@ -172,16 +172,16 @@ const UserManagement = () => {
                   setSelectedUsers(selectedUsers.filter(id => id !== user._id));
                 }
               }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-emerald-600 dark:text-emerald-400 rounded focus:ring-emerald-500"
             />
-            <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+            <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-lg">
                 {user.name?.charAt(0) || user.username?.charAt(0) || 'U'}
               </span>
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-semibold text-gray-900 truncate">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 truncate">
                   {user.name || user.username}
                 </h3>
                 {user.role === 'admin' && (
@@ -193,8 +193,8 @@ const UserManagement = () => {
                   <FaUserTimes className="h-4 w-4 text-red-500" />
                 )}
               </div>
-              <p className="text-gray-600 text-sm">{user.email}</p>
-              <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+              <p className="text-gray-600 dark:text-slate-400 text-sm">{user.email}</p>
+              <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500 dark:text-slate-400">
                 <span>Joined: {new Date(user.createdAt).toLocaleDateString()}</span>
                 <span>Cards: {user.cardCount || 0}</span>
                 <span>Views: {user.totalViews || 0}</span>
@@ -208,7 +208,7 @@ const UserManagement = () => {
                 setSelectedUser(user);
                 setShowUserModal(true);
               }}
-              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="p-2 text-gray-600 dark:text-slate-400 hover:text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:bg-emerald-900/40 rounded-lg transition-colors"
             >
               <FiEye className="h-4 w-4" />
             </button>
@@ -216,8 +216,8 @@ const UserManagement = () => {
               onClick={() => handleUserAction(user._id, user.isActive ? 'ban' : 'unban')}
               className={`p-2 rounded-lg transition-colors ${
                 user.isActive 
-                  ? 'text-red-600 hover:text-red-700 hover:bg-red-50' 
-                  : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                  ? 'text-red-600 dark:text-red-400 hover:text-red-700 dark:text-red-300 hover:bg-red-100 dark:bg-red-900/40' 
+                  : 'text-green-600 dark:text-green-400 hover:text-green-700 dark:text-green-300 hover:bg-green-100 dark:bg-green-900/40'
               }`}
               title={user.isActive ? 'Ban User' : 'Unban User'}
             >
@@ -225,7 +225,7 @@ const UserManagement = () => {
             </button>
             <button
               onClick={() => handleUserAction(user._id, 'delete')}
-              className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="p-2 text-gray-600 dark:text-slate-400 hover:text-red-600 dark:text-red-400 hover:bg-red-100 dark:bg-red-900/40 rounded-lg transition-colors"
             >
               <FiTrash2 className="h-4 w-4" />
             </button>
@@ -233,22 +233,22 @@ const UserManagement = () => {
         </div>
 
         {/* User Stats */}
-        <div className="mt-4 grid grid-cols-4 gap-4 pt-4 border-t border-gray-100">
+        <div className="mt-4 grid grid-cols-4 gap-4 pt-4 border-t border-gray-100 dark:border-slate-700">
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{user.cardCount || 0}</div>
-            <div className="text-xs text-gray-500">Cards</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-slate-100">{user.cardCount || 0}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">Cards</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{user.totalViews || 0}</div>
-            <div className="text-xs text-gray-500">Views</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-slate-100">{user.totalViews || 0}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">Views</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{user.totalLoves || 0}</div>
-            <div className="text-xs text-gray-500">Loves</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-slate-100">{user.totalLoves || 0}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">Loves</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{user.totalShares || 0}</div>
-            <div className="text-xs text-gray-500">Shares</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-slate-100">{user.totalShares || 0}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">Shares</div>
           </div>
         </div>
       </motion.div>
@@ -260,13 +260,13 @@ const UserManagement = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-          <div className="p-6 border-b border-gray-200">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b border-gray-200 dark:border-slate-700">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">User Details</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">User Details</h2>
               <button
                 onClick={onClose}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                className="p-2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 dark:hover:bg-slate-700 rounded-lg"
               >
                 <FiX className="h-5 w-5" />
               </button>
@@ -276,30 +276,30 @@ const UserManagement = () => {
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Basic Information</h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Name</label>
-                    <p className="text-gray-900">{user.name || 'N/A'}</p>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Name</label>
+                    <p className="text-gray-900 dark:text-slate-100">{user.name || 'N/A'}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Username</label>
-                    <p className="text-gray-900">{user.username}</p>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Username</label>
+                    <p className="text-gray-900 dark:text-slate-100">{user.username}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Email</label>
-                    <p className="text-gray-900">{user.email}</p>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Email</label>
+                    <p className="text-gray-900 dark:text-slate-100">{user.email}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Role</label>
-                    <p className="text-gray-900 capitalize">{user.role}</p>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Role</label>
+                    <p className="text-gray-900 dark:text-slate-100 capitalize">{user.role}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Status</label>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Status</label>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       user.isActive 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
+                        ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' 
+                        : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
                     }`}>
                       {user.isActive ? 'Active' : 'Inactive'}
                     </span>
@@ -308,26 +308,26 @@ const UserManagement = () => {
               </div>
               
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistics</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Statistics</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total Cards</span>
+                    <span className="text-gray-500 dark:text-slate-400">Total Cards</span>
                     <span className="font-semibold">{user.cardCount || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total Views</span>
+                    <span className="text-gray-500 dark:text-slate-400">Total Views</span>
                     <span className="font-semibold">{user.totalViews || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total Loves</span>
+                    <span className="text-gray-500 dark:text-slate-400">Total Loves</span>
                     <span className="font-semibold">{user.totalLoves || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total Shares</span>
+                    <span className="text-gray-500 dark:text-slate-400">Total Shares</span>
                     <span className="font-semibold">{user.totalShares || 0}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Member Since</span>
+                    <span className="text-gray-500 dark:text-slate-400">Member Since</span>
                     <span className="font-semibold">{new Date(user.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
@@ -362,7 +362,7 @@ const UserManagement = () => {
     return (
       <AdminLayout title="User Management">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
         </div>
       </AdminLayout>
     );
@@ -373,8 +373,8 @@ const UserManagement = () => {
       {/* Header with Actions */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-          <p className="text-gray-600">Manage all users and their permissions</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">User Management</h1>
+          <p className="text-gray-600 dark:text-slate-400">Manage all users and their permissions</p>
         </div>
         
         <div className="flex items-center space-x-3 mt-4 lg:mt-0">
@@ -388,7 +388,7 @@ const UserManagement = () => {
               </button>
               <button
                 onClick={() => setSelectedUsers([])}
-                className="px-3 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                className="px-3 py-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 transition-colors"
               >
                 Clear
               </button>
@@ -397,7 +397,7 @@ const UserManagement = () => {
           
           <button
             onClick={fetchUsers}
-            className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 dark:hover:bg-slate-700 rounded-lg transition-colors"
           >
             <FiRefreshCw className="h-5 w-5" />
           </button>
@@ -405,23 +405,23 @@ const UserManagement = () => {
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="relative">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-slate-500 h-4 w-4" />
             <input
               type="text"
               placeholder="Search users..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+              className="pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-full"
             />
           </div>
           
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           >
             <option value="all">All Users</option>
             <option value="active">Active Users</option>
@@ -432,7 +432,7 @@ const UserManagement = () => {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           >
             <option value="createdAt">Join Date</option>
             <option value="name">Name</option>
@@ -444,7 +444,7 @@ const UserManagement = () => {
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           >
             <option value="desc">Descending</option>
             <option value="asc">Ascending</option>
@@ -466,7 +466,7 @@ const UserManagement = () => {
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-2 text-gray-600 hover:text-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+              className="px-3 py-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 disabled:text-gray-400 dark:text-slate-500 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -477,8 +477,8 @@ const UserManagement = () => {
                 onClick={() => setCurrentPage(page)}
                 className={`px-3 py-2 rounded-lg font-medium ${
                   currentPage === page
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 dark:hover:bg-slate-700'
                 }`}
               >
                 {page}
@@ -488,7 +488,7 @@ const UserManagement = () => {
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-2 text-gray-600 hover:text-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+              className="px-3 py-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 disabled:text-gray-400 dark:text-slate-500 disabled:cursor-not-allowed"
             >
               Next
             </button>

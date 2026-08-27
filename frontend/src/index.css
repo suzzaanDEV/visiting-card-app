@@ -2,97 +2,97 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom styles */
 @layer base {
+  :root {
+    --color-primary: #047857;
+    --color-primary-hover: #065F46;
+    --color-secondary: #10B981;
+    --color-secondary-hover: #059669;
+    --color-accent: #34D399;
+    --color-accent-hover: #059669;
+    --color-background: #F8FAFC;
+    --color-surface: #FFFFFF;
+    --color-text: #0F172A;
+    --color-text-muted: #64748B;
+    --color-border: #E2E8F0;
+    --color-success: #22C55E;
+    --color-warning: #F59E0B;
+    --color-danger: #EF4444;
+  }
+
+  .dark {
+    --color-primary: #10B981;
+    --color-primary-hover: #34D399;
+    --color-secondary: #047857;
+    --color-secondary-hover: #065F46;
+    --color-accent: #6EE7B7;
+    --color-accent-hover: #34D399;
+    --color-background: #0F172A;
+    --color-surface: #1E293B;
+    --color-text: #F8FAFC;
+    --color-text-muted: #94A3B8;
+    --color-border: #334155;
+    --color-success: #4ADE80;
+    --color-warning: #FBBF24;
+    --color-danger: #F87171;
+  }
+
   html {
     scroll-behavior: smooth;
   }
   
   body {
+    background-color: var(--color-background);
+    color: var(--color-text);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-  }
-}
-
-@layer components {
-  .btn-primary {
-    @apply bg-primary-gradient text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 transform scale-100 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2;
-  }
-  
-  .btn-secondary {
-    @apply bg-secondary-gradient text-white font-semibold px-4 py-2 rounded-lg transition-all duration-200 transform scale-100 hover:scale-105 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-secondary-600 focus:ring-offset-2;
-  }
-  
-  .btn-outline {
-    @apply border-2 border-primary-600 text-primary-600 font-semibold px-4 py-2 rounded-lg transition-all duration-200 hover:bg-primary-600 hover:text-white focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2;
-  }
-  
-  .card {
-    @apply bg-white rounded-xl shadow-lg transition-all duration-200 border border-gray-200 hover:shadow-2xl;
-  }
-  
-  .input-field {
-    @apply w-full px-4 py-3 border border-gray-300 rounded-lg transition-all duration-200 focus:border-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-600 focus:ring-offset-2;
-  }
-  
-  .gradient-text {
-    @apply bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--color-background);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #888;
+  background: var(--color-border);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--color-text-muted);
 }
 
-/* Glass morphism effect */
+/* Glassmorphism utility classes */
 .glass {
-  @apply bg-white/10 backdrop-blur-lg border border-white/20;
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
-/* Hover effects */
+.dark .glass {
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Common interactive behaviors */
 .hover-lift {
-  @apply transition-transform duration-300 ease-in-out hover:-translate-y-1 hover:shadow-xl;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Modal styles */
-.modal-overlay {
-  @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50;
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
-.modal-content {
-  @apply bg-white rounded-lg p-6 w-full max-w-md mx-4;
-}
-
-/* Responsive utilities */
-@media (max-width: 640px) {
-  .container {
-    @apply px-4;
-  }
-}
-
-@media (min-width: 641px) and (max-width: 1024px) {
-  .container {
-    @apply px-6;
-  }
-}
-
-@media (min-width: 1025px) {
-  .container {
-    @apply px-8;
-  }
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 dark:focus:ring-offset-brand-background;
 }

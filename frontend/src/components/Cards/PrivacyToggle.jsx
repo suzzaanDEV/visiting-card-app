@@ -54,7 +54,6 @@ const PrivacyToggle = ({
   };
 
   const isPublic = privacy === 'public';
-  const isPrivate = privacy === 'private';
 
   const sizeClasses = {
     sm: 'w-12 h-6',
@@ -79,11 +78,11 @@ const PrivacyToggle = ({
       {showLabel && (
         <div className="flex items-center space-x-2">
           {isPublic ? (
-            <FaGlobe className={`${iconSizes[size]} text-green-600`} />
+            <FaGlobe className={`${iconSizes[size]} text-green-600 dark:text-green-400`} />
           ) : (
-            <FaLock className={`${iconSizes[size]} text-red-600`} />
+            <FaLock className={`${iconSizes[size]} text-red-600 dark:text-red-400`} />
           )}
-          <span className={`${labelSizes[size]} font-medium text-gray-700`}>
+          <span className={`${labelSizes[size]} font-medium text-gray-700 dark:text-slate-300`}>
             {isPublic ? 'Public' : 'Private'}
           </span>
         </div>
@@ -100,13 +99,13 @@ const PrivacyToggle = ({
             : 'bg-red-500 hover:bg-red-600'
           }
           ${disabled || isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-          focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
+          focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500
         `}
         whileTap={{ scale: 0.95 }}
       >
         <motion.div
           className={`
-            absolute left-1 bg-white rounded-full shadow-md
+            absolute left-1 bg-white dark:bg-slate-800 rounded-full shadow-md
             ${size === 'sm' ? 'w-4 h-4' : size === 'md' ? 'w-5 h-5' : 'w-6 h-6'}
           `}
           animate={{
@@ -116,11 +115,11 @@ const PrivacyToggle = ({
         >
           <div className="flex items-center justify-center w-full h-full">
             {isLoading ? (
-              <div className={`${iconSizes[size]} animate-spin rounded-full border-2 border-gray-300 border-t-blue-600`} />
+              <div className={`${iconSizes[size]} animate-spin rounded-full border-2 border-gray-300 dark:border-slate-600 border-t-emerald-600`} />
             ) : isPublic ? (
-              <FaEye className={`${iconSizes[size]} text-green-600`} />
+              <FaEye className={`${iconSizes[size]} text-green-600 dark:text-green-400`} />
             ) : (
-              <FaEyeSlash className={`${iconSizes[size]} text-red-600`} />
+              <FaEyeSlash className={`${iconSizes[size]} text-red-600 dark:text-red-400`} />
             )}
           </div>
         </motion.div>
@@ -129,7 +128,7 @@ const PrivacyToggle = ({
       {/* Privacy Info Tooltip */}
       <div className="relative group">
         <div className="cursor-help">
-          <FaUsers className={`${iconSizes[size]} text-gray-400`} />
+          <FaUsers className={`${iconSizes[size]} text-gray-400 dark:text-slate-500`} />
         </div>
         <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-10">
           {isPublic 

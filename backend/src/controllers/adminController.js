@@ -14,12 +14,12 @@ const logAdminActivity = async (adminId, action, details) => {
       action,
       details,
       timestamp: new Date(),
-      ipAddress: req.ip || 'unknown'
+      ipAddress: details?.ipAddress || 'unknown'
     };
     // Store in admin activity log
-    console.log('Admin Activity:', logEntry);
+    logger.info('Admin Activity:', logEntry);
   } catch (error) {
-    console.error('Failed to log admin activity:', error);
+    logger.error('Failed to log admin activity:', error);
   }
 };
 
@@ -32,6 +32,25 @@ exports.adminLogin = async (req, res, next) => {
   } catch (error) {
     logger.error(`Admin login error: ${error.message}`);
     res.status(401).json({ error: error.message });
+  }
+};
+
+// Admin OTP verification
+exports.verifyAdminOtp = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email and OTP are required' });
+    }
+    if (!/^\d{6}$/.test(String(otp).trim())) {
+      return res.status(400).json({ error: 'OTP must be a 6-digit code' });
+    }
+    const result = await adminService.verifyOtp({ email, otp });
+    res.status(200).json(result);
+  } catch (error) {
+    logger.error(`Admin OTP verify error: ${error.message}`);
+    const status = error.message.includes('expired') || error.message.includes('Invalid') ? 400 : 500;
+    res.status(status).json({ error: error.message });
   }
 };
 
@@ -49,11 +68,84 @@ exports.adminLogout = async (req, res, next) => {
 exports.getAdminProfile = async (req, res, next) => {
   try {
     const adminId = req.admin.adminId;
+    if (adminId === 'dev-admin-id') {
+      const Admin = require('../models/adminModel');
+      const admin = await Admin.findOne({ role: 'super_admin' }).select('-password');
+      if (admin) return res.status(200).json(admin);
+      return res.status(200).json({
+        _id: 'dev-admin-id',
+        name: req.admin.username || 'Admin',
+        email: req.admin.email,
+        role: req.admin.role,
+        twoFactorEnabled: false
+      });
+    }
     const admin = await adminService.getAdminById(adminId);
     res.status(200).json(admin);
   } catch (error) {
     logger.error(`Get admin profile error: ${error.message}`);
     res.status(404).json({ error: error.message });
+  }
+};
+
+// Update admin profile (own)
+exports.updateAdminProfile = async (req, res, next) => {
+  try {
+    const adminId = req.admin.adminId;
+    const Admin = require('../models/adminModel');
+    const { name, email } = req.body;
+    const update = {};
+    if (name) update.name = name;
+    if (email) update.email = email;
+    const admin = await Admin.findByIdAndUpdate(adminId, update, { new: true }).select('-password');
+    if (!admin) return res.status(404).json({ error: 'Admin not found' });
+    res.status(200).json(admin);
+  } catch (error) {
+    logger.error(`Update admin profile error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Change admin password (own)
+exports.changeAdminPassword = async (req, res, next) => {
+  try {
+    const adminId = req.admin.adminId;
+    const Admin = require('../models/adminModel');
+    const bcrypt = require('bcryptjs');
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new password are required' });
+    }
+    const admin = await Admin.findById(adminId);
+    if (!admin) return res.status(404).json({ error: 'Admin not found' });
+    const isMatch = await bcrypt.compare(currentPassword, admin.password);
+    if (!isMatch) return res.status(400).json({ error: 'Current password is incorrect' });
+    admin.password = await bcrypt.hash(newPassword, 12);
+    await admin.save();
+    res.status(200).json({ message: 'Password updated successfully' });
+  } catch (error) {
+    logger.error(`Change admin password error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+// Toggle admin 2FA (placeholder)
+exports.toggleAdminTwoFactor = async (req, res, next) => {
+  try {
+    const adminId = req.admin.adminId;
+    const Admin = require('../models/adminModel');
+    const admin = await Admin.findById(adminId);
+    if (!admin) return res.status(404).json({ error: 'Admin not found' });
+    if (!admin.twoFactorEnabled) {
+      admin.twoFactorEnabled = true;
+    } else {
+      admin.twoFactorEnabled = false;
+    }
+    await admin.save();
+    res.status(200).json({ twoFactorEnabled: admin.twoFactorEnabled });
+  } catch (error) {
+    logger.error(`Toggle 2FA error: ${error.message}`);
+    res.status(400).json({ error: error.message });
   }
 };
 
@@ -124,7 +216,7 @@ exports.unbanUser = async (req, res, next) => {
 exports.featureCard = async (req, res, next) => {
   try {
     const { cardId } = req.params;
-    const result = await cardService.toggleCardFeature(cardId);
+    const result = await cardService.toggleCardFeature(cardId, req.body.featured ?? true);
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Feature card error: ${error.message}`);
@@ -314,15 +406,8 @@ exports.getAnalytics = async (req, res, next) => {
       },
       userGrowth: analytics.userGrowth || [],
       cardGrowth: analytics.cardGrowth || [],
-      deviceAnalytics: analytics.deviceAnalytics || { desktop: 45, mobile: 40, tablet: 15 },
-      geographicAnalytics: analytics.geographicAnalytics || {
-        'United States': 35,
-        'India': 25,
-        'United Kingdom': 15,
-        'Canada': 10,
-        'Australia': 8,
-        'Others': 7
-      },
+      deviceAnalytics: analytics.deviceAnalytics || { desktop: 0, mobile: 0, tablet: 0 },
+      geographicAnalytics: analytics.geographicAnalytics || {},
       engagementMetrics: analytics.engagementMetrics || {
         views: 0,
         loves: 0,
@@ -455,7 +540,7 @@ exports.getAllTemplates = async (req, res, next) => {
   try {
     const { page = 1, limit = 20, category, isActive, isFeatured, search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
     
-    const filters = {};
+    const filters = { all: true };
     if (category) filters.category = category;
     if (isActive !== undefined) filters.isActive = isActive === 'true';
     if (isFeatured !== undefined) filters.isFeatured = isFeatured === 'true';
@@ -710,6 +795,42 @@ exports.markNotificationAsRead = async (req, res, next) => {
   } catch (error) {
     logger.error(`Mark notification as read error: ${error.message}`);
     res.status(500).json({ error: error.message });
+  }
+};
+
+// Public settings (no auth required)
+exports.getPublicSettings = async (req, res) => {
+  try {
+    const Settings = require('../models/settingsModel');
+    const settings = await Settings.findOne().lean();
+    res.json({
+      siteName: settings?.system?.siteName || 'Cardly',
+      siteDescription: settings?.system?.siteDescription || '',
+      maintenanceMode: settings?.system?.maintenanceMode || false,
+      registrationEnabled: settings?.system?.registrationEnabled !== false,
+      features: settings?.notifications || {}
+    });
+  } catch (error) {
+    res.json({
+      siteName: 'Cardly',
+      siteDescription: '',
+      maintenanceMode: false,
+      registrationEnabled: true,
+      features: {}
+    });
+  }
+};
+
+// Public card categories (no auth required)
+exports.getCardCategories = async (req, res) => {
+  try {
+    const Category = require('../models/categoryModel');
+    const categories = await Category.find({ isActive: true })
+      .select('name slug icon color')
+      .sort('sortOrder');
+    res.json(categories);
+  } catch (error) {
+    res.json([]);
   }
 };
 

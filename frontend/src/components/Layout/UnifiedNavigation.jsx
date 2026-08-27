@@ -3,536 +3,298 @@ import { Link, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../features/auth/authThunks';
 import { toast } from 'react-hot-toast';
-import { 
-  FaBars, FaTimes, FaUserCircle, FaSignOutAlt, FaSignInAlt, 
-  FaUserPlus, FaSearch, FaCompass, FaBookmark, FaChartBar,
-  FaBell, FaCog, FaHome, FaPlus, FaEye, FaUserShield
-} from 'react-icons/fa';
-import { motion, AnimatePresence } from 'framer-motion';
+import {
+  FiHome, FiSearch, FiPlus, FiBookmark, FiUser,
+  FiBell, FiSun, FiMoon, FiLogOut,
+  FiSettings, FiChevronDown
+} from 'react-icons/fi';
 import Logo from './Logo';
 import NotificationDropdown from '../Notifications/NotificationDropdown';
+import { useTheme } from '../../context/ThemeContext';
+import Dropdown from '../ui/Dropdown';
+import { API_BASE_URL } from '../../services/apiService';
 
-const UnifiedNavigation = ({ variant = 'default' }) => {
+const UnifiedNavigation = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toggleTheme, isDark } = useTheme();
+
   const { isAuthenticated, user } = useSelector((state) => state.auth);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  // Add navigation state management
-  const [activeSection, setActiveSection] = useState('home');
-  const [navigationHistory, setNavigationHistory] = useState([]);
+  const [publicSettings, setPublicSettings] = useState({ siteName: 'Cardly', maintenanceMode: false, registrationEnabled: true });
 
-  const updateActiveSection = (section) => {
-    setActiveSection(section);
-    setNavigationHistory(prev => [...prev, section]);
-  };
-
-  // Handle scroll effect
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 10);
-    };
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Close mobile menu on route change
   useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location.pathname]);
+    fetch(`${API_BASE_URL}/admin/settings/public`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setPublicSettings(data); })
+      .catch(() => {});
+  }, []);
 
   const handleLogout = () => {
     dispatch(logout());
     toast.success('Logged out successfully');
-    setIsMobileMenuOpen(false);
     navigate('/');
   };
 
-  // Determine if we're on a home page (transparent background)
-  const isHomePage = location.pathname === '/' || location.pathname === '/about' || location.pathname === '/contact';
-  const shouldUseTransparent = isHomePage && !isScrolled;
+  const isHome = location.pathname === '/';
+  const transparent = isHome && !isScrolled;
+
+  const navBg = transparent
+    ? 'bg-transparent'
+    : 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-gray-200/60 dark:border-slate-800/60 shadow-sm';
+
+  const textColor = transparent ? 'text-white' : 'text-gray-700 dark:text-slate-300';
+  const textMuted = transparent ? 'text-white/70' : 'text-gray-500 dark:text-slate-400';
+
+  const profileMenuItems = [
+    { label: 'Profile', icon: FiUser, onClick: () => navigate('/profile') },
+    { label: 'Notifications', icon: FiBell, onClick: () => navigate('/notifications') },
+    { divider: true },
+    { label: 'Sign Out', icon: FiLogOut, danger: true, onClick: handleLogout },
+  ];
+
+  if (user?.role === 'admin') {
+    profileMenuItems.splice(2, 0, {
+      label: 'Admin Panel',
+      icon: FiSettings,
+      onClick: () => navigate('/admin/dashboard'),
+    });
+  }
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      shouldUseTransparent
-        ? 'bg-transparent'
-        : isScrolled 
-          ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-100' 
-          : 'bg-white/80 backdrop-blur-sm'
-    }`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 lg:h-20">
-          
-          {/* Logo and Brand */}
-          <Link 
-            to="/" 
-            className="flex items-center space-x-3 group"
-            onClick={() => setIsMobileMenuOpen(false)}
-          >
-            <div className="relative">
-              <Logo className="h-10 w-10 lg:h-12 lg:w-12" color={shouldUseTransparent ? "white" : "#1a3a63"} />
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-sm"></div>
-            </div>
-            <div className="flex flex-col">
-              <span className={`text-xl lg:text-2xl font-bold ${
-                shouldUseTransparent 
-                  ? 'text-white' 
-                  : 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] bg-clip-text text-transparent'
-              }`}>
-                Cardly
+    <>
+      {/* ── Desktop Top Bar ── */}
+      <nav className={`hidden lg:block fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${navBg}`}>
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center justify-between h-16">
+
+            {/* Left – Logo */}
+            <Link to="/" className="flex items-center gap-2.5 shrink-0">
+              <Logo className="h-8 w-8" color={transparent ? '#ffffff' : '#047857'} />
+              <span className={`text-xl font-bold tracking-tight ${transparent ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+                {publicSettings.siteName || 'Cardly'}
               </span>
-              <span className={`text-xs ${shouldUseTransparent ? 'text-gray-300' : 'text-gray-500'} hidden sm:block`}>
-                Digital Networking
-              </span>
-            </div>
-          </Link>
+            </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden lg:flex items-center space-x-1">
-            {/* Notification Dropdown */}
-            <NotificationDropdown />
-            <NavLink 
-              to="/" 
-              className={({ isActive }) => `
-                px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center space-x-2
-                ${isActive 
-                  ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                  : shouldUseTransparent
-                    ? 'text-white hover:text-gray-200 hover:bg-white/10'
-                    : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
+            {/* Center – Nav Links */}
+            <div className="flex items-center gap-1">
+              <NavLink to="/" end className={({ isActive }) => `
+                px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                ${isActive
+                  ? transparent ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                  : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
                 }
-              `}
-            >
-              <FaHome className="w-4 h-4" />
-              <span>Home</span>
-            </NavLink>
-            
-            <NavLink 
-              to="/discover" 
-              className={({ isActive }) => `
-                px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center space-x-2
-                ${isActive 
-                  ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                  : shouldUseTransparent
-                    ? 'text-white hover:text-gray-200 hover:bg-white/10'
-                    : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
+              `}>
+                Home
+              </NavLink>
+
+              <NavLink to="/discover" className={({ isActive }) => `
+                px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                ${isActive
+                  ? transparent ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                  : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
                 }
-              `}
-            >
-              <FaCompass className="w-4 h-4" />
-              <span>Discover</span>
-            </NavLink>
+              `}>
+                Discover
+              </NavLink>
 
-            {isAuthenticated && (
-              <>
-                <NavLink 
-                  to="/search" 
-                  className={({ isActive }) => `
-                    px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center space-x-2
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                      : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  <FaSearch className="w-4 h-4" />
-                  <span>Search</span>
-                </NavLink>
-                
-                <NavLink 
-                  to="/cards" 
-                  className={({ isActive }) => `
-                    px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center space-x-2
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                      : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  <span>My Cards</span>
-                </NavLink>
-                
-                <NavLink 
-                  to="/cards/add" 
-                  className={({ isActive }) => `
-                    px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center space-x-2
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg' 
-                      : 'text-gray-700 hover:text-green-600 hover:bg-green-50'
-                    }
-                  `}
-                >
-                  <FaPlus className="w-4 h-4" />
-                  <span>Create</span>
-                </NavLink>
-                
-                <NavLink 
-                  to="/library" 
-                  className={({ isActive }) => `
-                    px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center space-x-2
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                      : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  <FaBookmark className="w-4 h-4" />
-                  <span>Library</span>
-                </NavLink>
-              </>
-            )}
-          </div>
+              <NavLink to="/search" className={({ isActive }) => `
+                px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                ${isActive
+                  ? transparent ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                  : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
+                }
+              `}>
+                <FiSearch className="inline mr-1 h-3.5 w-3.5 -mt-0.5" />Search
+              </NavLink>
 
-          {/* Right Side - User Actions */}
-          <div className="hidden lg:flex items-center space-x-3">
-            {isAuthenticated ? (
-              <>
-                <NavLink 
-                  to="/dashboard" 
-                  className={({ isActive }) => `
-                    px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center space-x-2
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                      : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
+              {isAuthenticated && (
+                <>
+                  <NavLink to="/cards" className={({ isActive }) => `
+                    px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                    ${isActive
+                      ? transparent ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
                     }
-                  `}
-                >
-                  <FaChartBar className="w-4 h-4" />
-                  <span>Dashboard</span>
-                </NavLink>
+                  `}>
+                    My Cards
+                  </NavLink>
 
-                {/* User Menu */}
-                <div className="relative group">
-                  <button className="flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50 transition-all duration-200">
-                    <div className="w-8 h-8 bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] rounded-full flex items-center justify-center">
-                      <FaUserCircle className="w-5 h-5 text-white" />
-                    </div>
-                    <span>{user?.name || user?.username || 'User'}</span>
-                  </button>
-                  
-                  {/* Dropdown Menu */}
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 transform translate-y-2 group-hover:translate-y-0">
-                    <div className="py-2">
-                      <NavLink 
-                        to="/profile" 
-                        className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200"
-                      >
-                        <FaUserCircle className="w-4 h-4" />
-                        <span>Profile</span>
-                      </NavLink>
-                      <NavLink 
-                        to="/access-requests" 
-                        className="flex items-center space-x-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors duration-200"
-                      >
-                        <FaUserShield className="w-4 h-4" />
-                        <span>Access Requests</span>
-                      </NavLink>
-                      <div className="border-t border-gray-100 my-1"></div>
-                      <button 
-                        onClick={handleLogout}
-                        className="flex items-center space-x-3 px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors duration-200 w-full text-left"
-                      >
-                        <FaSignOutAlt className="w-4 h-4" />
-                        <span>Logout</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <>
-                <NavLink 
-                  to="/about" 
-                  className={({ isActive }) => `
-                    px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                      : shouldUseTransparent
-                        ? 'text-white hover:text-gray-200 hover:bg-white/10'
-                        : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
+                  <NavLink to="/library" className={({ isActive }) => `
+                    px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                    ${isActive
+                      ? transparent ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
                     }
-                  `}
-                >
-                  <span>About</span>
-                </NavLink>
-                
-                <NavLink 
-                  to="/contact" 
-                  className={({ isActive }) => `
-                    px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                      : shouldUseTransparent
-                        ? 'text-white hover:text-gray-200 hover:bg-white/10'
-                        : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  <span>Contact</span>
-                </NavLink>
-                
-                <NavLink 
-                  to="/login" 
-                  className={({ isActive }) => `
-                    px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 flex items-center space-x-2
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                      : shouldUseTransparent
-                        ? 'text-white hover:text-gray-200 hover:bg-white/10'
-                        : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  <FaSignInAlt className="w-4 h-4" />
-                  <span>Login</span>
-                </NavLink>
-                
-                <NavLink 
-                  to="/register" 
-                  className="px-6 py-2 rounded-xl text-sm font-medium bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white hover:from-[#2d5a8a] hover:to-[#1a3a63] transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-2"
-                >
-                  <FaUserPlus className="w-4 h-4" />
-                  <span>Get Started</span>
-                </NavLink>
-              </>
-            )}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <div className="lg:hidden flex items-center space-x-2">
-            {/* Notification Dropdown for Mobile */}
-            <NotificationDropdown />
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className={`p-2 rounded-lg transition-all duration-200 ${
-                shouldUseTransparent
-                  ? 'text-white hover:text-gray-200 hover:bg-white/10'
-                  : 'text-gray-600 hover:text-[#1a3a63] hover:bg-gray-50'
-              }`}
-              aria-label="Toggle mobile menu"
-            >
-              {isMobileMenuOpen ? (
-                <FaTimes className="h-6 w-6" />
-              ) : (
-                <FaBars className="h-6 w-6" />
+                  `}>
+                    Library
+                  </NavLink>
+                </>
               )}
-            </button>
+            </div>
+
+            {/* Right – Actions */}
+            <div className="flex items-center gap-2">
+              {/* Theme Toggle */}
+              <button
+                onClick={toggleTheme}
+                className={`p-2 rounded-lg transition-colors duration-150 cursor-pointer
+                  ${transparent ? 'text-white/80 hover:text-white hover:bg-white/10' : `${textMuted} hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800`}
+                `}
+                aria-label="Toggle theme"
+              >
+                {isDark ? <FiSun className="w-4.5 h-4.5" /> : <FiMoon className="w-4.5 h-4.5" />}
+              </button>
+
+              {isAuthenticated ? (
+                <>
+                  <NotificationDropdown />
+
+                  {/* Profile Dropdown */}
+                  <Dropdown
+                    width="w-52"
+                    trigger={
+                      <button className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors duration-150
+                        ${transparent ? 'text-white hover:bg-white/10' : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}
+                      `}>
+                        <div className="w-7 h-7 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">
+                          {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                        </div>
+                        <span className="text-sm font-medium max-w-[100px] truncate">{user?.name || user?.username}</span>
+                        <FiChevronDown className="w-3.5 h-3.5 opacity-60" />
+                      </button>
+                    }
+                    items={profileMenuItems}
+                  />
+                </>
+              ) : (
+                <div className="flex items-center gap-2 ml-1">
+                  {publicSettings.maintenanceMode && (
+                    <span className="px-2 py-1 text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded-md font-medium hidden sm:inline-block">
+                      Maintenance
+                    </span>
+                  )}
+                  <NavLink
+                    to="/login"
+                    className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                      ${transparent ? 'text-white hover:bg-white/10' : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}
+                    `}
+                  >
+                    Log In
+                  </NavLink>
+                  {publicSettings.registrationEnabled !== false && (
+                    <Link
+                      to="/register"
+                      className="px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors duration-150 shadow-sm"
+                    >
+                      Get Started
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
+      </nav>
 
-        {/* Mobile Menu */}
-        <AnimatePresence>
-          {isMobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-              className="lg:hidden"
+      {/* ── Mobile Top Bar (minimal) ── */}
+      <nav className={`lg:hidden fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${navBg}`}>
+        <div className="flex items-center justify-between h-14 px-4">
+          <Link to="/" className="flex items-center gap-2">
+            <Logo className="h-7 w-7" color={transparent ? '#ffffff' : '#047857'} />
+            <span className={`text-lg font-bold tracking-tight ${transparent ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+              {publicSettings.siteName || 'Cardly'}
+            </span>
+          </Link>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={toggleTheme}
+              className={`p-2 rounded-lg transition-colors cursor-pointer
+                ${transparent ? 'text-white/80 hover:bg-white/10' : `${textMuted} hover:bg-gray-100 dark:hover:bg-slate-800`}
+              `}
+              aria-label="Toggle theme"
             >
-              <div className="px-4 py-6 space-y-4 bg-white/95 backdrop-blur-md border-t border-gray-100 rounded-b-2xl shadow-xl">
-                {/* Mobile Navigation Links */}
-                <NavLink 
-                  to="/" 
-                  className={({ isActive }) => `
-                    flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                      : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                    }
-                  `}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <FaHome className="w-5 h-5" />
-                  <span>Home</span>
-                </NavLink>
-                
-                <NavLink 
-                  to="/discover" 
-                  className={({ isActive }) => `
-                    flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                      : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                    }
-                  `}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <FaCompass className="w-5 h-5" />
-                  <span>Discover</span>
-                </NavLink>
+              {isDark ? <FiSun className="w-5 h-5" /> : <FiMoon className="w-5 h-5" />}
+            </button>
 
-                {isAuthenticated ? (
-                  <>
-                    <NavLink 
-                      to="/search" 
-                      className={({ isActive }) => `
-                        flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                          : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                        }
-                      `}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <FaSearch className="w-5 h-5" />
-                      <span>Search</span>
-                    </NavLink>
-                    
-                    <NavLink 
-                      to="/cards" 
-                      className={({ isActive }) => `
-                        flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                          : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                        }
-                      `}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <span>My Cards</span>
-                    </NavLink>
-                    
-                    <NavLink 
-                      to="/cards/add" 
-                      className={({ isActive }) => `
-                        flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-green-600 to-green-700 text-white shadow-lg' 
-                          : 'text-gray-700 hover:text-green-600 hover:bg-green-50'
-                        }
-                      `}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <FaPlus className="w-5 h-5" />
-                      <span>Create Card</span>
-                    </NavLink>
-                    
-                    <NavLink 
-                      to="/library" 
-                      className={({ isActive }) => `
-                        flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                          : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                        }
-                      `}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <FaBookmark className="w-5 h-5" />
-                      <span>Library</span>
-                    </NavLink>
-                    
-                    <NavLink 
-                      to="/dashboard" 
-                      className={({ isActive }) => `
-                        flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                          : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                        }
-                      `}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <FaChartBar className="w-5 h-5" />
-                      <span>Dashboard</span>
-                    </NavLink>
-                    
-                    <NavLink 
-                      to="/profile" 
-                      className={({ isActive }) => `
-                        flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                          : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                        }
-                      `}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <FaUserCircle className="w-5 h-5" />
-                      <span>Profile</span>
-                    </NavLink>
-                    
-                    <NavLink 
-                      to="/access-requests" 
-                      className={({ isActive }) => `
-                        flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                          : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                        }
-                      `}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <FaUserShield className="w-5 h-5" />
-                      <span>Access Requests</span>
-                    </NavLink>
-                    
-                    <button 
-                      onClick={handleLogout}
-                      className="flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium text-red-600 hover:bg-red-50 transition-all duration-200 w-full text-left"
-                    >
-                      <FaSignOutAlt className="w-5 h-5" />
-                      <span>Logout</span>
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <NavLink 
-                      to="/about" 
-                      className={({ isActive }) => `
-                        flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                          : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                        }
-                      `}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <span>About</span>
-                    </NavLink>
-                    
-                    <NavLink 
-                      to="/contact" 
-                      className={({ isActive }) => `
-                        flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200
-                        ${isActive 
-                          ? 'bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white shadow-lg' 
-                          : 'text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50'
-                        }
-                      `}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <span>Contact</span>
-                    </NavLink>
-                    
-                    <NavLink 
-                      to="/login" 
-                      className="flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium text-gray-700 hover:text-[#1a3a63] hover:bg-gray-50 transition-all duration-200"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <FaSignInAlt className="w-5 h-5" />
-                      <span>Login</span>
-                    </NavLink>
-                    
-                    <NavLink 
-                      to="/register" 
-                      className="flex items-center space-x-3 px-4 py-3 rounded-xl text-base font-medium bg-gradient-to-r from-[#1a3a63] to-[#2d5a8a] text-white hover:from-[#2d5a8a] hover:to-[#1a3a63] transition-all duration-200 shadow-lg"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      <FaUserPlus className="w-5 h-5" />
-                      <span>Get Started</span>
-                    </NavLink>
-                  </>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </nav>
+            {isAuthenticated && <NotificationDropdown />}
+          </div>
+        </div>
+      </nav>
+
+      {/* ── Mobile Bottom Tab Bar ── */}
+      {isAuthenticated ? (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 pb-[env(safe-area-inset-bottom)]">
+          <div className="flex items-center justify-around h-16 px-2">
+            {/* Home */}
+            <TabItem to="/" icon={FiHome} label="Home" />
+
+            {/* Search */}
+            <TabItem to="/search" icon={FiSearch} label="Search" />
+
+            {/* My Cards – FAB */}
+            <div className="relative -mt-5">
+              <Link
+                to="/cards/add"
+                className="flex items-center justify-center w-14 h-14 rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/30 hover:bg-emerald-700 transition-colors"
+                aria-label="Create Card"
+              >
+                <FiPlus className="w-6 h-6" />
+              </Link>
+            </div>
+
+            {/* Library */}
+            <TabItem to="/library" icon={FiBookmark} label="Library" />
+
+            {/* Profile */}
+            <TabItem to="/profile" icon={FiUser} label="Profile" />
+          </div>
+        </div>
+      ) : (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 pb-[env(safe-area-inset-bottom)]">
+          <div className="flex items-center justify-around h-16 px-2">
+            <TabItem to="/" icon={FiHome} label="Home" />
+            <TabItem to="/search" icon={FiSearch} label="Search" />
+            <TabItem to="/login" icon={FiUser} label="Log In" />
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
-export default UnifiedNavigation; 
+/* ── Small tab item used by the bottom bar ── */
+const TabItem = ({ to, icon: Icon, label }) => {
+  return (
+    <NavLink
+      to={to}
+      end={to === '/'}
+      className={({ isActive }) => `
+        flex flex-col items-center justify-center gap-0.5 w-16 py-1 rounded-lg transition-colors duration-150
+        ${isActive
+          ? 'text-emerald-600 dark:text-emerald-400'
+          : 'text-gray-400 dark:text-slate-500'
+        }
+      `}
+    >
+      {({ isActive }) => (
+        <>
+          <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-[1.5]'}`} />
+          <span className={`text-[10px] leading-tight ${isActive ? 'font-semibold' : 'font-medium'}`}>
+            {label}
+          </span>
+        </>
+      )}
+    </NavLink>
+  );
+};
+
+export default UnifiedNavigation;

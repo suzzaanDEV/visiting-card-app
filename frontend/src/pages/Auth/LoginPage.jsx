@@ -6,6 +6,9 @@ import { clearAuthError } from '../../features/auth/authSlice';
 import { toast } from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { FaIdCard, FaEye, FaEyeSlash, FaEnvelope, FaLock } from 'react-icons/fa';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
+import Card from '../../components/ui/Card';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -15,11 +18,12 @@ const LoginPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   
-  const { isAuthenticated, isLoading, error } = useSelector((state) => state.auth);
+  const { isAuthenticated, isLoading, error, user } = useSelector((state) => state.auth);
 
   useEffect(() => {
-    // Redirect if already authenticated
-    if (isAuthenticated) {
+    if (isAuthenticated && user?.isEmailVerified === false && user?.email) {
+      navigate('/verify-email', { state: { email: user.email } });
+    } else if (isAuthenticated) {
       navigate('/dashboard');
     }
     
@@ -28,7 +32,7 @@ const LoginPage = () => {
       toast.error(error);
       dispatch(clearAuthError());
     }
-  }, [isAuthenticated, error, dispatch, navigate]);
+  }, [isAuthenticated, user, error, dispatch, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -41,121 +45,104 @@ const LoginPage = () => {
     
     // Prepare user data
     const userData = { email, password };
-    
     dispatch(login(userData));
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br py-10 from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-brand-background dark:bg-slate-950 flex items-center justify-center px-4 py-16 transition-colors duration-200">
       <div className="w-full max-w-md">
         {/* Logo and Title */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center mb-8"
+          className="text-center mb-8 select-none"
         >
           <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
-              <FaIdCard className="text-white text-2xl" />
+            <div className="w-16 h-16 bg-brand-primary text-white rounded-2xl flex items-center justify-center shadow-lg">
+              <FaIdCard className="text-2xl" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
-                          <p className="text-gray-300">Sign in to your Cardly account</p>
+          <h1 className="text-3xl font-bold text-brand-text dark:text-white mb-2">Welcome Back</h1>
+          <p className="text-brand-textMuted">Sign in to your Cardly account</p>
         </motion.div>
 
-        {/* Login Form */}
+        {/* Login Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-8 shadow-2xl"
         >
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email Field */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-200 mb-2">
-                Email Address
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaEnvelope className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="Enter your email"
-                  required
-                />
-              </div>
-            </div>
-            
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-200 mb-2">
-                Password
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <FaLock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-10 pr-12 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  placeholder="Enter your password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                >
-                  {showPassword ? (
-                    <FaEyeSlash className="h-5 w-5 text-gray-400 hover:text-gray-300" />
-                  ) : (
-                    <FaEye className="h-5 w-5 text-gray-400 hover:text-gray-300" />
-                  )}
-                </button>
-              </div>
-            </div>
-            
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                  Signing In...
-                </div>
-              ) : (
-                'Sign In'
-              )}
-            </button>
-          </form>
+          <Card elevation="lg" className="p-8">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Email Field */}
+              <Input
+                label="Email Address"
+                id="email"
+                type="email"
+                icon={FaEnvelope}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                required
+              />
+              
+              {/* Password Field */}
+              <Input
+                label="Password"
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                icon={FaLock}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="p-1 rounded text-brand-textMuted hover:text-brand-primary transition-colors cursor-pointer"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
+                  </button>
+                }
+              />
+              
+              {/* Submit Button */}
+              <Button
+                type="submit"
+                isLoading={isLoading}
+                className="w-full justify-center"
+              >
+                Sign In
+              </Button>
+            </form>
 
-          {/* Divider */}
-          <div className="my-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/20"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-transparent text-gray-400">Or continue with</span>
+            {/* Divider */}
+            <div className="my-6">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-brand-border dark:border-slate-800"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="px-3 bg-brand-surface dark:bg-slate-800 text-brand-textMuted font-semibold">
+                    Account Access
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-  
-    
+            {/* Link to Forgot Password */}
+            <div className="text-center">
+              <Link 
+                to="/forgot-password" 
+                className="text-sm text-brand-primary hover:text-brand-primaryHover font-medium transition-colors"
+              >
+                Forgot Password?
+              </Link>
+            </div>
+          </Card>
         </motion.div>
 
         {/* Sign Up Link */}
@@ -165,9 +152,9 @@ const LoginPage = () => {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="text-center mt-6"
         >
-          <p className="text-gray-300">
+          <p className="text-brand-textMuted text-sm">
             Don't have an account?{' '}
-            <Link to="/register" className="text-blue-400 hover:text-blue-300 font-semibold transition-colors">
+            <Link to="/register" className="text-brand-primary hover:text-brand-primaryHover font-bold transition-colors">
               Create an Account
             </Link>
           </p>
@@ -180,7 +167,7 @@ const LoginPage = () => {
           transition={{ duration: 0.6, delay: 0.6 }}
           className="text-center mt-4"
         >
-          <Link to="/" className="text-gray-400 hover:text-white transition-colors text-sm">
+          <Link to="/" className="text-brand-textMuted hover:text-brand-text transition-colors text-sm font-medium">
             ← Back to Home
           </Link>
         </motion.div>

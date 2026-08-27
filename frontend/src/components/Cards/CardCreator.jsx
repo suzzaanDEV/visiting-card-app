@@ -24,22 +24,22 @@ const CardCreator = ({ onSubmit, loading = false }) => {
   const [selectedBackground, setSelectedBackground] = useState('gradient-blue');
   const [selectedImage, setSelectedImage] = useState(null);
   const [previewMode, setPreviewMode] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [, setSelectedTemplate] = useState(null);
   const fileInputRef = useRef(null);
 
   const backgrounds = [
-    { id: 'gradient-blue', name: 'Blue Gradient', class: 'bg-gradient-to-br from-blue-500 to-blue-700' },
-    { id: 'gradient-purple', name: 'Purple Gradient', class: 'bg-gradient-to-br from-purple-500 to-purple-700' },
-    { id: 'gradient-pink', name: 'Pink Gradient', class: 'bg-gradient-to-br from-pink-500 to-pink-700' },
+    { id: 'gradient-blue', name: 'Emerald Gradient', class: 'bg-gradient-to-br from-emerald-500 to-emerald-700' },
+    { id: 'gradient-purple', name: 'Lime Gradient', class: 'bg-gradient-to-br from-lime-500 to-lime-700' },
+    { id: 'gradient-pink', name: 'Mint Gradient', class: 'bg-gradient-to-br from-emerald-400 to-emerald-600' },
     { id: 'gradient-green', name: 'Green Gradient', class: 'bg-gradient-to-br from-green-500 to-green-700' },
     { id: 'gradient-orange', name: 'Orange Gradient', class: 'bg-gradient-to-br from-orange-500 to-orange-700' },
     { id: 'gradient-red', name: 'Red Gradient', class: 'bg-gradient-to-br from-red-500 to-red-700' },
     { id: 'solid-white', name: 'Clean White', class: 'bg-white' },
     { id: 'solid-black', name: 'Elegant Black', class: 'bg-gray-900' },
-    { id: 'abstract-1', name: 'Abstract 1', class: 'bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500' },
-    { id: 'abstract-2', name: 'Abstract 2', class: 'bg-gradient-to-br from-yellow-400 via-red-500 to-pink-500' },
-    { id: 'abstract-3', name: 'Abstract 3', class: 'bg-gradient-to-br from-green-400 to-blue-500' },
-    { id: 'abstract-4', name: 'Abstract 4', class: 'bg-gradient-to-br from-purple-400 via-pink-500 to-red-500' }
+    { id: 'abstract-1', name: 'Abstract 1', class: 'bg-gradient-to-br from-emerald-500 via-green-500 to-lime-500' },
+    { id: 'abstract-2', name: 'Abstract 2', class: 'bg-gradient-to-br from-yellow-400 via-red-500 to-green-500' },
+    { id: 'abstract-3', name: 'Abstract 3', class: 'bg-gradient-to-br from-lime-400 to-emerald-500' },
+    { id: 'abstract-4', name: 'Abstract 4', class: 'bg-gradient-to-br from-green-400 via-green-500 to-red-500' }
   ];
 
   const handleInputChange = (e) => {
@@ -75,12 +75,12 @@ const CardCreator = ({ onSubmit, loading = false }) => {
     const cardData = {
       ...formData,
       cardImage: selectedImage,
-      backgroundColor: backgrounds.find(bg => bg.id === selectedBackground)?.class || 'bg-gradient-to-br from-blue-500 to-blue-700'
+      backgroundColor: backgrounds.find(bg => bg.id === selectedBackground)?.class || 'bg-gradient-to-br from-emerald-500 to-emerald-700'
     };
     await onSubmit(cardData);
   };
 
-  const handleTemplateSelect = (template) => {
+  const _handleTemplateSelect = (template) => {
     setSelectedTemplate(template);
     setPreviewMode(true);
   };
@@ -88,7 +88,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
   const CardPreview = () => (
     <div className="w-80 h-48 rounded-2xl shadow-2xl overflow-hidden relative">
       {/* Background */}
-      <div className={`w-full h-full ${backgrounds.find(bg => bg.id === selectedBackground)?.class || 'bg-gradient-to-br from-blue-500 to-blue-700'}`}>
+      <div className={`w-full h-full ${backgrounds.find(bg => bg.id === selectedBackground)?.class || 'bg-gradient-to-br from-emerald-500 to-emerald-700'}`}>
         {/* Image or Initials */}
         {selectedImage ? (
           <img
@@ -119,7 +119,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-green-50 to-green-50 py-8 px-4">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <motion.div
@@ -146,7 +146,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
               {/* Basic Information */}
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                  <FiUser className="h-5 w-5 mr-2 text-blue-600" />
+                  <FiUser className="h-5 w-5 mr-2 text-emerald-600" />
                   Basic Information
                 </h3>
                 
@@ -161,7 +161,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                       value={formData.title}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       placeholder="e.g., My Business Card"
                     />
                   </div>
@@ -176,7 +176,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                       value={formData.fullName}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       placeholder="Suzan Ghimire"
                     />
                   </div>
@@ -190,7 +190,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                       name="jobTitle"
                       value={formData.jobTitle}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       placeholder="Software Engineer"
                     />
                   </div>
@@ -204,8 +204,8 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                       name="company"
                       value={formData.company}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Tech Corp"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      placeholder="Leapfrog Technology"
                     />
                   </div>
                 </div>
@@ -228,8 +228,8 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                       name="email"
                       value={formData.email}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="ram.thapa@cardly.com"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      placeholder="ram.thapa@company.com.np"
                     />
                   </div>
 
@@ -243,8 +243,8 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                         name="phone"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="(555) 123-4567"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        placeholder="+977-9801234567"
                       />
                     </div>
 
@@ -257,8 +257,8 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                         name="website"
                         value={formData.website}
                         onChange={handleInputChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="https://cardlysolutions.com"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        placeholder="https://company.com.np"
                       />
                     </div>
                   </div>
@@ -272,8 +272,8 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                       name="address"
                       value={formData.address}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="123 Business St, City, State 12345"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      placeholder="New Baneshwor, Kathmandu, Nepal"
                     />
                   </div>
                 </div>
@@ -282,7 +282,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
               {/* Bio */}
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                  <FiFileText className="h-5 w-5 mr-2 text-purple-600" />
+                  <FiFileText className="h-5 w-5 mr-2 text-green-600" />
                   Bio
                 </h3>
                 
@@ -291,7 +291,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                   value={formData.bio}
                   onChange={handleInputChange}
                   rows="4"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="Tell people about yourself, your expertise, and what you do..."
                 />
               </div>
@@ -299,7 +299,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
               {/* Design Options */}
               <div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-                  <FaPalette className="h-5 w-5 mr-2 text-pink-600" />
+                  <FaPalette className="h-5 w-5 mr-2 text-green-600" />
                   Design Your Card
                 </h3>
                 
@@ -316,7 +316,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                         onClick={() => setSelectedBackground(bg.id)}
                         className={`relative p-4 rounded-lg border-2 transition-all ${
                           selectedBackground === bg.id
-                            ? 'border-blue-500 ring-2 ring-blue-200'
+                            ? 'border-emerald-500 ring-2 ring-emerald-200'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
@@ -336,7 +336,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                     <button
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                     >
                       <FaImage className="h-4 w-4 mr-2" />
                       Choose Image
@@ -370,7 +370,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                     name="isPublic"
                     checked={formData.isPublic}
                     onChange={handleInputChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
                   />
                   <span className="ml-2 text-sm text-gray-700">
                     Make this card public (visible to everyone)
@@ -385,7 +385,7 @@ const CardCreator = ({ onSubmit, loading = false }) => {
                   disabled={loading}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="flex-1 flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-300 disabled:opacity-50"
+                  className="flex-1 flex items-center justify-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg font-semibold hover:from-emerald-700 hover:to-green-700 transition-all duration-300 disabled:opacity-50"
                 >
                   {loading ? (
                     <>

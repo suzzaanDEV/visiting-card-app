@@ -5,16 +5,16 @@ import authReducer from '../features/auth/authSlice.js';
 import cardsReducer from '../features/cards/cardsSlice.js';
 import libraryReducer from '../features/library/librarySlice.js';
 import adminReducer from '../features/admin/adminSlice.js';
+import notificationsReducer from '../features/notifications/notificationsSlice.js';
 
 // Configure the Redux store
 const store = configureStore({
   reducer: {
-    // Combine all reducers here
     auth: authReducer,
-    cards: cardsReducer, // Renamed from 'card' to 'cards' to match slice name convention
+    cards: cardsReducer,
     library: libraryReducer,
     admin: adminReducer,
-    // Add other reducers here if you create more slices
+    notifications: notificationsReducer,
   },
   // Optional: Configure middleware (e.g., for logging, handling non-serializable data)
   // middleware: (getDefaultMiddleware) => getDefaultMiddleware({
@@ -28,7 +28,7 @@ const store = configureStore({
   //   },
   // }),
   // Enable Redux DevTools extension in development
-  devTools: process.env.NODE_ENV !== 'production',
+  devTools: import.meta.env.MODE !== 'production',
 });
 export default store;
 

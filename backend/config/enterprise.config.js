@@ -46,6 +46,43 @@ const environments = {
       lockoutDuration: 15 * 60 * 1000 // 15 minutes
     }
   },
+
+  test: {
+    port: process.env.PORT || 5050,
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+    database: {
+      url: process.env.DATABASE_URL || process.env.MONGODB_URI || 'mongodb://localhost:27017/cardly-test',
+      options: {
+        maxPoolSize: 5,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+      },
+    },
+    jwt: {
+      secret: process.env.JWT_SECRET || 'test-jwt-secret',
+      expiresIn: '1h',
+      refreshExpiresIn: '1d',
+    },
+    cors: {
+      origins: buildOrigins(['http://localhost:5173']),
+      credentials: true,
+    },
+    rateLimit: {
+      windowMs: 15 * 60 * 1000,
+      max: 10000,
+      message: 'Too many requests',
+    },
+    logging: {
+      level: 'error',
+      file: path.join(__dirname, '../logs/app.log'),
+    },
+    security: {
+      bcryptRounds: 10,
+      sessionTimeout: 3600000,
+      maxLoginAttempts: 100,
+      lockoutDuration: 1000,
+    },
+  },
   
   staging: {
     port: process.env.PORT || 5050,

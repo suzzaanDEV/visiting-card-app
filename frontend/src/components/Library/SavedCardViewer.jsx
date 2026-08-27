@@ -43,7 +43,7 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
       setCopiedField(field);
       toast.success(`${field} copied to clipboard!`);
       setTimeout(() => setCopiedField(null), 2000);
-    } catch (error) {
+    } catch {
       toast.error('Failed to copy to clipboard');
     }
   };
@@ -60,7 +60,7 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
         await navigator.clipboard.writeText(`${window.location.origin}/c/${card.shortLink}`);
         toast.success('Card link copied to clipboard!');
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to share card');
     }
   };
@@ -93,21 +93,21 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-y-auto"
+          className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-6xl max-h-[95vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="sticky top-0 bg-white rounded-t-2xl p-6 border-b border-gray-200 z-10">
+          <div className="sticky top-0 bg-white dark:bg-slate-800 rounded-t-2xl p-6 border-b border-gray-200 dark:border-slate-700 z-10">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FiBookmark className="h-6 w-6 text-blue-600" />
+                <div className="p-2 bg-emerald-100 dark:bg-emerald-900/40 rounded-lg">
+                  <FiBookmark className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">
                     {card.title || `${cardData.fullName}'s Card`}
                   </h2>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-500 dark:text-slate-400">
                     Saved on {new Date(card.savedAt).toLocaleDateString()}
                   </p>
                 </div>
@@ -117,25 +117,25 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
                 <button
                   onClick={handleLove}
                   disabled={isLoving}
-                  className="p-2 text-gray-400 hover:text-red-500 rounded-lg transition-colors"
+                  className="p-2 text-gray-400 dark:text-slate-500 hover:text-red-500 rounded-lg transition-colors"
                 >
                   <FiHeart className={`h-5 w-5 ${isLoving ? 'text-red-500 animate-pulse' : ''}`} />
                 </button>
                 <button
                   onClick={handleShare}
-                  className="p-2 text-gray-400 hover:text-blue-500 rounded-lg transition-colors"
+                  className="p-2 text-gray-400 dark:text-slate-500 hover:text-emerald-500 rounded-lg transition-colors"
                 >
                   <FiShare2 className="h-5 w-5" />
                 </button>
                 <button
                   onClick={handleDownload}
-                  className="p-2 text-gray-400 hover:text-green-500 rounded-lg transition-colors"
+                  className="p-2 text-gray-400 dark:text-slate-500 hover:text-green-500 rounded-lg transition-colors"
                 >
                   <FiDownload className="h-5 w-5" />
                 </button>
                 <button
                   onClick={onClose}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-lg transition-colors"
+                  className="p-2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 rounded-lg transition-colors"
                 >
                   <FiX className="h-6 w-6" />
                 </button>
@@ -149,8 +149,8 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
               {/* Card Preview */}
               <div className="xl:col-span-1">
                 <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <FiEye className="h-5 w-5 mr-2 text-blue-600" />
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center">
+                    <FiEye className="h-5 w-5 mr-2 text-emerald-600 dark:text-emerald-400" />
                     Card Preview
                   </h3>
                   <div className="aspect-[3/4] rounded-lg overflow-hidden shadow-lg">
@@ -166,7 +166,7 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
                   <div className="mt-4 flex space-x-2">
                     <button
                       onClick={handleVisitCard}
-                      className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center"
+                      className="flex-1 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center justify-center"
                     >
                       <FiExternalLink className="h-4 w-4 mr-2" />
                       View Full Card
@@ -174,7 +174,7 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
                     {onRemove && (
                       <button
                         onClick={() => onRemove(card._id)}
-                        className="px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                        className="px-4 py-2 text-red-600 dark:text-red-400 border border-red-600 rounded-lg hover:bg-red-100 dark:bg-red-900/40 transition-colors"
                       >
                         Remove
                       </button>
@@ -188,113 +188,113 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Contact Information */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <FiUser className="h-5 w-5 mr-2 text-green-600" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center">
+                      <FiUser className="h-5 w-5 mr-2 text-green-600 dark:text-green-400" />
                       Contact Information
                     </h3>
                     <div className="space-y-4">
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
-                            <FiUser className="h-4 w-4 text-gray-400 mr-3" />
+                            <FiUser className="h-4 w-4 text-gray-400 dark:text-slate-500 mr-3" />
                             <div>
-                              <p className="text-sm text-gray-500">Full Name</p>
-                              <p className="font-medium text-gray-900">{cardData.fullName}</p>
+                              <p className="text-sm text-gray-500 dark:text-slate-400">Full Name</p>
+                              <p className="font-medium text-gray-900 dark:text-slate-100">{cardData.fullName}</p>
                             </div>
                           </div>
                           <button
                             onClick={() => handleCopyField('Name', cardData.fullName)}
-                            className="p-1 text-gray-400 hover:text-blue-600 rounded"
+                            className="p-1 text-gray-400 dark:text-slate-500 hover:text-emerald-600 dark:text-emerald-400 rounded"
                           >
                             {copiedField === 'Name' ? <FiCheck className="h-4 w-4" /> : <FiCopy className="h-4 w-4" />}
                           </button>
                         </div>
                       </div>
 
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
-                            <FiBriefcase className="h-4 w-4 text-gray-400 mr-3" />
+                            <FiBriefcase className="h-4 w-4 text-gray-400 dark:text-slate-500 mr-3" />
                             <div>
-                              <p className="text-sm text-gray-500">Job Title</p>
-                              <p className="font-medium text-gray-900">{cardData.jobTitle}</p>
+                              <p className="text-sm text-gray-500 dark:text-slate-400">Job Title</p>
+                              <p className="font-medium text-gray-900 dark:text-slate-100">{cardData.jobTitle}</p>
                             </div>
                           </div>
                           <button
                             onClick={() => handleCopyField('Job Title', cardData.jobTitle)}
-                            className="p-1 text-gray-400 hover:text-blue-600 rounded"
+                            className="p-1 text-gray-400 dark:text-slate-500 hover:text-emerald-600 dark:text-emerald-400 rounded"
                           >
                             {copiedField === 'Job Title' ? <FiCheck className="h-4 w-4" /> : <FiCopy className="h-4 w-4" />}
                           </button>
                         </div>
                       </div>
 
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
-                            <FiBriefcase className="h-4 w-4 text-gray-400 mr-3" />
+                            <FiBriefcase className="h-4 w-4 text-gray-400 dark:text-slate-500 mr-3" />
                             <div>
-                              <p className="text-sm text-gray-500">Company</p>
-                              <p className="font-medium text-gray-900">{cardData.company}</p>
+                              <p className="text-sm text-gray-500 dark:text-slate-400">Company</p>
+                              <p className="font-medium text-gray-900 dark:text-slate-100">{cardData.company}</p>
                             </div>
                           </div>
                           <button
                             onClick={() => handleCopyField('Company', cardData.company)}
-                            className="p-1 text-gray-400 hover:text-blue-600 rounded"
+                            className="p-1 text-gray-400 dark:text-slate-500 hover:text-emerald-600 dark:text-emerald-400 rounded"
                           >
                             {copiedField === 'Company' ? <FiCheck className="h-4 w-4" /> : <FiCopy className="h-4 w-4" />}
                           </button>
                         </div>
                       </div>
 
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
-                            <FiMail className="h-4 w-4 text-gray-400 mr-3" />
+                            <FiMail className="h-4 w-4 text-gray-400 dark:text-slate-500 mr-3" />
                             <div>
-                              <p className="text-sm text-gray-500">Email</p>
-                              <p className="font-medium text-gray-900">{cardData.email}</p>
+                              <p className="text-sm text-gray-500 dark:text-slate-400">Email</p>
+                              <p className="font-medium text-gray-900 dark:text-slate-100">{cardData.email}</p>
                             </div>
                           </div>
                           <button
                             onClick={() => handleCopyField('Email', cardData.email)}
-                            className="p-1 text-gray-400 hover:text-blue-600 rounded"
+                            className="p-1 text-gray-400 dark:text-slate-500 hover:text-emerald-600 dark:text-emerald-400 rounded"
                           >
                             {copiedField === 'Email' ? <FiCheck className="h-4 w-4" /> : <FiCopy className="h-4 w-4" />}
                           </button>
                         </div>
                       </div>
 
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
-                            <FiPhone className="h-4 w-4 text-gray-400 mr-3" />
+                            <FiPhone className="h-4 w-4 text-gray-400 dark:text-slate-500 mr-3" />
                             <div>
-                              <p className="text-sm text-gray-500">Phone</p>
-                              <p className="font-medium text-gray-900">{cardData.phone}</p>
+                              <p className="text-sm text-gray-500 dark:text-slate-400">Phone</p>
+                              <p className="font-medium text-gray-900 dark:text-slate-100">{cardData.phone}</p>
                             </div>
                           </div>
                           <button
                             onClick={() => handleCopyField('Phone', cardData.phone)}
-                            className="p-1 text-gray-400 hover:text-blue-600 rounded"
+                            className="p-1 text-gray-400 dark:text-slate-500 hover:text-emerald-600 dark:text-emerald-400 rounded"
                           >
                             {copiedField === 'Phone' ? <FiCheck className="h-4 w-4" /> : <FiCopy className="h-4 w-4" />}
                           </button>
                         </div>
                       </div>
 
-                      <div className="bg-white border border-gray-200 rounded-lg p-4">
+                      <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center">
-                            <FiGlobe className="h-4 w-4 text-gray-400 mr-3" />
+                            <FiGlobe className="h-4 w-4 text-gray-400 dark:text-slate-500 mr-3" />
                             <div>
-                              <p className="text-sm text-gray-500">Website</p>
-                              <p className="font-medium text-gray-900">{cardData.website}</p>
+                              <p className="text-sm text-gray-500 dark:text-slate-400">Website</p>
+                              <p className="font-medium text-gray-900 dark:text-slate-100">{cardData.website}</p>
                             </div>
                           </div>
                           <button
                             onClick={() => handleCopyField('Website', cardData.website)}
-                            className="p-1 text-gray-400 hover:text-blue-600 rounded"
+                            className="p-1 text-gray-400 dark:text-slate-500 hover:text-emerald-600 dark:text-emerald-400 rounded"
                           >
                             {copiedField === 'Website' ? <FiCheck className="h-4 w-4" /> : <FiCopy className="h-4 w-4" />}
                           </button>
@@ -302,18 +302,18 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
                       </div>
 
                       {cardData.address && (
-                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center">
-                              <FiMapPin className="h-4 w-4 text-gray-400 mr-3" />
+                              <FiMapPin className="h-4 w-4 text-gray-400 dark:text-slate-500 mr-3" />
                               <div>
-                                <p className="text-sm text-gray-500">Address</p>
-                                <p className="font-medium text-gray-900">{cardData.address}</p>
+                                <p className="text-sm text-gray-500 dark:text-slate-400">Address</p>
+                                <p className="font-medium text-gray-900 dark:text-slate-100">{cardData.address}</p>
                               </div>
                             </div>
                             <button
                               onClick={() => handleCopyField('Address', cardData.address)}
-                              className="p-1 text-gray-400 hover:text-blue-600 rounded"
+                              className="p-1 text-gray-400 dark:text-slate-500 hover:text-emerald-600 dark:text-emerald-400 rounded"
                             >
                               {copiedField === 'Address' ? <FiCheck className="h-4 w-4" /> : <FiCopy className="h-4 w-4" />}
                             </button>
@@ -322,18 +322,18 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
                       )}
 
                       {cardData.bio && (
-                        <div className="bg-white border border-gray-200 rounded-lg p-4">
+                        <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-4">
                           <div className="flex items-start justify-between">
                             <div className="flex items-start">
-                              <FiUser className="h-4 w-4 text-gray-400 mr-3 mt-1" />
+                              <FiUser className="h-4 w-4 text-gray-400 dark:text-slate-500 mr-3 mt-1" />
                               <div>
-                                <p className="text-sm text-gray-500">Bio</p>
-                                <p className="font-medium text-gray-900">{cardData.bio}</p>
+                                <p className="text-sm text-gray-500 dark:text-slate-400">Bio</p>
+                                <p className="font-medium text-gray-900 dark:text-slate-100">{cardData.bio}</p>
                               </div>
                             </div>
                             <button
                               onClick={() => handleCopyField('Bio', cardData.bio)}
-                              className="p-1 text-gray-400 hover:text-blue-600 rounded"
+                              className="p-1 text-gray-400 dark:text-slate-500 hover:text-emerald-600 dark:text-emerald-400 rounded"
                             >
                               {copiedField === 'Bio' ? <FiCheck className="h-4 w-4" /> : <FiCopy className="h-4 w-4" />}
                             </button>
@@ -345,28 +345,28 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
 
                   {/* Card Stats & QR Code */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <FiTrendingUp className="h-5 w-5 mr-2 text-purple-600" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4 flex items-center">
+                      <FiTrendingUp className="h-5 w-5 mr-2 text-green-600 dark:text-green-400" />
                       Card Analytics
                     </h3>
                     
                     {/* Stats Grid */}
                     <div className="grid grid-cols-2 gap-4 mb-6">
-                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4">
+                      <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-4">
                         <div className="flex items-center">
-                          <FiEye className="h-5 w-5 text-blue-600 mr-2" />
+                          <FiEye className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mr-2" />
                           <div>
-                            <p className="text-sm text-blue-600 font-medium">Views</p>
-                            <p className="text-xl font-bold text-blue-900">{cardData.views}</p>
+                            <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">Views</p>
+                            <p className="text-xl font-bold text-emerald-900">{cardData.views}</p>
                           </div>
                         </div>
                       </div>
                       
                       <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-lg p-4">
                         <div className="flex items-center">
-                          <FiHeart className="h-5 w-5 text-red-600 mr-2" />
+                          <FiHeart className="h-5 w-5 text-red-600 dark:text-red-400 mr-2" />
                           <div>
-                            <p className="text-sm text-red-600 font-medium">Loves</p>
+                            <p className="text-sm text-red-600 dark:text-red-400 font-medium">Loves</p>
                             <p className="text-xl font-bold text-red-900">{cardData.loveCount}</p>
                           </div>
                         </div>
@@ -374,30 +374,30 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
                       
                       <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
                         <div className="flex items-center">
-                          <FiShare2 className="h-5 w-5 text-green-600 mr-2" />
+                          <FiShare2 className="h-5 w-5 text-green-600 dark:text-green-400 mr-2" />
                           <div>
-                            <p className="text-sm text-green-600 font-medium">Shares</p>
+                            <p className="text-sm text-green-600 dark:text-green-400 font-medium">Shares</p>
                             <p className="text-xl font-bold text-green-900">{cardData.shares}</p>
                           </div>
                         </div>
                       </div>
                       
-                      <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4">
+                      <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4">
                         <div className="flex items-center">
-                          <FiDownload className="h-5 w-5 text-purple-600 mr-2" />
+                          <FiDownload className="h-5 w-5 text-green-600 dark:text-green-400 mr-2" />
                           <div>
-                            <p className="text-sm text-purple-600 font-medium">Downloads</p>
-                            <p className="text-xl font-bold text-purple-900">{cardData.downloads}</p>
+                            <p className="text-sm text-green-600 dark:text-green-400 font-medium">Downloads</p>
+                            <p className="text-xl font-bold text-green-900">{cardData.downloads}</p>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     {/* QR Code */}
-                    <div className="bg-white border border-gray-200 rounded-lg p-6">
-                      <h4 className="text-sm font-medium text-gray-700 mb-3">QR Code</h4>
+                    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg p-6">
+                      <h4 className="text-sm font-medium text-gray-700 dark:text-slate-300 mb-3">QR Code</h4>
                       <div className="flex justify-center">
-                        <div className="bg-white p-4 rounded-lg shadow-sm">
+                        <div className="bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm">
                           <QRCodeSVG
                             value={`${window.location.origin}/c/${card.shortLink}`}
                             size={120}
@@ -406,23 +406,23 @@ const SavedCardViewer = ({ card, isOpen, onClose, onRemove }) => {
                           />
                         </div>
                       </div>
-                      <p className="text-xs text-gray-500 text-center mt-3">
+                      <p className="text-xs text-gray-500 dark:text-slate-400 text-center mt-3">
                         Scan to view the full card
                       </p>
                     </div>
 
                     {/* Card Metadata */}
                     <div className="mt-6 space-y-3">
-                      <div className="flex items-center text-sm text-gray-500">
+                      <div className="flex items-center text-sm text-gray-500 dark:text-slate-400">
                         <FiCalendar className="h-4 w-4 mr-2" />
                         Created: {new Date(card.createdAt).toLocaleDateString()}
                       </div>
-                      <div className="flex items-center text-sm text-gray-500">
+                      <div className="flex items-center text-sm text-gray-500 dark:text-slate-400">
                         <FiClock className="h-4 w-4 mr-2" />
                         Saved: {new Date(card.savedAt).toLocaleDateString()}
                       </div>
                       {card.templateId && (
-                        <div className="flex items-center text-sm text-gray-500">
+                        <div className="flex items-center text-sm text-gray-500 dark:text-slate-400">
                           <FiStar className="h-4 w-4 mr-2" />
                           Template: {card.templateId}
                         </div>

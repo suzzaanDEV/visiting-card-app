@@ -91,7 +91,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, onBan, onDelete }) => {
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div className="flex items-center">
-              <FiUser className="h-6 w-6 text-blue-600 mr-3" />
+              <FiUser className="h-6 w-6 text-emerald-600 mr-3" />
               <h2 className="text-xl font-semibold text-gray-900">
                 {isEditing ? 'Edit User' : 'User Details'}
               </h2>
@@ -133,7 +133,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, onBan, onDelete }) => {
                   value={formData.username}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100"
                 />
               </div>
 
@@ -147,7 +147,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, onBan, onDelete }) => {
                   value={formData.email}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100"
                 />
               </div>
 
@@ -161,7 +161,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, onBan, onDelete }) => {
                   value={formData.name}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100"
                 />
               </div>
 
@@ -175,7 +175,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, onBan, onDelete }) => {
                   value={formData.phone}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100"
                 />
               </div>
 
@@ -189,7 +189,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, onBan, onDelete }) => {
                   value={formData.location}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100"
                 />
               </div>
 
@@ -203,7 +203,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, onBan, onDelete }) => {
                   value={formData.website}
                   onChange={handleInputChange}
                   disabled={!isEditing}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100"
                 />
               </div>
             </div>
@@ -218,7 +218,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, onBan, onDelete }) => {
                 onChange={handleInputChange}
                 disabled={!isEditing}
                 rows="3"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100"
               />
             </div>
 
@@ -229,7 +229,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, onBan, onDelete }) => {
                 checked={formData.isActive}
                 onChange={handleInputChange}
                 disabled={!isEditing}
-                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
               />
               <label className="ml-2 text-sm text-gray-700">
                 Active Account
@@ -237,19 +237,19 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, onBan, onDelete }) => {
             </div>
 
             {/* User Stats */}
-            <div className="bg-blue-50 rounded-lg p-4">
-              <h3 className="text-sm font-medium text-blue-900 mb-3">User Statistics</h3>
+            <div className="bg-emerald-50 rounded-lg p-4">
+              <h3 className="text-sm font-medium text-emerald-900 mb-3">User Statistics</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
-                  <span className="text-blue-600 font-medium">Joined:</span>
+                  <span className="text-emerald-600 font-medium">Joined:</span>
                   <p className="text-gray-700">{new Date(user.createdAt).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <span className="text-blue-600 font-medium">Last Updated:</span>
+                  <span className="text-emerald-600 font-medium">Last Updated:</span>
                   <p className="text-gray-700">{new Date(user.updatedAt).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <span className="text-blue-600 font-medium">User ID:</span>
+                  <span className="text-emerald-600 font-medium">User ID:</span>
                   <p className="text-gray-700 font-mono text-xs">{user._id}</p>
                 </div>
               </div>
@@ -262,7 +262,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, onBan, onDelete }) => {
               {!isEditing ? (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                 >
                   <FiEdit className="h-4 w-4 mr-2" />
                   Edit User
@@ -335,7 +335,7 @@ const UserEditModal = ({ user, isOpen, onClose, onSave, onBan, onDelete }) => {
                   placeholder="Reason (optional)"
                   value={banReason}
                   onChange={(e) => setBanReason(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-4"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent mb-4"
                   rows="3"
                 />
                 <div className="flex justify-end space-x-3">

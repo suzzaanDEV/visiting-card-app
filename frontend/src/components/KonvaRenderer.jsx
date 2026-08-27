@@ -243,12 +243,7 @@ const KonvaRenderer = forwardRef(({ jsonString }, forwardedRef) => {
                  throw new Error("Could not extract a valid elements array from the provided data.");
             }
 
-             // --- DEBUGGING LOGS ---
-            // Log the final stage size being used and the elements
-            console.log("KonvaRenderer Determined Stage Size:", parsedStageWidth ?? stageSize.width, parsedStageHeight ?? stageSize.height);
-            console.log("KonvaRenderer Elements to Render:", elementsArray);
-
-            // Set the valid elements array to state
+             // Set the valid elements array to state
             setElementsToRender(elementsArray);
 
         } catch (e) {
@@ -278,7 +273,7 @@ const KonvaRenderer = forwardRef(({ jsonString }, forwardedRef) => {
     // Render error message if parsing/validation failed
     if (error) {
         return (
-            <div className="konva-renderer-error p-8 text-center text-red-600 bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200 rounded-3xl shadow-lg backdrop-blur-sm">
+            <div className="konva-renderer-error p-8 text-center text-red-600 bg-gradient-to-br from-red-50 to-green-50 border-2 border-red-200 rounded-3xl shadow-lg backdrop-blur-sm">
                 <div className="text-6xl mb-4">⚠️</div>
                 <p className="text-xl font-bold mb-2">Error Loading Design</p>
                 <p className="text-sm opacity-80">{error}</p>
@@ -291,7 +286,7 @@ const KonvaRenderer = forwardRef(({ jsonString }, forwardedRef) => {
     if (!error && elementsToRender.length === 0) {
         const message = jsonString ? "Design is empty or still loading..." : "Loading design...";
         return (
-             <div className="konva-renderer-placeholder p-8 text-center text-gray-500 bg-gradient-to-br from-gray-50 to-blue-50 border-2 border-gray-200 rounded-3xl shadow-lg backdrop-blur-sm" style={{ width: stageSize.width, height: stageSize.height }}>
+             <div className="konva-renderer-placeholder p-8 text-center text-gray-500 bg-gradient-to-br from-gray-50 to-emerald-50 border-2 border-gray-200 rounded-3xl shadow-lg backdrop-blur-sm" style={{ width: stageSize.width, height: stageSize.height }}>
                  <div className="text-6xl mb-4">🎨</div>
                  <p className="text-xl font-medium">{message}</p>
              </div>

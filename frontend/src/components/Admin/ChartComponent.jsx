@@ -15,12 +15,12 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+const COLORS = ['#10B981', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
-export const LineChartComponent = ({ data, title, color = '#0088FE' }) => {
+export const LineChartComponent = ({ data, title, color = '#10B981' }) => {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">{title}</h3>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -44,8 +44,8 @@ export const LineChartComponent = ({ data, title, color = '#0088FE' }) => {
 
 export const BarChartComponent = ({ data, title, color = '#00C49F' }) => {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">{title}</h3>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" />
@@ -67,8 +67,8 @@ export const PieChartComponent = ({ data, title }) => {
   }));
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
+    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">{title}</h3>
       <ResponsiveContainer width="100%" height={300}>
         <PieChart>
           <Pie
@@ -93,16 +93,16 @@ export const PieChartComponent = ({ data, title }) => {
   );
 };
 
-export const ProgressBar = ({ label, value, maxValue = 100, color = 'blue' }) => {
+export const ProgressBar = ({ label, value, maxValue = 100, color = 'emerald' }) => {
   const percentage = (value / maxValue) * 100;
   
   return (
     <div className="mb-4">
       <div className="flex justify-between items-center mb-2">
-        <span className="text-sm text-gray-700">{label}</span>
+        <span className="text-sm text-gray-700 dark:text-slate-300">{label}</span>
         <span className="text-sm font-semibold">{value}%</span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2">
+      <div className="w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
         <div
           className={`bg-${color}-500 h-2 rounded-full transition-all duration-300`}
           style={{ width: `${percentage}%` }}

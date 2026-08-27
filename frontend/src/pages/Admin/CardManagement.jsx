@@ -54,7 +54,7 @@ const CardManagement = () => {
       if (response.ok) {
         const data = await response.json();
         setCards(data.cards || []);
-        setTotalPages(data.totalPages || 1);
+        setTotalPages(data.pagination?.pages || 1);
       } else {
         console.error('Failed to fetch cards:', response.status);
         toast.error('Failed to load cards');
@@ -151,12 +151,12 @@ const CardManagement = () => {
     const cardEmail = card.email || 'No email';
     const cardOwner = card.ownerUserId?.name || card.ownerUserId?.username || card.owner?.name || card.owner?.username || 'Unknown';
     const cardCompany = card.company || 'No company';
-    const cardPhone = card.phone || 'No phone';
+    const _cardPhone = card.phone || 'No phone';
     const cardPosition = card.jobTitle || card.position || 'No position';
     
     // Safe date handling
     const createdDate = card.createdAt ? new Date(card.createdAt).toLocaleDateString() : 'Unknown';
-    const updatedDate = card.updatedAt ? new Date(card.updatedAt).toLocaleDateString() : 'Unknown';
+    const _updatedDate = card.updatedAt ? new Date(card.updatedAt).toLocaleDateString() : 'Unknown';
     
     // Safe stats with fallbacks
     const views = card.views || card.viewCount || 0;
@@ -169,8 +169,8 @@ const CardManagement = () => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-all duration-200 ${
-          isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+        className={`bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6 hover:shadow-md transition-all duration-200 ${
+          isSelected ? 'ring-2 ring-emerald-500 bg-emerald-100 dark:bg-emerald-900/40' : ''
         }`}
       >
         <div className="flex items-start justify-between">
@@ -185,17 +185,17 @@ const CardManagement = () => {
                   setSelectedCards(selectedCards.filter(id => id !== card._id));
                 }
               }}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+              className="w-4 h-4 text-emerald-600 dark:text-emerald-400 rounded focus:ring-emerald-500"
             />
-            <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-gradient-to-r from-green-500 to-green-600 rounded-lg flex items-center justify-center">
               <FiCreditCard className="text-white h-6 w-6" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-semibold text-gray-900 truncate">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 truncate">
                   {cardName}
                 </h3>
-                {card.isFeatured && (
+                {card.featured && (
                   <FiStar className="h-4 w-4 text-yellow-500" />
                 )}
                 {card.isActive !== false ? (
@@ -204,9 +204,9 @@ const CardManagement = () => {
                   <FiXIcon className="h-4 w-4 text-red-500" />
                 )}
               </div>
-              <p className="text-gray-600 text-sm">{cardEmail}</p>
-              <p className="text-gray-500 text-xs">{cardCompany} • {cardPosition}</p>
-              <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+              <p className="text-gray-600 dark:text-slate-400 text-sm">{cardEmail}</p>
+              <p className="text-gray-500 dark:text-slate-400 text-xs">{cardCompany} • {cardPosition}</p>
+              <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500 dark:text-slate-400">
                 <span>Created: {createdDate}</span>
                 <span>Owner: {cardOwner}</span>
               </div>
@@ -219,25 +219,25 @@ const CardManagement = () => {
                 setSelectedCard(card);
                 setShowCardModal(true);
               }}
-              className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              className="p-2 text-gray-600 dark:text-slate-400 hover:text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:bg-emerald-900/40 rounded-lg transition-colors"
               title="View Details"
             >
               <FiEye className="h-4 w-4" />
             </button>
             <button
-              onClick={() => handleCardAction(card._id, 'feature')}
+              onClick={() => handleCardAction(card._id, 'feature', { featured: !card.featured })}
               className={`p-2 rounded-lg transition-colors ${
-                card.isFeatured 
-                  ? 'text-yellow-600 hover:text-yellow-700 hover:bg-yellow-50' 
-                  : 'text-gray-600 hover:text-yellow-600 hover:bg-yellow-50'
+                card.featured 
+                  ? 'text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900/40' 
+                  : 'text-gray-600 dark:text-slate-400 hover:text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:bg-yellow-900/40'
               }`}
-              title={card.isFeatured ? 'Unfeature' : 'Feature'}
+              title={card.featured ? 'Unfeature' : 'Feature'}
             >
               <FiStar className="h-4 w-4" />
             </button>
             <button
               onClick={() => handleCardAction(card._id, 'delete')}
-              className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              className="p-2 text-gray-600 dark:text-slate-400 hover:text-red-600 dark:text-red-400 hover:bg-red-100 dark:bg-red-900/40 rounded-lg transition-colors"
               title="Delete Card"
             >
               <FiTrash2 className="h-4 w-4" />
@@ -246,26 +246,26 @@ const CardManagement = () => {
         </div>
 
         {/* Card Stats */}
-        <div className="mt-4 grid grid-cols-5 gap-4 pt-4 border-t border-gray-100">
+        <div className="mt-4 grid grid-cols-5 gap-4 pt-4 border-t border-gray-100 dark:border-slate-700">
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{views}</div>
-            <div className="text-xs text-gray-500">Views</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-slate-100">{views}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">Views</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{loves}</div>
-            <div className="text-xs text-gray-500">Loves</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-slate-100">{loves}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">Loves</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{shares}</div>
-            <div className="text-xs text-gray-500">Shares</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-slate-100">{shares}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">Shares</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{downloads}</div>
-            <div className="text-xs text-gray-500">Downloads</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-slate-100">{downloads}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">Downloads</div>
           </div>
           <div className="text-center">
-            <div className="text-lg font-semibold text-gray-900">{templateName}</div>
-            <div className="text-xs text-gray-500">Template</div>
+            <div className="text-lg font-semibold text-gray-900 dark:text-slate-100">{templateName}</div>
+            <div className="text-xs text-gray-500 dark:text-slate-400">Template</div>
           </div>
         </div>
       </motion.div>
@@ -297,13 +297,13 @@ const CardManagement = () => {
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-          <div className="p-6 border-b border-gray-200">
+        <div className="bg-white dark:bg-slate-800 rounded-xl shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="p-6 border-b border-gray-200 dark:border-slate-700">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900">Card Details</h2>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Card Details</h2>
               <button
                 onClick={onClose}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg"
+                className="p-2 text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 dark:hover:bg-slate-700 rounded-lg"
               >
                 <FiX className="h-5 w-5" />
               </button>
@@ -313,66 +313,66 @@ const CardManagement = () => {
           <div className="p-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Card Information</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Card Information</h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Name</label>
-                    <p className="text-gray-900">{cardName}</p>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Name</label>
+                    <p className="text-gray-900 dark:text-slate-100">{cardName}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Email</label>
-                    <p className="text-gray-900">{cardEmail}</p>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Email</label>
+                    <p className="text-gray-900 dark:text-slate-100">{cardEmail}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Phone</label>
-                    <p className="text-gray-900">{cardPhone}</p>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Phone</label>
+                    <p className="text-gray-900 dark:text-slate-100">{cardPhone}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Company</label>
-                    <p className="text-gray-900">{cardCompany}</p>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Company</label>
+                    <p className="text-gray-900 dark:text-slate-100">{cardCompany}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Position</label>
-                    <p className="text-gray-900">{cardPosition}</p>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Position</label>
+                    <p className="text-gray-900 dark:text-slate-100">{cardPosition}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Website</label>
-                    <p className="text-gray-900">{cardWebsite}</p>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Website</label>
+                    <p className="text-gray-900 dark:text-slate-100">{cardWebsite}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Address</label>
-                    <p className="text-gray-900">{cardAddress}</p>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Address</label>
+                    <p className="text-gray-900 dark:text-slate-100">{cardAddress}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Bio</label>
-                    <p className="text-gray-900">{cardBio}</p>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Bio</label>
+                    <p className="text-gray-900 dark:text-slate-100">{cardBio}</p>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Status</label>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Status</label>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       card.isActive !== false 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-red-100 text-red-800'
+                        ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' 
+                        : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
                     }`}>
                       {card.isActive !== false ? 'Active' : 'Inactive'}
                     </span>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Featured</label>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Featured</label>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      card.isFeatured 
-                        ? 'bg-yellow-100 text-yellow-800' 
-                        : 'bg-gray-100 text-gray-800'
+                      card.featured 
+                        ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800' 
+                        : 'bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-slate-200'
                     }`}>
-                      {card.isFeatured ? 'Featured' : 'Not Featured'}
+                      {card.featured ? 'Featured' : 'Not Featured'}
                     </span>
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-gray-500">Privacy</label>
+                    <label className="text-sm font-medium text-gray-500 dark:text-slate-400">Privacy</label>
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                       card.privacy === 'private' || card.isPrivate
-                        ? 'bg-red-100 text-red-800' 
-                        : 'bg-green-100 text-green-800'
+                        ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300' 
+                        : 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
                     }`}>
                       {card.privacy === 'private' || card.isPrivate ? 'Private' : 'Public'}
                     </span>
@@ -381,35 +381,35 @@ const CardManagement = () => {
               </div>
               
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Statistics</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Statistics</h3>
                 <div className="space-y-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total Views</span>
+                    <span className="text-gray-500 dark:text-slate-400">Total Views</span>
                     <span className="font-semibold">{views}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total Loves</span>
+                    <span className="text-gray-500 dark:text-slate-400">Total Loves</span>
                     <span className="font-semibold">{loves}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total Shares</span>
+                    <span className="text-gray-500 dark:text-slate-400">Total Shares</span>
                     <span className="font-semibold">{shares}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Total Downloads</span>
+                    <span className="text-gray-500 dark:text-slate-400">Total Downloads</span>
                     <span className="font-semibold">{downloads}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Created</span>
+                    <span className="text-gray-500 dark:text-slate-400">Created</span>
                     <span className="font-semibold">{createdDate}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Last Updated</span>
+                    <span className="text-gray-500 dark:text-slate-400">Last Updated</span>
                     <span className="font-semibold">{updatedDate}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Short Link</span>
-                    <span className="font-semibold text-blue-600">{card.shortLink || 'N/A'}</span>
+                    <span className="text-gray-500 dark:text-slate-400">Short Link</span>
+                    <span className="font-semibold text-emerald-600 dark:text-emerald-400">{card.shortLink || 'N/A'}</span>
                   </div>
                 </div>
               </div>
@@ -417,14 +417,14 @@ const CardManagement = () => {
             
             <div className="mt-6 flex justify-end space-x-3">
               <button
-                onClick={() => handleCardAction(card._id, 'feature')}
+                onClick={() => handleCardAction(card._id, 'feature', { featured: !card.featured })}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  card.isFeatured
+                  card.featured
                     ? 'bg-gray-600 text-white hover:bg-gray-700'
                     : 'bg-yellow-600 text-white hover:bg-yellow-700'
                 }`}
               >
-                {card.isFeatured ? 'Unfeature' : 'Feature'}
+                {card.featured ? 'Unfeature' : 'Feature'}
               </button>
               <button
                 onClick={() => handleCardAction(card._id, 'delete')}
@@ -443,7 +443,7 @@ const CardManagement = () => {
     return (
       <AdminLayout title="Card Management">
         <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
         </div>
       </AdminLayout>
     );
@@ -454,8 +454,8 @@ const CardManagement = () => {
       {/* Header with Actions */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Card Management</h1>
-          <p className="text-gray-600">Manage all visiting cards and their settings</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Card Management</h1>
+          <p className="text-gray-600 dark:text-slate-400">Manage all visiting cards and their settings</p>
         </div>
         
         <div className="flex items-center space-x-3 mt-4 lg:mt-0">
@@ -475,7 +475,7 @@ const CardManagement = () => {
               </button>
               <button
                 onClick={() => setSelectedCards([])}
-                className="px-3 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                className="px-3 py-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 transition-colors"
               >
                 Clear
               </button>
@@ -484,7 +484,7 @@ const CardManagement = () => {
           
           <button
             onClick={fetchCards}
-            className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 dark:hover:bg-slate-700 rounded-lg transition-colors"
           >
             <FiRefreshCw className="h-5 w-5" />
           </button>
@@ -492,23 +492,23 @@ const CardManagement = () => {
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="relative">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-slate-500 h-4 w-4" />
             <input
               type="text"
               placeholder="Search cards..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
+              className="pl-10 pr-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-full"
             />
           </div>
           
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           >
             <option value="all">All Cards</option>
             <option value="active">Active Cards</option>
@@ -519,7 +519,7 @@ const CardManagement = () => {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           >
             <option value="createdAt">Created Date</option>
             <option value="name">Name</option>
@@ -531,7 +531,7 @@ const CardManagement = () => {
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           >
             <option value="desc">Descending</option>
             <option value="asc">Ascending</option>
@@ -553,7 +553,7 @@ const CardManagement = () => {
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-2 text-gray-600 hover:text-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+              className="px-3 py-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 disabled:text-gray-400 dark:text-slate-500 disabled:cursor-not-allowed"
             >
               Previous
             </button>
@@ -564,8 +564,8 @@ const CardManagement = () => {
                 onClick={() => setCurrentPage(page)}
                 className={`px-3 py-2 rounded-lg font-medium ${
                   currentPage === page
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 dark:hover:bg-slate-700'
                 }`}
               >
                 {page}
@@ -575,7 +575,7 @@ const CardManagement = () => {
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-2 text-gray-600 hover:text-gray-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+              className="px-3 py-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 disabled:text-gray-400 dark:text-slate-500 disabled:cursor-not-allowed"
             >
               Next
             </button>

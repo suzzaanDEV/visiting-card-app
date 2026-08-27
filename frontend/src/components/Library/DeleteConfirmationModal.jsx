@@ -24,25 +24,25 @@ const DeleteConfirmationModal = ({
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
-          className="bg-white rounded-xl shadow-2xl w-full max-w-md"
+          className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-md"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="p-6">
             <div className="flex items-center mb-4">
-              <div className="p-3 bg-red-100 rounded-full mr-4">
-                <FiAlertTriangle className="h-6 w-6 text-red-600" />
+              <div className="p-3 bg-red-100 dark:bg-red-900/40 rounded-full mr-4">
+                <FiAlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Remove from Library</h3>
-                <p className="text-sm text-gray-500">This action cannot be undone</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Remove from Library</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">This action cannot be undone</p>
               </div>
             </div>
 
             <div className="mb-6">
-              <p className="text-gray-700">
+              <p className="text-gray-700 dark:text-slate-300">
                 Are you sure you want to remove <span className="font-semibold">"{cardName}"</span> from your library?
               </p>
-              <p className="text-sm text-gray-500 mt-2">
+              <p className="text-sm text-gray-500 dark:text-slate-400 mt-2">
                 The card will be removed from your saved cards, but the original card will still exist.
               </p>
             </div>
@@ -51,7 +51,7 @@ const DeleteConfirmationModal = ({
               <button
                 onClick={onClose}
                 disabled={isLoading}
-                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 transition-colors disabled:opacity-50"
               >
                 Cancel
               </button>

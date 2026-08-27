@@ -1,13 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { 
   FaHeart, FaRegHeart, FaShareAlt, FaDownload, FaEye, FaBookmark, FaRegBookmark,
   FaUser, FaEnvelope, FaPhone, FaGlobe, FaMapMarkerAlt, FaCalendar
 } from 'react-icons/fa';
 import { FiAlertCircle, FiBookmark, FiInbox, FiLoader, FiExternalLink, FiGrid } from "react-icons/fi";
-import { fetchSavedCards } from "../../features/library/libraryThunks"; // Thunk to fetch saved items
 
 // --- Icons ---
 import { IoQrCode } from "react-icons/io5";

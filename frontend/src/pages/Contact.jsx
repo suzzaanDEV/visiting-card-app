@@ -4,15 +4,17 @@ import {
   FaIdCard, FaEnvelope, FaPhone, FaMapMarkerAlt, FaGithub, 
   FaLinkedin, FaTwitter, FaGlobe, FaPaperPlane 
 } from 'react-icons/fa';
+import toast from 'react-hot-toast';
 import UnifiedNavigation from '../components/Layout/UnifiedNavigation';
 
 const Contact = () => {
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [, setIsScrolled] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     subject: '',
-    message: ''
+    message: '',
+    category: 'general'
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,18 +41,30 @@ const Contact = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
-    // Simulate form submission
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setFormData({
-        name: '',
-        email: '',
-        subject: '',
-        message: ''
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          subject: formData.subject,
+          message: formData.message,
+          category: formData.category
+        })
       });
-      alert('Thank you for your message! We will get back to you soon.');
-    }, 2000);
+      if (res.ok) {
+        toast.success('Message sent! We\'ll get back to you soon.');
+        setFormData({ name: '', email: '', subject: '', message: '', category: 'general' });
+      } else {
+        const data = await res.json();
+        toast.error(data.error || 'Failed to send message');
+      }
+    } catch {
+      toast.error('Failed to send message. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const contactInfo = [
@@ -81,7 +95,7 @@ const Contact = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-green-900 to-slate-900">
       {/* Navigation */}
       <UnifiedNavigation />
       
@@ -95,14 +109,14 @@ const Contact = () => {
             className="text-center"
           >
             <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center">
+              <div className="w-20 h-20 bg-gradient-to-r from-emerald-500 to-green-600 rounded-2xl flex items-center justify-center">
                 <FaIdCard className="text-white text-3xl" />
               </div>
             </div>
             <h1 className="text-5xl md:text-6xl font-bold text-white mb-6">
               Get in Touch
             </h1>
-            <p className="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-xl md:text-2xl text-gray-300 dark:text-slate-400 max-w-4xl mx-auto leading-relaxed">
               Have questions, feedback, or want to collaborate? We'd love to hear from you!
             </p>
           </motion.div>
@@ -131,7 +145,7 @@ const Contact = () => {
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     placeholder="Enter your name"
                     required
                   />
@@ -146,7 +160,7 @@ const Contact = () => {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                     placeholder="Enter your email"
                     required
                   />
@@ -163,10 +177,30 @@ const Contact = () => {
                   name="subject"
                   value={formData.subject}
                   onChange={handleChange}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
                   placeholder="What's this about?"
                   required
                 />
+              </div>
+
+              <div>
+                <label htmlFor="category" className="block text-sm font-medium text-gray-200 mb-2">
+                  Category
+                </label>
+                <select
+                  id="category"
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                >
+                  <option value="general" className="bg-slate-800 text-white">General Inquiry</option>
+                  <option value="support" className="bg-slate-800 text-white">Support</option>
+                  <option value="feedback" className="bg-slate-800 text-white">Feedback</option>
+                  <option value="bug" className="bg-slate-800 text-white">Bug Report</option>
+                  <option value="partnership" className="bg-slate-800 text-white">Partnership</option>
+                  <option value="other" className="bg-slate-800 text-white">Other</option>
+                </select>
               </div>
               
               <div>
@@ -179,7 +213,7 @@ const Contact = () => {
                   value={formData.message}
                   onChange={handleChange}
                   rows={6}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg text-white placeholder-gray-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all resize-none"
                   placeholder="Tell us more about your inquiry..."
                   required
                 />
@@ -188,7 +222,7 @@ const Contact = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-4 px-6 rounded-lg font-semibold hover:from-blue-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-4 px-6 rounded-lg font-semibold hover:from-emerald-600 hover:to-green-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 {isSubmitting ? (
                   <>
@@ -214,7 +248,7 @@ const Contact = () => {
           >
             <div>
               <h2 className="text-3xl font-bold text-white mb-6">Let's Connect</h2>
-              <p className="text-gray-300 text-lg leading-relaxed">
+              <p className="text-gray-300 dark:text-slate-400 text-lg leading-relaxed">
                 Whether you have a question about Cardly, need help with your account, 
                 or want to explore partnership opportunities, we're here to help.
               </p>
@@ -233,12 +267,12 @@ const Contact = () => {
                   transition={{ duration: 0.6, delay: 0.6 + index * 0.1 }}
                   className="flex items-center p-4 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 hover:bg-white/20 transition-all duration-200 group"
                 >
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-4 group-hover:scale-110 transition-transform duration-200">
+                  <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-lg flex items-center justify-center mr-4 group-hover:scale-110 transition-transform duration-200">
                     <info.icon className="text-white text-xl" />
                   </div>
                   <div>
                     <h3 className="text-lg font-semibold text-white">{info.title}</h3>
-                    <p className="text-gray-300">{info.value}</p>
+                    <p className="text-gray-300 dark:text-slate-400">{info.value}</p>
                   </div>
                 </motion.a>
               ))}
@@ -252,10 +286,10 @@ const Contact = () => {
               className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20"
             >
               <h3 className="text-xl font-semibold text-white mb-4">Response Time</h3>
-              <p className="text-gray-300 mb-4">
+              <p className="text-gray-300 dark:text-slate-400 mb-4">
                 We typically respond to all inquiries within 24 hours during business days.
               </p>
-              <div className="flex items-center text-gray-300">
+              <div className="flex items-center text-gray-300 dark:text-slate-400">
                 <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
                 <span className="text-sm">Online now</span>
               </div>
@@ -303,7 +337,7 @@ const Contact = () => {
                 className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20"
               >
                 <h3 className="text-lg font-semibold text-white mb-2">{faq.question}</h3>
-                <p className="text-gray-300">{faq.answer}</p>
+                <p className="text-gray-300 dark:text-slate-400">{faq.answer}</p>
               </motion.div>
             ))}
           </div>

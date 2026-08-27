@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 
 const SearchComponent = ({ 
   onSearch, 
-  placeholder = "Search cards...", 
+  placeholder = "Search cards... (e.g. Ram, Kathmandu)", 
   showFilters = true,
   className = "" 
 }) => {
@@ -131,12 +131,12 @@ const SearchComponent = ({
             onFocus={() => setShowSuggestions(true)}
             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
             placeholder={placeholder}
-            className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            className="w-full pl-10 pr-12 py-3 border border-gray-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200 bg-white dark:bg-slate-800 dark:text-slate-200"
           />
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-300"
             >
               <FiX className="h-5 w-5" />
             </button>
@@ -147,7 +147,7 @@ const SearchComponent = ({
         {showFilters && (
           <button
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className="absolute right-12 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            className="absolute right-12 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-slate-400 dark:hover:text-slate-300"
           >
             <FiFilter className="h-5 w-5" />
           </button>
@@ -156,7 +156,7 @@ const SearchComponent = ({
         {/* Loading Indicator */}
         {isLoading && (
           <div className="absolute right-16 top-1/2 transform -translate-y-1/2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-emerald-500"></div>
           </div>
         )}
       </div>
@@ -168,18 +168,18 @@ const SearchComponent = ({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="mt-4 p-4 bg-white border border-gray-200 rounded-lg shadow-lg"
+            className="mt-4 p-4 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg"
           >
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Search Type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-400 mb-2">
                   Search Algorithm
                 </label>
                 <select
                   value={searchFilters.searchType}
                   onChange={(e) => handleFilterChange('searchType', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-slate-800 dark:text-slate-200"
                 >
                   <option value="hybrid">Hybrid (Recommended)</option>
                   <option value="fuzzy">Fuzzy Search</option>
@@ -191,13 +191,13 @@ const SearchComponent = ({
 
               {/* Sort By */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-400 mb-2">
                   Sort By
                 </label>
                 <select
                   value={searchFilters.sortBy}
                   onChange={(e) => handleFilterChange('sortBy', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-slate-800 dark:text-slate-200"
                 >
                   <option value="relevance">Relevance</option>
                   <option value="newest">Newest</option>
@@ -210,13 +210,13 @@ const SearchComponent = ({
 
               {/* Category */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-slate-400 mb-2">
                   Category
                 </label>
                 <select
                   value={searchFilters.category}
                   onChange={(e) => handleFilterChange('category', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-slate-700 rounded-md focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white dark:bg-slate-800 dark:text-slate-200"
                 >
                   <option value="all">All Categories</option>
                   <option value="business">Business</option>
@@ -233,7 +233,7 @@ const SearchComponent = ({
               <button
                 onClick={handleAdvancedSearch}
                 disabled={isLoading}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition-colors"
               >
                 {isLoading ? 'Searching...' : 'Advanced Search'}
               </button>
@@ -249,7 +249,7 @@ const SearchComponent = ({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+            className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto"
           >
             {suggestions.map((suggestion, index) => (
               <motion.div
@@ -258,11 +258,11 @@ const SearchComponent = ({
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: index * 0.05 }}
                 onClick={() => handleSuggestionClick(suggestion)}
-                className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                className="px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer border-b border-gray-100 dark:border-slate-700 last:border-b-0 transition-colors"
               >
                 <div className="flex items-center">
                   <FiSearch className="h-4 w-4 text-gray-400 mr-3" />
-                  <span className="text-gray-700">{suggestion}</span>
+                  <span className="text-gray-700 dark:text-slate-200">{suggestion}</span>
                 </div>
               </motion.div>
             ))}
@@ -275,10 +275,10 @@ const SearchComponent = ({
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg"
+          className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg"
         >
-          <h4 className="text-sm font-medium text-blue-900 mb-2">Search Tips:</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-blue-700">
+          <h4 className="text-sm font-medium text-emerald-900 mb-2">Search Tips:</h4>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-emerald-700 dark:text-slate-400">
             <div className="flex items-center">
               <FiTrendingUp className="h-3 w-3 mr-1" />
               Try searching by name, company, or job title

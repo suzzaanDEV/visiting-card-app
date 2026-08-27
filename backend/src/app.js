@@ -22,6 +22,13 @@ const adminRoutes = require('./routes/adminRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const templateRoutes = require('./routes/templateRoutes');
+const contactRoutes = require('./routes/contactRoutes');
+const policyRoutes = require('./routes/policyRoutes');
+const auditRoutes = require('./routes/auditRoutes');
+const crmRoutes = require('./routes/crmRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
+const broadcastRoutes = require('./routes/broadcastRoutes');
+const notificationTemplateRoutes = require('./routes/notificationTemplateRoutes');
 
 // Import middleware
 const errorMiddleware = require('./middleware/errorMiddleware');
@@ -49,7 +56,7 @@ app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     if (config.cors.origins.includes(origin)) {
       callback(null, true);
     } else {
@@ -102,16 +109,20 @@ const limiter = rateLimit({
 app.use(limiter);
 
 // Body parsing middleware
-app.use(express.json({ 
+app.use(express.json({
   limit: '10mb',
   verify: (req, res, buf) => {
     req.rawBody = buf;
   }
 }));
-app.use(express.urlencoded({ 
-  extended: true, 
-  limit: '10mb' 
+app.use(express.urlencoded({
+  extended: true,
+  limit: '10mb'
 }));
+
+// Input sanitization middleware (after body parsing, before routes)
+const sanitize = require('./middleware/sanitize');
+app.use(sanitize);
 
 // Request logging middleware
 if (config.isDevelopment) {
@@ -120,7 +131,7 @@ if (config.isDevelopment) {
   app.use(morgan('combined', {
     stream: {
       write: (message) => {
-        logger.http(message.trim());
+        logger.info(message.trim());
       }
     }
   }));
@@ -142,7 +153,7 @@ app.get('/health', async (req, res) => {
     const dbHealth = getHealthStatus();
     const memoryUsage = process.memoryUsage();
     const uptime = process.uptime();
-    
+
     const health = {
       status: 'healthy',
       timestamp: new Date().toISOString(),
@@ -163,13 +174,13 @@ app.get('/health', async (req, res) => {
         analytics: '/api/analytics'
       }
     };
-    
+
     // Check if database is healthy
     if (dbHealth.status !== 'healthy') {
       health.status = 'degraded';
       health.database = dbHealth;
     }
-    
+
     res.status(200).json(health);
   } catch (error) {
     logger.error('Health check failed', { error: error.message });
@@ -190,6 +201,13 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/templates', templateRoutes);
+app.use('/api/contact', contactRoutes);
+app.use('/api/policies', policyRoutes);
+app.use('/api/audit', auditRoutes);
+app.use('/api/crm', crmRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/admin/broadcasts', broadcastRoutes);
+app.use('/api/admin/notification-templates', notificationTemplateRoutes);
 
 // API documentation endpoint
 app.get('/api', (req, res) => {
@@ -224,8 +242,8 @@ app.get('/api', (req, res) => {
 
 // 404 handler
 app.use('*', (req, res) => {
-  logger.warn('Route not found', { 
-    method: req.method, 
+  logger.warn('Route not found', {
+    method: req.method,
     url: req.originalUrl,
     ip: req.ip,
     userAgent: req.get('User-Agent')
@@ -249,17 +267,17 @@ app.use((err, req, res, next) => {
     userAgent: req.get('User-Agent'),
     userId: req.user?.userId || 'anonymous'
   });
-  
+
   // Don't leak error details in production
   const errorResponse = {
     error: config.isProduction ? 'Internal server error' : err.message,
     timestamp: new Date().toISOString()
   };
-  
+
   if (config.isDevelopment) {
     errorResponse.stack = err.stack;
   }
-  
+
   res.status(err.status || 500).json(errorResponse);
 });
 
@@ -289,17 +307,17 @@ process.on('uncaughtException', (error) => {
 async function gracefulShutdown() {
   try {
     logger.info('Starting graceful shutdown...');
-    
+
     // Close database connection
     await disconnect();
-    
+
     // Close server
     if (server) {
       server.close(() => {
         logger.info('HTTP server closed');
         process.exit(0);
       });
-      
+
       // Force close after 10 seconds
       setTimeout(() => {
         logger.error('Could not close connections in time, forcefully shutting down');
@@ -320,7 +338,33 @@ async function startServer() {
   try {
     // Connect to database
     await connect();
-    
+
+    // Bootstrap default admin in development when collection is empty
+    if (process.env.SEED_ADMIN_ON_START !== 'false') {
+      try {
+        const { seedAdmin } = require('./seeds/adminSeed');
+        await seedAdmin();
+      } catch (seedError) {
+        logger.warn(`Admin auto-seed skipped: ${seedError.message}`);
+      }
+    }
+
+    // Seed default templates if collection is empty
+    try {
+      const seedTemplates = require('./seeds/templateSeed');
+      await seedTemplates();
+    } catch (seedError) {
+      logger.warn(`Template auto-seed skipped: ${seedError.message}`);
+    }
+
+    // Seed categories if collection is empty
+    try {
+      const categoryService = require('./services/categoryService');
+      await categoryService.seed();
+    } catch (seedError) {
+      logger.warn(`Category auto-seed skipped: ${seedError.message}`);
+    }
+
     // Start HTTP server
     server = app.listen(config.port, () => {
       logger.info(`🚀 Server running on port ${config.port}`);
@@ -328,22 +372,16 @@ async function startServer() {
       logger.info(`🌐 CORS Origins: ${config.cors.origins.join(', ')}`);
       logger.info(`⚡ Rate Limit: ${config.rateLimit.max} requests per ${config.rateLimit.windowMs / 1000 / 60} minutes`);
       logger.info(`🔒 Security: ${config.isProduction ? 'Production' : 'Development'} mode`);
-      
-      console.log(`🚀 Server running on port ${config.port}`);
-      console.log(`📊 Environment: ${config.env}`);
-      console.log(`🌐 CORS Origins: ${config.cors.origins.join(', ')}`);
-      console.log(`⚡ Rate Limit: ${config.rateLimit.max} requests per ${config.rateLimit.windowMs / 1000 / 60} minutes`);
-      console.log(`🔒 Security: ${config.isProduction ? 'Production' : 'Development'} mode`);
     });
-    
+
     // Handle server errors
     server.on('error', (error) => {
       if (error.syscall !== 'listen') {
         throw error;
       }
-      
+
       const bind = typeof config.port === 'string' ? 'Pipe ' + config.port : 'Port ' + config.port;
-      
+
       switch (error.code) {
         case 'EACCES':
           logger.error(`${bind} requires elevated privileges`);
@@ -357,7 +395,7 @@ async function startServer() {
           throw error;
       }
     });
-    
+
   } catch (error) {
     logger.error('Failed to start server:', error);
     console.error('❌ Failed to start server:', error);
@@ -366,6 +404,29 @@ async function startServer() {
 }
 
 // Export for testing
+// Background jobs: skip scheduled intervals in test environment to avoid open handles
+if (process.env.NODE_ENV !== 'test') {
+  // Clean up expired notifications every 24 hours
+  const notificationService = require('./services/notificationService');
+  setInterval(() => {
+    notificationService.cleanupExpiredNotifications().catch(err => {
+      logger.warn(`Notification cleanup failed: ${err.message}`);
+    });
+  }, 24 * 60 * 60 * 1000);
+
+  // Broadcast scheduler — check for due scheduled broadcasts every minute
+  const broadcastService = require('./services/broadcastService');
+  setInterval(async () => {
+    try {
+      const Broadcast = require('./models/broadcastModel');
+      const due = await Broadcast.find({ status: 'scheduled', scheduledAt: { $lte: new Date() } });
+      for (const b of due) {
+        broadcastService.sendBroadcast(b._id).catch(err => logger.error(`Broadcast send failed: ${err.message}`));
+      }
+    } catch (err) { /* ignore */ }
+  }, 60000);
+}
+
 module.exports = { app, startServer, gracefulShutdown };
 
 // Start server if this file is run directly

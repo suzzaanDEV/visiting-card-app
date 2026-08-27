@@ -4,7 +4,10 @@ const Template = require('../models/templateModel');
 const User = require('../models/userModel');
 const imageService = require('./imageService');
 const logger = require('../utils/logger');
+const { escapeRegex } = require('../utils/sanitize');
 const qrCodeGenerator = require('../algorithms/qrCodeGenerator');
+const qrPipeline = require('../algorithms/qrPipeline');
+const mongoose = require('mongoose');
 const shortLinkGenerator = require('../algorithms/shortLinkGenerator');
 const cloudinary = require('../utils/cloudinary');
 const cardAccessService = require('./cardAccessService');
@@ -22,54 +25,117 @@ const getCachedCard = (cardId) => {
 };
 
 class CardService {
-  async createCard(userId, { 
-    title, 
-    fullName, 
-    jobTitle, 
-    company, 
-    email, 
-    phone, 
-    website, 
-    address, 
-    bio, 
-    isPublic, 
-    designJson, 
-    cardImage, 
-    backgroundColor, 
-    textColor, 
-    fontFamily, 
-    templateId, 
+  async createCard(userId, {
+    title,
+    fullName,
+    jobTitle,
+    department,
+    company,
+    email,
+    phone,
+    mobile,
+    fax,
+    website,
+    address,
+    city,
+    state,
+    country,
+    postalCode,
+    bio,
+    tagline,
+    companyTagline,
+    socialLinks,
+    isPublic,
+    designJson,
+    cardImage,
+    backgroundColor,
+    textColor,
+    fontFamily,
+    cardDesign: cardDesignInput,
+    templateId,
+    templateName,
+    category,
+    tags,
     customShortLink,
     privacy = 'public'
   }) {
     try {
-      // Generate short link
       const shortLink = customShortLink || await shortLinkGenerator.generate();
-      
-      // Create card with privacy settings
+
       const card = new Card({
         ownerUserId: userId,
         title,
         fullName,
         jobTitle,
+        department,
         company,
         email,
         phone,
+        mobile,
+        fax,
         website,
         address,
+        city,
+        state,
+        country,
+        postalCode,
         bio,
+        tagline,
+        companyTagline,
+        socialLinks: socialLinks || {},
         backgroundColor: backgroundColor || '#ffffff',
         textColor: textColor || '#000000',
         fontFamily: fontFamily || 'Arial',
+        cardDesign: cardDesignInput || {
+          backgroundColor: backgroundColor || '#ffffff',
+          textColor: textColor || '#000000',
+          accentColor: '#047857',
+          fontFamily: fontFamily || 'Inter',
+          backgroundImage: '',
+          borderRadius: '12px',
+          layout: 'standard'
+        },
         shortLink,
         isPublic: privacy === 'public',
         isPrivate: privacy === 'private',
         privacy,
-        templateId
+        templateId,
+        templateName,
+        // Normalize category: accept slug, id, or name and store as slug
+        category: await (async () => {
+          try {
+            const Category = require('../models/categoryModel');
+            if (!category) return 'general';
+            const mongoose = require('mongoose');
+            if (mongoose.Types.ObjectId.isValid(category)) {
+              const cat = await Category.findById(category);
+              if (cat) return cat.slug;
+            }
+            let cat = await Category.findOne({ slug: String(category).toLowerCase() });
+            if (cat) return cat.slug;
+            cat = await Category.findOne({ name: new RegExp(`^${String(category).replace(/[-\\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') });
+            if (cat) return cat.slug;
+            return String(category).toLowerCase();
+          } catch (err) {
+            return String(category || 'general').toLowerCase();
+          }
+        })(),
+        tags: tags || []
       });
 
       await card.save();
       logger.info(`Card created: ${card._id} by user: ${userId}`);
+      // Audit log
+      try {
+        const AuditLog = require('../models/auditLogModel');
+        await AuditLog.log({
+          action: 'card.create',
+          entityType: 'card',
+          entityId: card._id,
+          userId: userId,
+          metadata: { title: card.title, category: card.category }
+        });
+      } catch (e) { logger.warn('Failed to write audit log for card.create', e.message); }
 
       return card;
     } catch (error) {
@@ -78,23 +144,23 @@ class CardService {
     }
   }
 
-  async createCardFromTemplate(userId, { 
-    title, 
-    isPublic, 
+  async createCardFromTemplate(userId, {
+    title,
+    isPublic,
     privacy = 'public',
-    templateId, 
-    fullName, 
-    jobTitle, 
-    email, 
-    phone, 
-    website, 
-    company, 
-    address, 
-    bio, 
-    backgroundColor, 
-    textColor, 
-    fontFamily, 
-    cardImage 
+    templateId,
+    fullName,
+    jobTitle,
+    email,
+    phone,
+    website,
+    company,
+    address,
+    bio,
+    backgroundColor,
+    textColor,
+    fontFamily,
+    cardImage
   }) {
     try {
       logger.info(`Creating card from template for user ${userId} with title: ${title}, fullName: ${fullName}`);
@@ -128,9 +194,9 @@ class CardService {
         fontFamily,
         templateId: templateId || null
       };
-      
+
       logger.info(`Creating card with data: ${JSON.stringify(cardData)}`);
-      
+
       const card = new Card(cardData);
 
       // Handle image upload if provided
@@ -138,12 +204,12 @@ class CardService {
       if (cardImage) {
         try {
           // Check if Cloudinary is properly configured
-          if (process.env.CLOUDINARY_CLOUD_NAME && 
-              process.env.CLOUDINARY_API_KEY && 
-              process.env.CLOUDINARY_API_SECRET &&
-              process.env.CLOUDINARY_CLOUD_NAME !== 'your-cloud-name' &&
-              process.env.CLOUDINARY_API_KEY !== 'your-api-key') {
-            
+          if (process.env.CLOUDINARY_CLOUD_NAME &&
+            process.env.CLOUDINARY_API_KEY &&
+            process.env.CLOUDINARY_API_SECRET &&
+            process.env.CLOUDINARY_CLOUD_NAME !== 'your-cloud-name' &&
+            process.env.CLOUDINARY_API_KEY !== 'your-api-key') {
+
             cardImageUrl = await imageService.uploadImage(cardImage);
             card.cardImage = cardImageUrl;
             logger.info(`Image uploaded successfully: ${cardImageUrl}`);
@@ -231,7 +297,7 @@ class CardService {
           type: 'text',
           x: 50,
           y: 200,
-          text: data.email || 'email@example.com',
+          text: data.email || 'email@example.com.np',
           fontSize: 14,
           fontFamily: 'Arial, sans-serif',
           fill: '#333333'
@@ -240,7 +306,7 @@ class CardService {
           type: 'text',
           x: 50,
           y: 230,
-          text: data.phone || '+1 234 567 8900',
+          text: data.phone || '+977 9801234567',
           fontSize: 14,
           fontFamily: 'Arial, sans-serif',
           fill: '#333333'
@@ -249,7 +315,7 @@ class CardService {
           type: 'text',
           x: 50,
           y: 260,
-          text: data.website || 'www.example.com',
+          text: data.website || 'www.example.com.np',
           fontSize: 14,
           fontFamily: 'Arial, sans-serif',
           fill: '#333333'
@@ -271,11 +337,11 @@ class CardService {
 
   async getCard(cardId, userId) {
     logger.info(`getCard service called with cardId: ${cardId}, userId: ${userId}`);
-    
+
     if (!cardId) {
       throw new Error('Card ID is required');
     }
-    
+
     const card = await Card.findById(cardId);
     if (!card) {
       throw new Error('Card not found');
@@ -284,9 +350,20 @@ class CardService {
     // Check if user can access this card using card access service
     const cardAccessService = require('./cardAccessService');
     const accessCheck = await cardAccessService.checkAccess(cardId, userId);
-    
+
     if (!accessCheck.access) {
       throw new Error('Unauthorized to access this card');
+    }
+
+    // Attach template data if templateId exists
+    let template = null;
+    if (card.templateId) {
+      try {
+        const Template = require('../models/templateModel');
+        template = await Template.findOne({ id: card.templateId, isActive: true });
+      } catch (templateError) {
+        logger.warn(`Template lookup failed for templateId ${card.templateId}: ${templateError.message}`);
+      }
     }
 
     // Check if user loved this card
@@ -294,7 +371,8 @@ class CardService {
 
     return {
       ...card.toObject(),
-      isLoved
+      isLoved,
+      template
     };
   }
 
@@ -306,24 +384,72 @@ class CardService {
     return cards;
   }
 
-  async updateCard(cardId, userId, { 
-    title, 
-    isPublic, 
+  async getUserCardStats(userId) {
+    const [stats] = await Card.aggregate([
+      { $match: { ownerUserId: new mongoose.Types.ObjectId(userId), isActive: true } },
+      {
+        $group: {
+          _id: null,
+          totalCards: { $sum: 1 },
+          totalViews: { $sum: '$views' },
+          totalLoves: { $sum: '$loveCount' },
+          totalShares: { $sum: '$shares' },
+          totalDownloads: { $sum: '$downloads' }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalCards: { $ifNull: ['$totalCards', 0] },
+          totalViews: { $ifNull: ['$totalViews', 0] },
+          totalLoves: { $ifNull: ['$totalLoves', 0] },
+          totalShares: { $ifNull: ['$totalShares', 0] },
+          totalDownloads: { $ifNull: ['$totalDownloads', 0] }
+        }
+      }
+    ]);
+
+    return stats || {
+      totalCards: 0,
+      totalViews: 0,
+      totalLoves: 0,
+      totalShares: 0,
+      totalDownloads: 0
+    };
+  }
+
+  async updateCard(cardId, userId, {
+    title,
+    isPublic,
     privacy,
-    designJson, 
+    designJson,
     cardImage,
     fullName,
     jobTitle,
+    department,
     email,
     phone,
+    mobile,
+    fax,
     website,
     company,
     address,
+    city,
+    state,
+    country,
+    postalCode,
     bio,
+    tagline,
+    companyTagline,
+    socialLinks,
+    cardDesign: cardDesignInput,
     backgroundColor,
     textColor,
     fontFamily,
-    templateId
+    templateId,
+    templateName,
+    category,
+    tags
   }) {
     const card = await Card.findById(cardId);
     if (!card) {
@@ -333,9 +459,20 @@ class CardService {
       throw new Error('Unauthorized to update this card');
     }
 
-    const cardDesign = await CardDesign.findOne({ cardId });
+    let cardDesign = await CardDesign.findOne({ cardId });
     if (!cardDesign) {
-      throw new Error('Card design not found');
+      cardDesign = new CardDesign({
+        cardId: card._id,
+        designJson: JSON.stringify({
+          backgroundColor: backgroundColor || card.backgroundColor || '#ffffff',
+          textColor: textColor || card.textColor || '#000000',
+          fontFamily: fontFamily || card.fontFamily || 'Arial',
+          elements: []
+        }),
+        backgroundColor: backgroundColor || card.backgroundColor || '#ffffff',
+        textColor: textColor || card.textColor || '#000000',
+        fontFamily: fontFamily || card.fontFamily || 'Arial'
+      });
     }
 
     // Validate designJson if provided
@@ -393,13 +530,50 @@ class CardService {
     }
     if (fullName !== undefined) card.fullName = fullName;
     if (jobTitle !== undefined) card.jobTitle = jobTitle;
+    if (department !== undefined) card.department = department;
     if (email !== undefined) card.email = email;
     if (phone !== undefined) card.phone = phone;
+    if (mobile !== undefined) card.mobile = mobile;
+    if (fax !== undefined) card.fax = fax;
     if (website !== undefined) card.website = website;
     if (company !== undefined) card.company = company;
     if (address !== undefined) card.address = address;
+    if (city !== undefined) card.city = city;
+    if (state !== undefined) card.state = state;
+    if (country !== undefined) card.country = country;
+    if (postalCode !== undefined) card.postalCode = postalCode;
     if (bio !== undefined) card.bio = bio;
+    if (tagline !== undefined) card.tagline = tagline;
+    if (companyTagline !== undefined) card.companyTagline = companyTagline;
+    if (socialLinks !== undefined) card.socialLinks = { ...card.socialLinks, ...socialLinks };
     if (templateId !== undefined) card.templateId = templateId;
+    if (templateName !== undefined) card.templateName = templateName;
+    if (category !== undefined) {
+      // Normalize category on update as well
+      try {
+        const Category = require('../models/categoryModel');
+        const mongoose = require('mongoose');
+        if (mongoose.Types.ObjectId.isValid(category)) {
+          const cat = await Category.findById(category);
+          if (cat) card.category = cat.slug;
+          else card.category = String(category).toLowerCase();
+        } else {
+          let cat = await Category.findOne({ slug: String(category).toLowerCase() });
+          if (cat) card.category = cat.slug;
+          else {
+            cat = await Category.findOne({ name: new RegExp(`^${String(category).replace(/[-\\/\\^$*+?.()|[\]{}]/g, '\\$&')}$`, 'i') });
+            card.category = cat ? cat.slug : String(category).toLowerCase();
+          }
+        }
+      } catch (err) {
+        card.category = String(category).toLowerCase();
+      }
+    }
+    if (tags !== undefined) card.tags = tags;
+    if (cardDesignInput !== undefined) card.cardDesign = { ...card.cardDesign, ...cardDesignInput };
+    if (backgroundColor !== undefined) card.backgroundColor = backgroundColor;
+    if (textColor !== undefined) card.textColor = textColor;
+    if (fontFamily !== undefined) card.fontFamily = fontFamily;
     await card.save();
 
     // Update CardDesign
@@ -411,6 +585,17 @@ class CardService {
     await cardDesign.save();
 
     logger.info(`Card updated: ${cardId} for user: ${userId}`);
+    // Audit log
+    try {
+      const AuditLog = require('../models/auditLogModel');
+      await AuditLog.log({
+        action: 'card.update',
+        entityType: 'card',
+        entityId: card._id,
+        userId,
+        metadata: { changes: Object.keys(arguments[2] || {}), category: card.category }
+      });
+    } catch (e) { logger.warn('Failed to write audit log for card.update', e.message); }
     return { card, cardDesign };
   }
 
@@ -428,13 +613,24 @@ class CardService {
     await card.save();
 
     logger.info(`Card deleted: ${cardId} by user: ${userId}`);
+    // Audit log
+    try {
+      const AuditLog = require('../models/auditLogModel');
+      await AuditLog.log({
+        action: 'card.delete',
+        entityType: 'card',
+        entityId: card._id,
+        userId,
+        metadata: { message: 'soft delete' }
+      });
+    } catch (e) { logger.warn('Failed to write audit log for card.delete', e.message); }
     return { message: 'Card deleted successfully' };
   }
 
-  async getPublicCards({ page = 1, limit = 10, category, search, privacy }) {
+  async getPublicCards({ page = 1, limit = 10, category, search, privacy, sortBy, industry, location }) {
     try {
       const skip = (page - 1) * limit;
-      
+
       // Build query based on privacy filter
       const query = {
         isActive: true
@@ -471,22 +667,52 @@ class CardService {
 
       // Add search functionality
       if (search) {
+        const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         query.$or = [
-          { fullName: { $regex: search, $options: 'i' } },
-          { jobTitle: { $regex: search, $options: 'i' } },
-          { company: { $regex: search, $options: 'i' } },
-          { bio: { $regex: search, $options: 'i' } }
+          { fullName: { $regex: safeSearch, $options: 'i' } },
+          { jobTitle: { $regex: safeSearch, $options: 'i' } },
+          { company: { $regex: safeSearch, $options: 'i' } },
+          { bio: { $regex: safeSearch, $options: 'i' } }
         ];
       }
 
       // Add category filter if provided
       if (category) {
-        query.jobTitle = { $regex: category, $options: 'i' };
+        query.category = { $regex: category, $options: 'i' };
       }
+
+      // Add industry filter if provided
+      if (industry) {
+        query.industry = { $regex: escapeRegex(industry), $options: 'i' };
+      }
+
+      // Add location filter if provided, merge with existing $or safely
+      if (location && String(location).trim()) {
+        const safeLoc = escapeRegex(String(location).trim());
+        const orConditions = [
+          { city: { $regex: safeLoc, $options: 'i' } },
+          { state: { $regex: safeLoc, $options: 'i' } },
+          { country: { $regex: safeLoc, $options: 'i' } },
+          { address: { $regex: safeLoc, $options: 'i' } }
+        ];
+        if (query.$or && Array.isArray(query.$or)) {
+          query.$or = query.$or.concat(orConditions);
+        } else {
+          query.$or = orConditions;
+        }
+      }
+
+      // Build sort options
+      let sortOptions = { createdAt: -1 }; // default
+      if (sortBy === 'views') sortOptions = { views: -1 };
+      else if (sortBy === 'loveCount' || sortBy === 'loves') sortOptions = { loveCount: -1 };
+      else if (sortBy === 'featured') sortOptions = { featured: -1, createdAt: -1 };
+      else if (sortBy === 'createdAt') sortOptions = { createdAt: -1 };
+      else if (sortBy === 'trending') sortOptions = { views: -1, loveCount: -1, createdAt: -1 };
 
       const cards = await Card.find(query)
         .populate('ownerUserId', 'username name')
-        .sort({ createdAt: -1 })
+        .sort(sortOptions)
         .skip(skip)
         .limit(limit);
 
@@ -509,6 +735,31 @@ class CardService {
   }
 
   async getCardByShortLink(shortLink) {
+    try {
+      const { card: leanCard, fromCache, stages } = await qrPipeline.resolveCardFromScan(shortLink);
+      const card = await Card.findById(leanCard._id)
+        .populate('ownerUserId', 'username name email phone location website bio jobTitle company');
+
+      if (!card) {
+        throw new Error('Card not found');
+      }
+
+      const cardDesign = await CardDesign.findOne({ cardId: card._id });
+      let template = null;
+      if (card.templateId) {
+        try {
+          const Template = require('../models/templateModel');
+          template = await Template.findOne({ id: card.templateId, isActive: true });
+        } catch (templateError) {
+          logger.warn(`Template lookup failed: ${templateError.message}`);
+        }
+      }
+
+      return { card, cardDesign, template, pipeline: { fromCache, stages } };
+    } catch (pipelineError) {
+      logger.warn(`QR pipeline fallback for shortLink ${shortLink}: ${pipelineError.message}`);
+    }
+
     const card = await Card.findOne({ shortLink, isActive: true })
       .populate('ownerUserId', 'username name email phone location website bio jobTitle company');
 
@@ -518,22 +769,22 @@ class CardService {
 
     // Get the card design
     const cardDesign = await CardDesign.findOne({ cardId: card._id });
-    
+
     // Get template data if templateId exists
     let template = null;
     if (card.templateId) {
       try {
         const Template = require('../models/templateModel');
         // Find by string id field only
-        template = await Template.findOne({ 
-          id: card.templateId, 
-          isActive: true 
+        template = await Template.findOne({
+          id: card.templateId,
+          isActive: true
         });
       } catch (templateError) {
         logger.warn(`Template lookup failed for templateId ${card.templateId}: ${templateError.message}`);
       }
     }
-    
+
     return { card, cardDesign, template };
   }
 
@@ -548,18 +799,18 @@ class CardService {
 
       // Get the card design
       const cardDesign = await CardDesign.findOne({ cardId: card._id });
-      
+
       // Get template data if templateId exists
       let template = null;
       if (card.templateId) {
         try {
           const Template = require('../models/templateModel');
           // First try to find by string id field
-          template = await Template.findOne({ 
-            id: card.templateId, 
-            isActive: true 
+          template = await Template.findOne({
+            id: card.templateId,
+            isActive: true
           });
-          
+
           // If not found by string id, try by _id (ObjectId)
           if (!template) {
             template = await Template.findById(card.templateId);
@@ -568,7 +819,7 @@ class CardService {
           logger.warn(`Template lookup failed for templateId ${card.templateId}: ${templateError.message}`);
         }
       }
-      
+
       return { card, cardDesign, template };
     } catch (error) {
       logger.error(`getCardById error: ${error.message}`);
@@ -583,17 +834,17 @@ class CardService {
     }
 
     const isLoved = card.isLovedByUser(userId);
-    
+
     if (isLoved) {
-      card.removeLove(userId);
-      await card.save();
+      await card.removeLove(userId);
       logger.info(`Love removed from card ${cardId} by user ${userId}`);
-      return { loved: false, loveCount: card.loveCount };
+      const updated = await Card.findById(cardId);
+      return { loved: false, loveCount: updated.loveCount };
     } else {
-      card.addLove(userId);
-      await card.save();
+      await card.addLove(userId);
       logger.info(`Love added to card ${cardId} by user ${userId}`);
-      return { loved: true, loveCount: card.loveCount };
+      const updated = await Card.findById(cardId);
+      return { loved: true, loveCount: updated.loveCount };
     }
   }
 
@@ -602,8 +853,8 @@ class CardService {
       'loves.userId': userId,
       isActive: true
     })
-    .populate('ownerUserId', 'username name')
-    .sort({ createdAt: -1 });
+      .populate('ownerUserId', 'username name')
+      .sort({ createdAt: -1 });
 
     return cards;
   }
@@ -620,26 +871,21 @@ class CardService {
     try {
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       const cardUrl = `${frontendUrl}/c/${card.shortLink}`;
-      
+
       logger.info(`Generating QR code for URL: ${cardUrl}`);
-      
-      const qrCodeData = await qrCodeGenerator.generate(
-        cardUrl,
-        {
-          errorCorrectionLevel: 'H',
-          width: 300,
-          color: {
-            dark: '#1a3a63',
-            light: '#ffffff'
-          }
-        }
-      );
-      
+
+      const { qrDataURL, url, stages } = await qrPipeline.generateOptimizedQR(card, {
+        errorCorrectionLevel: 'H',
+        width: 300,
+        color: { dark: '#1a3a63', light: '#ffffff' },
+      });
+      const qrCodeData = qrDataURL;
+
       // Try to upload to Cloudinary if configured, otherwise use data URL directly
       let qrCodeUrl;
       try {
         const uploadResult = await cloudinary.uploader.upload(qrCodeData, {
-                          folder: 'cardly_qr',
+          folder: 'cardly_qr',
           resource_type: 'image'
         });
         qrCodeUrl = uploadResult.secure_url;
@@ -650,10 +896,10 @@ class CardService {
         qrCodeUrl = qrCodeData;
         logger.info(`Using QR code data URL directly`);
       }
-      
+
       card.qrCode = qrCodeUrl;
       await card.save();
-      
+
       logger.info(`QR code generated for card: ${cardId}`);
       return card.qrCode;
     } catch (error) {
@@ -672,15 +918,15 @@ class CardService {
 
     // Use card's fullName instead of user's name, fallback to user's name if fullName is not available
     const contactName = card.fullName || card.ownerUserId?.name || card.ownerUserId?.username || 'Unknown';
-    
+
     // Parse the full name into first and last name
     const nameParts = contactName.trim().split(' ');
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
-    
+
     // Use card's company for organization
     const organization = card.company || '';
-    
+
     const vcf = [
       'BEGIN:VCARD',
       'VERSION:3.0',
@@ -893,9 +1139,9 @@ class CardService {
         isActive: true,
         createdAt: { $gte: startDate }
       })
-      .populate('ownerUserId', 'username name')
-      .sort({ loveCount: -1, views: -1 })
-      .limit(limit);
+        .populate('ownerUserId', 'username name')
+        .sort({ loveCount: -1, views: -1 })
+        .limit(limit);
 
       return cards;
     } catch (error) {

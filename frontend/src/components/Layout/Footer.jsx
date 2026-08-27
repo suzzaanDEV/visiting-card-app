@@ -1,219 +1,93 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  FaFacebookF, FaTwitter, FaInstagram, FaLinkedinIn, FaGithub, 
-  FaHeart, FaArrowUp, FaEnvelope, FaPhone, FaMapMarkerAlt 
-} from 'react-icons/fa';
+import { FiGithub, FiTwitter, FiArrowUp, FiMail } from 'react-icons/fi';
 import Logo from './Logo';
 
 const Footer = () => {
-  const currentYear = new Date().getFullYear();
+  const year = new Date().getFullYear();
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
   return (
-    <footer className="bg-gradient-to-br from-[#1a3a63] via-[#2d5a8a] to-[#1a3a63] text-white relative overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-        }}></div>
-      </div>
+    <footer className="bg-slate-900 dark:bg-slate-950 text-slate-400 border-t border-slate-800/60">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 pb-8">
 
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
-          
-          {/* Brand Section */}
-          <div className="lg:col-span-1">
-            <div className="flex items-center space-x-3 mb-6">
-              <Logo className="h-10 w-10" color="white" />
-              <div>
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-white to-gray-200 bg-clip-text text-transparent">
-                  Cardly
-                </h3>
-                <p className="text-sm text-gray-300">Digital Networking</p>
-              </div>
-            </div>
-            <p className="text-gray-300 leading-relaxed mb-6">
-              Revolutionizing the way professionals connect and share their information. 
-              Create, share, and manage your digital business cards with ease.
+        {/* ── Top Grid ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8 mb-12">
+
+          {/* Col 1 – Brand */}
+          <div className="col-span-2 lg:col-span-1">
+            <Link to="/" className="flex items-center gap-2.5 mb-4">
+              <Logo className="h-8 w-8" color="#10B981" />
+              <span className="text-xl font-bold text-white tracking-tight">Cardly</span>
+            </Link>
+            <p className="text-sm leading-relaxed max-w-xs">
+              Digital visiting cards for modern professionals. Create, share, and manage your networking presence.
             </p>
-            <div className="flex space-x-4">
-              <a 
-                href="https://github.com/suzzaanDEV" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center hover:bg-white/20 transition-all duration-200 group"
-                aria-label="GitHub"
-              >
-                <FaGithub className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
-              </a>
-              <a 
-                href="https://linkedin.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center hover:bg-white/20 transition-all duration-200 group"
-                aria-label="LinkedIn"
-              >
-                <FaLinkedinIn className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
-              </a>
-              <a 
-                href="https://twitter.com" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-10 h-10 bg-white/10 backdrop-blur-sm rounded-xl flex items-center justify-center hover:bg-white/20 transition-all duration-200 group"
-                aria-label="Twitter"
-              >
-                <FaTwitter className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
-              </a>
-            </div>
           </div>
 
-          {/* Quick Links */}
+          {/* Col 2 – Product */}
           <div>
-            <h4 className="text-lg font-semibold mb-6 text-white">Quick Links</h4>
-            <ul className="space-y-3">
-              <li>
-                <Link 
-                  to="/about" 
-                  className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center space-x-2 group"
-                >
-                  <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"></span>
-                  <span>About Us</span>
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  to="/discover" 
-                  className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center space-x-2 group"
-                >
-                  <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"></span>
-                  <span>Discover Cards</span>
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  to="/cards" 
-                  className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center space-x-2 group"
-                >
-                  <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"></span>
-                  <span>My Cards</span>
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  to="/library" 
-                  className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center space-x-2 group"
-                >
-                  <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"></span>
-                  <span>Library</span>
-                </Link>
-              </li>
+            <h4 className="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-4">Product</h4>
+            <ul className="space-y-2.5">
+              <FooterLink to="/discover">Search Cards</FooterLink>
+              <FooterLink to="/cards/add">Templates</FooterLink>
+              <FooterLink to="/about">Pricing</FooterLink>
             </ul>
           </div>
 
-          {/* Support */}
+          {/* Col 3 – Company */}
           <div>
-            <h4 className="text-lg font-semibold mb-6 text-white">Support</h4>
-            <ul className="space-y-3">
-              <li>
-                <Link 
-                  to="/contact" 
-                  className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center space-x-2 group"
-                >
-                  <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"></span>
-                  <span>Contact Us</span>
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  to="/help" 
-                  className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center space-x-2 group"
-                >
-                  <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"></span>
-                  <span>Help Center</span>
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  to="/privacy" 
-                  className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center space-x-2 group"
-                >
-                  <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"></span>
-                  <span>Privacy Policy</span>
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  to="/terms" 
-                  className="text-gray-300 hover:text-white transition-colors duration-200 flex items-center space-x-2 group"
-                >
-                  <span className="w-1 h-1 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-200"></span>
-                  <span>Terms of Service</span>
-                </Link>
-              </li>
+            <h4 className="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-4">Company</h4>
+            <ul className="space-y-2.5">
+              <FooterLink to="/about">About</FooterLink>
+              <FooterLink to="/contact">Contact</FooterLink>
+              <FooterLink to="/discover">Blog</FooterLink>
             </ul>
           </div>
 
-          {/* Contact Info */}
+          {/* Col 4 – Legal */}
           <div>
-            <h4 className="text-lg font-semibold mb-6 text-white">Get in Touch</h4>
-            <div className="space-y-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-white/10 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                  <FaEnvelope className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-300">Email</p>
-                  <a 
-                    href="mailto:sznghimire61@gmail.com" 
-                    className="text-white hover:text-gray-200 transition-colors duration-200"
-                  >
-                    sznghimire61@gmail.com
-                  </a>
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-white/10 backdrop-blur-sm rounded-lg flex items-center justify-center">
-                  <FaGithub className="w-4 h-4" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-300">GitHub</p>
-                  <a 
-                    href="https://github.com/suzzaanDEV" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-white hover:text-gray-200 transition-colors duration-200"
-                  >
-                    @suzzaanDEV
-                  </a>
-                </div>
-              </div>
-            </div>
+            <h4 className="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-4">Legal</h4>
+            <ul className="space-y-2.5">
+              <FooterLink to="/privacy">Privacy Policy</FooterLink>
+              <FooterLink to="/terms">Terms of Service</FooterLink>
+              <FooterLink to="/about">Security</FooterLink>
+            </ul>
           </div>
         </div>
 
-        {/* Bottom Bar */}
-        <div className="border-t border-white/20 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-            <div className="flex items-center space-x-2 text-sm text-gray-300">
-                              <span>&copy; {currentYear} Cardly. All rights reserved.</span>
-              <span className="hidden sm:inline">•</span>
-              <span className="hidden sm:inline">Made with</span>
-              <FaHeart className="w-4 h-4 text-red-400" />
-              <span className="hidden sm:inline">by Suzan Ghimire</span>
-            </div>
-            
+        {/* ── Bottom Bar ── */}
+        <div className="border-t border-slate-800/80 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-xs text-slate-500">
+            &copy; {year} Cardly. All rights reserved.
+          </p>
+
+          <div className="flex items-center gap-3">
+            <a
+              href="https://github.com/suzzaanDEV"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-800 flex items-center justify-center transition-colors"
+              aria-label="GitHub"
+            >
+              <FiGithub className="w-4 h-4 text-slate-400 hover:text-white transition-colors" />
+            </a>
+            <a
+              href="https://twitter.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-800 flex items-center justify-center transition-colors"
+              aria-label="Twitter"
+            >
+              <FiTwitter className="w-4 h-4 text-slate-400 hover:text-white transition-colors" />
+            </a>
             <button
               onClick={scrollToTop}
-              className="flex items-center space-x-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-xl text-sm font-medium text-white hover:bg-white/20 transition-all duration-200 group"
-              aria-label="Scroll to top"
+              className="w-8 h-8 rounded-lg bg-slate-800/60 hover:bg-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+              aria-label="Back to top"
             >
-              <FaArrowUp className="w-4 h-4 group-hover:-translate-y-1 transition-transform duration-200" />
-              <span>Back to Top</span>
+              <FiArrowUp className="w-4 h-4 text-slate-400 hover:text-white transition-colors" />
             </button>
           </div>
         </div>
@@ -221,5 +95,16 @@ const Footer = () => {
     </footer>
   );
 };
+
+const FooterLink = ({ to, children }) => (
+  <li>
+    <Link
+      to={to}
+      className="text-sm text-slate-400 hover:text-emerald-400 transition-colors duration-150"
+    >
+      {children}
+    </Link>
+  </li>
+);
 
 export default Footer;

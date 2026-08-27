@@ -1,6 +1,6 @@
 const nodemailer = require('nodemailer');
 const logger = require('./logger');
-const config = require('../../config/enterprise.config');
+const { renderOtp, renderBroadcast, renderGeneric } = require('./emailTemplates');
 
 // Create transporter only if SMTP env is set
 let transporter = null;
@@ -17,16 +17,15 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
 }
 
 async function sendEmail({ to, subject, html, text }) {
+  const isEmailEnabled = process.env.EMAIL_ENABLED === 'true';
+
+  if (!isEmailEnabled) {
+    logger.warn('Email sending disabled by EMAIL_ENABLED=false', { to, subject });
+    return { simulated: true, reason: 'email_disabled' };
+  }
+
   if (!transporter) {
-    // Fallback: log email content for environments without SMTP
-    logger.warn('SMTP not configured. Logging email instead of sending.', { to, subject });
-    console.log('--- EMAIL (not sent, SMTP not configured) ---');
-    console.log('To:', to);
-    console.log('Subject:', subject);
-    if (text) console.log('Text:', text);
-    if (html) console.log('HTML:', html);
-    console.log('--------------------------------------------');
-    return { simulated: true };
+    throw new Error('SMTP is not configured. Set SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_PORT.');
   }
 
   const mailOptions = {

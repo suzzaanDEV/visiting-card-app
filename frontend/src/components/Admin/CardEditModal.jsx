@@ -101,7 +101,7 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div className="flex items-center">
-              <FiCreditCard className="h-6 w-6 text-purple-600 mr-3" />
+              <FiCreditCard className="h-6 w-6 text-green-600 mr-3" />
               <h2 className="text-xl font-semibold text-gray-900">
                 {isEditing ? 'Edit Card' : 'Card Details'}
               </h2>
@@ -122,7 +122,7 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
                 {/* Card Status */}
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center">
-                    <FiTrendingUp className="h-5 w-5 mr-2 text-purple-600" />
+                    <FiTrendingUp className="h-5 w-5 mr-2 text-green-600" />
                     <span className="font-medium">Status</span>
                   </div>
                   <div className="flex space-x-2">
@@ -135,7 +135,7 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
                     </span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                       card.isPublic 
-                        ? 'bg-blue-100 text-blue-800' 
+                        ? 'bg-emerald-100 text-emerald-800' 
                         : 'bg-gray-100 text-gray-800'
                     }`}>
                       {card.isPublic ? 'Public' : 'Private'}
@@ -160,7 +160,7 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
                       value={formData.title}
                       onChange={handleInputChange}
                       disabled={!isEditing}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent disabled:bg-gray-100"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100"
                     />
                   </div>
 
@@ -172,7 +172,7 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
                         checked={formData.isActive}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                       />
                       <span className="ml-2 text-sm text-gray-700">Active</span>
                     </label>
@@ -184,7 +184,7 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
                         checked={formData.isPublic}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                       />
                       <span className="ml-2 text-sm text-gray-700">Public</span>
                     </label>
@@ -196,7 +196,7 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
                         checked={formData.featured}
                         onChange={handleInputChange}
                         disabled={!isEditing}
-                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
                       />
                       <span className="ml-2 text-sm text-gray-700">Featured</span>
                     </label>
@@ -204,12 +204,12 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
                 </div>
 
                 {/* Card Stats */}
-                <div className="bg-purple-50 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-purple-900 mb-3">Card Statistics</h3>
+                <div className="bg-green-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-green-900 mb-3">Card Statistics</h3>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center">
-                      <FiEye className="h-4 w-4 text-purple-600 mr-2" />
-                      <span className="text-purple-600 font-medium">Views:</span>
+                      <FiEye className="h-4 w-4 text-green-600 mr-2" />
+                      <span className="text-green-600 font-medium">Views:</span>
                       <span className="ml-1 text-gray-700">{formatNumber(card.views || 0)}</span>
                     </div>
                     <div className="flex items-center">
@@ -223,8 +223,8 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
                       <span className="ml-1 text-gray-700">{formatNumber(card.shares || 0)}</span>
                     </div>
                     <div className="flex items-center">
-                      <FaDownload className="h-4 w-4 text-blue-600 mr-2" />
-                      <span className="text-blue-600 font-medium">Downloads:</span>
+                      <FaDownload className="h-4 w-4 text-emerald-600 mr-2" />
+                      <span className="text-emerald-600 font-medium">Downloads:</span>
                       <span className="ml-1 text-gray-700">{formatNumber(card.downloads || 0)}</span>
                     </div>
                   </div>
@@ -261,22 +261,22 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
               {/* Right Column - Owner Info & Actions */}
               <div className="space-y-6">
                 {/* Owner Information */}
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <h3 className="text-sm font-medium text-blue-900 mb-3">Owner Information</h3>
+                <div className="bg-emerald-50 rounded-lg p-4">
+                  <h3 className="text-sm font-medium text-emerald-900 mb-3">Owner Information</h3>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center">
-                      <FiUser className="h-4 w-4 text-blue-600 mr-2" />
-                      <span className="text-blue-600 font-medium">Name:</span>
+                      <FiUser className="h-4 w-4 text-emerald-600 mr-2" />
+                      <span className="text-emerald-600 font-medium">Name:</span>
                       <span className="ml-1 text-gray-700">{card.ownerUserId?.name || 'Unknown'}</span>
                     </div>
                     <div className="flex items-center">
-                      <FiUser className="h-4 w-4 text-blue-600 mr-2" />
-                      <span className="text-blue-600 font-medium">Username:</span>
+                      <FiUser className="h-4 w-4 text-emerald-600 mr-2" />
+                      <span className="text-emerald-600 font-medium">Username:</span>
                       <span className="ml-1 text-gray-700">{card.ownerUserId?.username || 'Unknown'}</span>
                     </div>
                     <div className="flex items-center">
-                      <FiUser className="h-4 w-4 text-blue-600 mr-2" />
-                      <span className="text-blue-600 font-medium">User ID:</span>
+                      <FiUser className="h-4 w-4 text-emerald-600 mr-2" />
+                      <span className="text-emerald-600 font-medium">User ID:</span>
                       <span className="ml-1 font-mono text-xs text-gray-700">{card.ownerUserId?._id || 'Unknown'}</span>
                     </div>
                   </div>
@@ -288,7 +288,7 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
                   <div className="space-y-2">
                     <button
                       onClick={handleAnalytics}
-                      className="w-full flex items-center px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                      className="w-full flex items-center px-3 py-2 text-sm bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                     >
                       <FiBarChart className="h-4 w-4 mr-2" />
                       View Analytics
@@ -339,7 +339,7 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
               {!isEditing ? (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
                   <FiEdit className="h-4 w-4 mr-2" />
                   Edit Card
@@ -440,9 +440,9 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
                 </div>
                 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                  <div className="bg-blue-50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-blue-600">{formatNumber(analytics.totalViews || 0)}</div>
-                    <div className="text-sm text-blue-600">Total Views</div>
+                  <div className="bg-emerald-50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-emerald-600">{formatNumber(analytics.totalViews || 0)}</div>
+                    <div className="text-sm text-emerald-600">Total Views</div>
                   </div>
                   <div className="bg-red-50 rounded-lg p-4 text-center">
                     <div className="text-2xl font-bold text-red-600">{formatNumber(analytics.totalLoves || 0)}</div>
@@ -452,9 +452,9 @@ const CardEditModal = ({ card, isOpen, onClose, onSave, onFeature, onDelete, onA
                     <div className="text-2xl font-bold text-green-600">{formatNumber(analytics.totalShares || 0)}</div>
                     <div className="text-sm text-green-600">Total Shares</div>
                   </div>
-                  <div className="bg-purple-50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-purple-600">{formatNumber(analytics.totalDownloads || 0)}</div>
-                    <div className="text-sm text-purple-600">Total Downloads</div>
+                  <div className="bg-green-50 rounded-lg p-4 text-center">
+                    <div className="text-2xl font-bold text-green-600">{formatNumber(analytics.totalDownloads || 0)}</div>
+                    <div className="text-sm text-green-600">Total Downloads</div>
                   </div>
                 </div>
 

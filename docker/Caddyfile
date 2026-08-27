@@ -1,0 +1,20 @@
+{$DOMAIN_NAME:localhost} {
+    # Reverse proxy all traffic to the frontend container
+    # The frontend's internal Nginx proxy handles serving frontend assets
+    # and proxying API requests (/api/*) to the backend.
+    reverse_proxy frontend:80
+
+    # Enable gzip compression
+    encode gzip
+
+    # Set up request body limits if necessary (optional)
+    # request_body_limit 10mb
+
+    # Enable logging
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}

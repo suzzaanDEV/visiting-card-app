@@ -1,16 +1,13 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useRef } from 'react';
 import { Stage, Layer, Rect, Circle, Text, Transformer, Image as KonvaImage } from 'react-konva';
 import { SketchPicker } from 'react-color'; 
 import { FiSquare, FiCircle, FiType, FiImage, FiSave, FiTrash2, FiLoader, FiEyeOff } from 'react-icons/fi';
-import { v4 as uuidv4 } from 'uuid'; 
 import useImage from 'use-image'; 
 
 
-const createCard = (data) => ({ type: 'cards/create/pending', payload: data }); // Example placeholder
 
 
-const ImageFromSrc = ({ shapeProps, isSelected, onSelect, onChange }) => {
+const ImageFromSrc = ({ shapeProps, onSelect, onChange }) => {
     const shapeRef = useRef();
     const [image] = useImage(shapeProps.src, 'Anonymous'); // Load image from src attribute
 
@@ -29,7 +26,7 @@ const ImageFromSrc = ({ shapeProps, isSelected, onSelect, onChange }) => {
                     y: e.target.y(),
                 });
             }}
-            onTransformEnd={(e) => {
+            onTransformEnd={() => {
                  // Transformer is changing scale, rotation, position
                 const node = shapeRef.current;
                 const scaleX = node.scaleX();

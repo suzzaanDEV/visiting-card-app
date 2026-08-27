@@ -8,7 +8,7 @@ const VisitingCard3D = ({ card, template, className = "" }) => {
       <div className={`flex justify-center ${className}`}>
         <div className="relative w-full max-w-5xl">
           <div className="relative w-full h-96 bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-200 transform perspective-1000">
-            <div className="w-full h-full flex items-center justify-center text-9xl font-bold text-white bg-gradient-to-br from-blue-500 to-purple-600">
+            <div className="w-full h-full flex items-center justify-center text-9xl font-bold text-white bg-gradient-to-br from-emerald-500 to-green-600">
               ?
             </div>
           </div>
@@ -28,7 +28,7 @@ const VisitingCard3D = ({ card, template, className = "" }) => {
       .slice(0, 2);
   };
 
-  const initials = getInitials(card.fullName || card.ownerUserId?.name);
+  const _initials = getInitials(card.fullName || card.ownerUserId?.name);
 
   return (
     <div className={`flex justify-center ${className}`}>
