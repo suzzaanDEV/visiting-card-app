@@ -47,6 +47,15 @@ exports.getAllPolicies = async (req, res) => {
   }
 };
 
+exports.getAllPoliciesAdmin = async (req, res) => {
+  try {
+    const policies = await policyService.getAllPoliciesAdmin();
+    res.json(policies);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.publishPolicy = async (req, res) => {
   try {
     const policy = await policyService.publishPolicy(req.params.slug, req.admin._id);
@@ -67,7 +76,9 @@ exports.deletePolicy = async (req, res) => {
 
 exports.acceptPolicy = async (req, res) => {
   try {
-    const policy = await policyService.acceptPolicy(req.params.slug, req.user._id);
+    const userId = req.user?.userId || req.user?._id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const policy = await policyService.acceptPolicy(req.params.slug, userId);
     res.json({ message: 'Policy accepted', policy });
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -76,7 +87,9 @@ exports.acceptPolicy = async (req, res) => {
 
 exports.checkPolicyAccepted = async (req, res) => {
   try {
-    const accepted = await policyService.hasUserAccepted(req.params.slug, req.user._id);
+    const userId = req.user?.userId || req.user?._id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const accepted = await policyService.hasUserAccepted(req.params.slug, userId);
     res.json({ accepted });
   } catch (err) {
     res.status(500).json({ error: err.message });

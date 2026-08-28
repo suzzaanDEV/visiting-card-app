@@ -82,16 +82,18 @@ const filterCardData = (data) => {
 const filterSingleCard = (card) => {
   if (!card || typeof card !== 'object') return card;
 
-  // Only filter private cards for non-authenticated users
-  // This middleware is only applied to non-authenticated users
-  if (card.privacy !== 'private') {
-    return card;
-  }
+  // Convert Mongoose documents to plain objects so the spread below captures
+  // the schema fields (spreading a document directly only copies $__ / _doc).
+  const plain = (typeof card.toObject === 'function')
+    ? card.toObject({ virtuals: true })
+    : card;
 
-  const filteredCard = { ...card };
+  // Mask sensitive contact fields for non-authenticated users on ALL cards
+  // (public and private alike). Authenticated users pass through unfiltered.
+  const filteredCard = { ...plain };
 
-  // Mask email
-  if (filteredCard.email) {
+  // Mask email (skip if already masked by private-card sanitization)
+  if (filteredCard.email && !filteredCard.email.includes('*')) {
     const [localPart, domain] = filteredCard.email.split('@');
     if (localPart && domain) {
       const maskedLocal = localPart.charAt(0) + '*'.repeat(localPart.length - 2) + localPart.charAt(localPart.length - 1);
@@ -100,13 +102,18 @@ const filterSingleCard = (card) => {
   }
 
   // Mask phone
-  if (filteredCard.phone) {
+  if (filteredCard.phone && !filteredCard.phone.includes('*')) {
     const cleaned = filteredCard.phone.replace(/\D/g, '');
     if (cleaned.length >= 4) {
       filteredCard.phone = `***-***-${cleaned.slice(-4)}`;
     } else {
       filteredCard.phone = '***-***-****';
     }
+  }
+
+  // Mask mobile
+  if (filteredCard.mobile) {
+    filteredCard.mobile = '***-***-****';
   }
 
   // Hide address
@@ -118,6 +125,19 @@ const filterSingleCard = (card) => {
   if (filteredCard.website) {
     filteredCard.website = 'Website hidden for privacy';
   }
+
+  // Hide city/state/country/postal code
+  if (filteredCard.city) filteredCard.city = 'Hidden';
+  if (filteredCard.state) filteredCard.state = 'Hidden';
+  if (filteredCard.country) filteredCard.country = 'Hidden';
+  if (filteredCard.postalCode) filteredCard.postalCode = 'Hidden';
+
+  // Hide social links
+  if (filteredCard.socialLinks) {
+    filteredCard.socialLinks = {};
+  }
+
+  filteredCard.contactLocked = true;
 
   return filteredCard;
 };

@@ -9,7 +9,7 @@ router.get('/:slug', ctrl.getPolicy);
 router.post('/:slug/accept', authenticateToken, ctrl.acceptPolicy);
 router.get('/:slug/check', authenticateToken, ctrl.checkPolicyAccepted);
 
-router.get('/admin/all', authenticateAdmin, ctrl.getAllPolicies);
+router.get('/admin/all', authenticateAdmin, ctrl.getAllPoliciesAdmin);
 router.get('/admin/:slug', authenticateAdmin, ctrl.getPolicyForAdmin);
 router.post('/admin', authenticateAdmin, ctrl.createPolicy);
 router.put('/admin/:slug', authenticateAdmin, ctrl.updatePolicy);

@@ -107,6 +107,8 @@ const userSchema = new mongoose.Schema({
   twoFactorOtpHash: String,
   twoFactorOtpExpires: Date,
   twoFactorOtpRequestedAt: Date,
+  twoFactorEnablePendingHash: String,
+  twoFactorEnablePendingExpires: Date,
   refreshTokenHash: String,
   refreshTokenExpires: Date,
   passwordResetTokenHash: String,

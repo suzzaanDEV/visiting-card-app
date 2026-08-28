@@ -1,5 +1,6 @@
 const Card = require('../models/cardModel');
 const CardDesign = require('../models/cardDesignModel');
+const Template = require('../models/templateModel');
 const logger = require('../utils/logger');
 const advancedSearchAlgorithms = require('../algorithms/advancedSearchAlgorithms');
 const { rankTrendingCards } = require('../algorithms/trendingRanking');
@@ -7,12 +8,37 @@ const { recommendCards } = require('../algorithms/recommendationEngine');
 const { escapeRegex } = require('../utils/sanitize');
 
 class SearchService {
+  // Attach a lightweight template snapshot ({ id, name, design }) to each card so
+  // frontend thumbnails render the real template design. Mirrors cardService.
+  async attachTemplateSnapshots(cardsOrCard) {
+    const list = Array.isArray(cardsOrCard) ? cardsOrCard : [cardsOrCard];
+    const templateIds = [...new Set(list.map((c) => c && c.templateId).filter(Boolean))];
+    const templates = templateIds.length
+      ? await Template.find({ id: { $in: templateIds }, isActive: true }).select('id name design').lean()
+      : [];
+    const templateMap = new Map(templates.map((t) => [t.id, t]));
+
+    for (const card of list) {
+      if (!card) continue;
+      const t = card.templateId ? templateMap.get(card.templateId) : null;
+      if (t) {
+        const snapshot = { id: t.id, name: t.name, design: t.design };
+        if (typeof card.set === 'function') {
+          card.set('template', snapshot, { strict: false });
+        } else {
+          card.template = snapshot;
+        }
+      }
+    }
+    return cardsOrCard;
+  }
+
   async searchCards({ query, category, sortBy, page = 1, limit = 20, algorithm = 'hybrid', tags, extraFilter, industry, profession, location }) {
     try {
       const safeLimit = Math.min(Math.max(parseInt(limit) || 20, 1), 50);
       const safePage = Math.max(parseInt(page) || 1, 1);
       const skip = (safePage - 1) * safeLimit;
-      let filter = { isPublic: true };
+      let filter = { isPublic: true, isPrivate: { $ne: true }, privacy: { $ne: 'private' } };
 
       if (category && category !== 'all') {
         filter.category = category.toLowerCase();
@@ -122,6 +148,8 @@ class SearchService {
           result.results = await advancedSearchAlgorithms.advancedSorting(result.results, sortBy, 'desc');
         }
 
+        await this.attachTemplateSnapshots(result.results);
+
         return {
           cards: result.results,
           currentPage: safePage,
@@ -170,6 +198,8 @@ class SearchService {
         const total = await Card.countDocuments(filter);
         const hasMore = skip + cards.length < total;
 
+        await this.attachTemplateSnapshots(cards);
+
         return {
           cards,
           currentPage: safePage,
@@ -190,7 +220,7 @@ class SearchService {
       const safeLimit = Math.min(Math.max(parseInt(limit) || 6, 1), 50);
       const safePage = Math.max(parseInt(page) || 1, 1);
       const skip = (safePage - 1) * safeLimit;
-      let filter = { isPublic: true };
+      let filter = { isPublic: true, isPrivate: { $ne: true }, privacy: { $ne: 'private' } };
 
       if (category && category !== 'all') {
         filter.category = category;
@@ -207,6 +237,8 @@ class SearchService {
 
         const result = await advancedSearchAlgorithms.hybridSearch(searchQuery, searchOptions);
         result.results = await advancedSearchAlgorithms.advancedSorting(result.results, sortBy, sortOrder);
+
+        await this.attachTemplateSnapshots(result.results);
 
         return {
           cards: result.results,
@@ -240,6 +272,7 @@ class SearchService {
           const ranked = rankTrendingCards(pool, {}, safeLimit);
           const cards = ranked.map((r) => ({ ...r.card, trendingScore: r.trendingScore }));
           const total = await Card.countDocuments(filter);
+          await this.attachTemplateSnapshots(cards);
           return {
             cards,
             currentPage: safePage,
@@ -274,6 +307,8 @@ class SearchService {
       const total = await Card.countDocuments(filter);
       const hasMore = skip + cards.length < total;
 
+      await this.attachTemplateSnapshots(cards);
+
       return {
         cards,
         currentPage: safePage,
@@ -293,7 +328,7 @@ class SearchService {
       const safeLimit = Math.min(Math.max(parseInt(limit) || 6, 1), 50);
       const safePage = Math.max(parseInt(page) || 1, 1);
       const skip = (safePage - 1) * safeLimit;
-      let filter = { isPublic: true };
+      let filter = { isPublic: true, isPrivate: { $ne: true }, privacy: { $ne: 'private' } };
 
       if (category && category !== 'all') {
         filter.category = category;
@@ -336,6 +371,8 @@ class SearchService {
 
         const result = await advancedSearchAlgorithms.hybridSearch(searchQuery, searchOptions);
         result.results = await advancedSearchAlgorithms.advancedSorting(result.results, sortBy, sortOrder);
+
+        await this.attachTemplateSnapshots(result.results);
 
         return {
           cards: result.results,
@@ -392,6 +429,8 @@ class SearchService {
       const total = await Card.countDocuments(filter);
       const hasMore = skip + cards.length < total;
 
+      await this.attachTemplateSnapshots(cards);
+
       return {
         cards,
         currentPage: safePage,
@@ -413,6 +452,8 @@ class SearchService {
         {
           $match: {
             isPublic: true,
+            isPrivate: { $ne: true },
+            privacy: { $ne: 'private' },
             $or: [
               { fullName: { $regex: safeQuery, $options: 'i' } },
               { jobTitle: { $regex: safeQuery, $options: 'i' } },
@@ -530,6 +571,8 @@ class SearchService {
       const total = await Card.countDocuments(searchFilter);
       const hasMore = skip + cards.length < total;
 
+      await this.attachTemplateSnapshots(cards);
+
       return {
         cards,
         currentPage: page,
@@ -606,6 +649,8 @@ class SearchService {
 
       const candidates = await Card.find({
         isPublic: true,
+        isPrivate: { $ne: true },
+        privacy: { $ne: 'private' },
         isActive: true,
         _id: { $ne: sourceCard._id },
       })
@@ -614,6 +659,7 @@ class SearchService {
         .lean();
 
       const recommendations = recommendCards(sourceCard, candidates, limit);
+      await this.attachTemplateSnapshots(recommendations.map((r) => r.card));
       return {
         recommendations: recommendations.map((r) => ({
           ...r.card,
@@ -626,6 +672,119 @@ class SearchService {
       logger.error(`Recommendation error: ${error.message}`);
       throw error;
     }
+  }
+
+  /**
+   * Personalized discovery feed.
+   * Authenticated users get cards ranked by the content-based recommendation
+   * engine using the profile of their most data-rich public card as the source;
+   * anonymous (or profile-less) users get the weighted-trending feed. Filters
+   * (category / industry / location / search) apply to the candidate pool.
+   */
+  async getDiscoverCards({ userId = null, limit = 12, page = 1, search = '', category = '', industry = '', location = '', sortBy = '' } = {}) {
+    try {
+      const safeLimit = Math.min(Math.max(parseInt(limit) || 12, 1), 50);
+      const safePage = Math.max(parseInt(page) || 1, 1);
+      const skip = (safePage - 1) * safeLimit;
+      const norm = (s) => (s || '').toString().toLowerCase().trim();
+
+      const filter = { isPublic: true, isPrivate: { $ne: true }, privacy: { $ne: 'private' }, isActive: true };
+      if (category && category !== 'all') filter.category = norm(category);
+      if (industry && industry !== 'all') filter.industry = { $regex: escapeRegex(norm(industry)), $options: 'i' };
+
+      const orClauses = [];
+      if (search) {
+        const re = { $regex: escapeRegex(norm(search)), $options: 'i' };
+        orClauses.push({ fullName: re }, { title: re }, { jobTitle: re }, { company: re }, { bio: re }, { profession: re });
+      }
+      if (location) {
+        const re = { $regex: escapeRegex(norm(location)), $options: 'i' };
+        orClauses.push({ city: re }, { country: re });
+      }
+      if (orClauses.length) filter.$or = orClauses;
+
+      const [total, deck] = await Promise.all([
+        Card.countDocuments(filter),
+        Card.find(filter)
+          .populate('ownerUserId', 'username name avatar')
+          .sort({ createdAt: -1 })
+          .limit(300)
+          .lean(),
+      ]);
+
+      const totalPages = Math.max(Math.ceil(total / safeLimit), 1);
+      let personalized = false;
+      let source = 'trending';
+      let ranked = null;
+
+      if (userId) {
+        const myCards = await Card.find({
+          ownerUserId: userId,
+          isPublic: true,
+          isPrivate: { $ne: true },
+          privacy: { $ne: 'private' },
+          isActive: true,
+        })
+          .sort({ views: -1 })
+          .limit(25)
+          .lean();
+        let src = null;
+        if (myCards.length) {
+          src = myCards.reduce((best, c) => (this._profileDensity(c) > this._profileDensity(best) ? c : best), null);
+        }
+        if (src) {
+          const recs = recommendCards(src, deck, safeLimit * 2);
+          if (recs.length) {
+            ranked = recs.map((r) => ({ ...r.card, similarityScore: Number(r.score.toFixed(4)), algorithm: r.algorithm }));
+            personalized = true;
+            source = 'profile';
+          }
+        }
+      }
+
+      if (!ranked) {
+        const trending = rankTrendingCards(deck, { limit: safeLimit * 2 });
+        ranked = trending.map((t) => ({ ...t.card, trendingScore: Number(t.trendingScore.toFixed(6)) }));
+        source = 'trending';
+      }
+
+      // Explicit sort (newest / views / loveCount) overrides the ranking feed.
+      const sortKey = { newest: 'createdAt', views: 'views', loveCount: 'loveCount' }[sortBy];
+      if (sortKey) {
+        ranked = [...ranked].sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
+      }
+
+      // De-duplicate (a user's own cards can exist in the pool) and slice the page
+      const seen = new Set();
+      const paged = [];
+      for (const item of ranked) {
+        const id = String(item._id);
+        if (seen.has(id)) continue;
+        seen.add(id);
+        paged.push(item);
+        if (paged.length >= skip + safeLimit) break;
+      }
+      const cards = paged.slice(skip);
+
+      await this.attachTemplateSnapshots(cards);
+      return {
+        cards,
+        personalized,
+        source,
+        algorithm: personalized ? 'content-based-cosine' : 'weighted-trending',
+        pagination: { page: safePage, limit: safeLimit, total, totalPages },
+      };
+    } catch (error) {
+      logger.error(`Get discover cards error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  // Heuristic: how "rich" a card profile is, used to pick the best source card.
+  _profileDensity(card) {
+    if (!card) return -1;
+    const textFields = [card.jobTitle, card.company, card.category, card.city, card.country, card.industry, card.profession, card.bio];
+    return textFields.filter(Boolean).length + (Array.isArray(card.skills) ? card.skills.length : 0) + (Array.isArray(card.tags) ? card.tags.length : 0);
   }
 }
 

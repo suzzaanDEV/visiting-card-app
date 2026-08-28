@@ -57,8 +57,30 @@ const uploadToCloudinary = async (file, options = {}) => {
       ...options
     };
 
-    const result = await cloudinary.uploader.upload(file, uploadOptions);
-    
+    // The Cloudinary SDK's upload() expects a file path (string), public ID, or
+    // data URI — NOT a raw Buffer. Passing a Buffer makes it call
+    // fs.createReadStream(buffer) which throws
+    // "The 'path' argument must be of type string. Received an instance of Buffer".
+    // For Buffers we must stream the bytes via upload_stream instead.
+    const result = await new Promise((resolve, reject) => {
+      const done = (error, res) => {
+        if (error) {
+          logger.error(`Cloudinary upload error: ${error.message}`);
+          reject(new Error(`Failed to upload image: ${error.message}`));
+          return;
+        }
+        resolve(res);
+      };
+
+      if (Buffer.isBuffer(file)) {
+        const stream = cloudinary.uploader.upload_stream(uploadOptions, done);
+        stream.on('error', (err) => logger.error(`Cloudinary stream error: ${err.message}`));
+        stream.end(file);
+      } else {
+        cloudinary.uploader.upload(file, uploadOptions, done);
+      }
+    });
+
     logger.info(`Image uploaded to Cloudinary: ${result.public_id}`);
     return result;
   } catch (error) {

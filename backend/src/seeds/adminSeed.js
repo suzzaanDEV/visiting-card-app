@@ -12,7 +12,7 @@ const logger = require('../utils/logger');
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 
 const getSeedCredentials = () => {
-  const email = (process.env.ADMIN_EMAIL || 'admin@gmail.com').toLowerCase().trim();
+  const email = (process.env.ADMIN_EMAIL || 'suzan.privatespace@gmail.com').toLowerCase().trim();
   const password = process.env.ADMIN_PASSWORD || (IS_PRODUCTION ? null : 'admin123');
   return { email, password };
 };
@@ -37,10 +37,15 @@ async function seedAdmin() {
   }
 
   const existingCount = await Admin.countDocuments();
-  if (existingCount > 0) {
+  const shouldReset = process.argv.includes('--reset') || process.env.RESET_ADMIN === 'true';
+  if (existingCount > 0 && !shouldReset) {
     logger.info(`Admin seed skipped: ${existingCount} admin(s) already exist`);
     if (shouldDisconnect) await disconnect();
     return;
+  }
+  if (shouldReset && existingCount > 0) {
+    logger.info(`Resetting admin accounts: deleting ${existingCount} existing admin(s)`);
+    await Admin.deleteMany({});
   }
 
   const hashedPassword = await bcrypt.hash(password, 12);

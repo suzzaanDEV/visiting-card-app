@@ -22,48 +22,39 @@ const authenticateToken = async (req, res, next) => {
   
   // Get Authorization header (case-insensitive)
   const authHeader = req.headers.authorization || req.headers.Authorization;
-  logger.info(`Authorization header: ${authHeader || 'none'}`);
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    logger.error('Invalid or missing Authorization header');
     return res.status(401).json({ error: 'No token provided' });
   }
 
   const token = authHeader.replace('Bearer ', '').trim();
-  logger.info(`Token: ${token.slice(0, 10)}... (length: ${token.length})`);
 
   // Check for placeholder tokens
   if (token.includes('{{') || token.includes('}}')) {
-    logger.error(`Invalid token: Placeholder detected (${token})`);
     return res.status(401).json({ error: 'Invalid token: Placeholder detected' });
   }
 
   // Basic token format validation
   if (!token || token.split('.').length !== 3) {
-    logger.error(`Token is malformed or not a valid JWT: ${token.slice(0, 20)}...`);
     return res.status(401).json({ error: 'Malformed token' });
   }
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (!decoded.userId || !decoded.email) {
-      logger.error('Decoded token missing required fields');
       return res.status(401).json({ error: 'Invalid token structure' });
     }
 
     // Check if user still exists and is active
     const user = await User.findById(decoded.userId);
     if (!user || !user.isActive) {
-      logger.error(`User not found or inactive: ${decoded.email}`);
       return res.status(401).json({ error: 'User account not found or inactive' });
     }
 
     req.user = decoded; // { userId, email }
     req.userInfo = user; // Full user object
-    logger.info(`Token verified for user: ${decoded.email}`);
     next();
   } catch (error) {
-    logger.error(`Auth middleware error: ${error.name} - ${error.message}`);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ error: 'Malformed or invalid token' });
     }
@@ -74,48 +65,68 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
+// Soft auth — attaches req.user when a valid token is present but never fails the
+// request. Used by public-but-personalizable endpoints (e.g. discovery).
+const optionalAuthToken = async (req, res, next) => {
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return next();
+  }
+  const token = authHeader.replace('Bearer ', '').trim();
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!decoded || !decoded.userId || !decoded.email) {
+      return next();
+    }
+    const user = await User.findById(decoded.userId);
+    if (user && user.isActive) {
+      req.user = decoded;
+      req.userInfo = user;
+    }
+  } catch {
+    // Invalid/expired token on a public route — just continue anonymously
+  }
+  next();
+};
+
 const authenticateAdmin = async (req, res, next) => {
   try {
     // Get Authorization header (case-insensitive)
     const authHeader = req.headers.authorization || req.headers.Authorization;
-    logger.info(`Admin Authorization header: ${authHeader || 'none'}`);
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      logger.error('Invalid or missing Authorization header for admin');
       return res.status(401).json({ error: 'No token provided' });
     }
 
     const token = authHeader.replace('Bearer ', '').trim();
-    logger.info(`Admin Token: ${token.slice(0, 10)}... (length: ${token.length})`);
 
     // Check for placeholder tokens
     if (token.includes('{{') || token.includes('}}')) {
-      logger.error(`Invalid admin token: Placeholder detected (${token})`);
       return res.status(401).json({ error: 'Invalid token: Placeholder detected' });
     }
 
     // Basic token format validation
     if (!token || token.split('.').length !== 3) {
-      logger.error(`Admin token is malformed or not a valid JWT: ${token.slice(0, 20)}...`);
       return res.status(401).json({ error: 'Malformed token' });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET);
     if (!decoded.userId || !decoded.email) {
-      logger.error('Decoded admin token missing required fields');
       return res.status(401).json({ error: 'Invalid token structure' });
     }
 
     // Check if admin exists and is active
     const admin = await Admin.findById(decoded.userId);
     if (!admin || !admin.isActive) {
-      logger.error(`Admin not found or inactive: ${decoded.email}`);
       return res.status(403).json({ error: 'Admin account not found or inactive' });
     }
 
-    // Update last login time
-    admin.lastLoginAt = new Date();
-    await admin.save();
+    // Token revocation: tokens signed before the current tokenVersion are rejected
+    const tokenVersion = decoded.tv ?? 0;
+    const currentVersion = admin.tokenVersion ?? 0;
+    if (tokenVersion < currentVersion) {
+      return res.status(401).json({ error: 'Token has been revoked. Please sign in again.' });
+    }
 
     req.admin = {
       adminId: admin._id,
@@ -124,10 +135,8 @@ const authenticateAdmin = async (req, res, next) => {
       role: admin.role
     };
     req.user = decoded; // Keep user info for compatibility
-    logger.info(`Admin token verified for: ${decoded.email}`);
     next();
   } catch (error) {
-    logger.error(`Admin middleware error: ${error.name} - ${error.message}`);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ error: 'Malformed or invalid token' });
     }
@@ -244,5 +253,7 @@ module.exports = {
   authenticateAdmin,
   authenticate,
   checkUserActive,
-  checkUserActiveOptional
+  checkUserActiveOptional,
+  optionalAuthToken,
+  authLimiter
 };  

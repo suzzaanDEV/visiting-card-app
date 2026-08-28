@@ -22,7 +22,7 @@ const authenticateAdmin = async (req, res, next) => {
     req.admin = {
       adminId: 'dev-admin-id',
       username: 'admin',
-      email: 'admin@gmail.com',
+      email: 'suzan.privatespace@gmail.com',
       role: 'super_admin'
     };
     req.user = { ...req.admin };
@@ -40,12 +40,19 @@ const authenticateAdmin = async (req, res, next) => {
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
     // Verify token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET);
     
     // Check if user is admin
     const admin = await Admin.findById(decoded.userId);
     if (!admin || !admin.isActive) {
       return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+    }
+
+    // Token revocation: tokens signed before the current tokenVersion are rejected
+    const tokenVersion = decoded.tv ?? 0;
+    const currentVersion = admin.tokenVersion ?? 0;
+    if (tokenVersion < currentVersion) {
+      return res.status(401).json({ error: 'Token has been revoked. Please sign in again.' });
     }
 
     // Add admin info to request
@@ -58,7 +65,6 @@ const authenticateAdmin = async (req, res, next) => {
 
     next();
   } catch (error) {
-    logger.error(`Admin middleware error: ${error.message}`);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ error: 'Invalid token.' });
     }

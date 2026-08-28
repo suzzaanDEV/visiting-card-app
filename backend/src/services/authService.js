@@ -6,9 +6,10 @@ const crypto = require('crypto');
 const Card = require('../models/cardModel');
 const SavedCard = require('../models/savedCardModel');
 const logger = require('../utils/logger');
+const imageService = require('./imageService');
 const { sendEmail } = require('../utils/emailService');
 const { generateOtp, generateResetToken, hashValue } = require('../utils/tokenUtils');
-const { renderGeneric, renderOtp } = require('../utils/emailTemplates');
+const { renderGeneric, renderOtp, render2fa } = require('../utils/emailTemplates');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const ACCESS_TOKEN_EXPIRES = process.env.JWT_ACCESS_EXPIRES_IN || '7d';
@@ -25,6 +26,7 @@ const formatUser = (user) => ({
   jobTitle: user.jobTitle || '',
   company: user.company || '',
   isEmailVerified: Boolean(user.isEmailVerified),
+  twoFactorEnabled: Boolean(user.twoFactorEnabled),
   avatar: user.avatar,
   phone: user.phone,
   location: user.location,
@@ -210,16 +212,19 @@ class AuthService {
 
         let emailDelivered = false;
         try {
+          const html = render2fa({ otp, name: user.name || user.username, minutes: 5 });
           const emailResult = await sendEmail({
             to: user.email,
             subject: 'Your Cardly Two-Factor Authentication Code',
             text: `Your 2FA code is ${otp}. It expires in 5 minutes.`,
-            html: `<p>Your 2FA code is <strong>${otp}</strong>.</p><p>It expires in 5 minutes.</p>`,
+            html,
           });
           emailDelivered = !emailResult?.simulated;
         } catch (emailError) {
           logger.error(`2FA email send failed: ${emailError.message}`);
-          if (EMAIL_ENABLED) throw emailError;
+          if (EMAIL_ENABLED) {
+            throw new Error('Failed to send 2FA code via email. Please try again or contact support.');
+          }
         }
 
         const response = {
@@ -265,11 +270,11 @@ class AuthService {
         user.twoFactorOtpHash = undefined;
         user.twoFactorOtpExpires = undefined;
         await user.save();
-        throw new Error('OTP expired. Please log in again.');
+        throw new Error('OTP expired. Please log in again to request a new code.');
       }
 
       const incomingHash = hashValue(String(otp).trim());
-      if (incomingHash !== user.twoFactorOtpHash) throw new Error('Invalid OTP');
+      if (incomingHash !== user.twoFactorOtpHash) throw new Error('Invalid OTP. Please check the code and try again.');
 
       // Clear OTP and complete login
       user.twoFactorOtpHash = undefined;
@@ -364,6 +369,60 @@ class AuthService {
     } catch (error) {
       logger.error(`Update user profile error: ${error.message}`);
       throw error;
+    }
+  }
+
+  async updateUserAvatar(userId, imageBuffer) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const newAvatar = await imageService.uploadProfilePhoto(imageBuffer);
+
+      await this._cleanupAvatar(user.avatar);
+
+      user.avatar = newAvatar;
+      await user.save();
+      logger.info(`User avatar updated: ${userId}`);
+      return formatUser(user);
+    } catch (error) {
+      logger.error(`Update user avatar error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async removeUserAvatar(userId) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      const oldAvatar = user.avatar;
+      user.avatar = null;
+      await user.save();
+
+      await this._cleanupAvatar(oldAvatar);
+      logger.info(`User avatar removed: ${userId}`);
+      return formatUser(user);
+    } catch (error) {
+      logger.error(`Remove user avatar error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async _cleanupAvatar(avatarUrl) {
+    if (!avatarUrl || typeof avatarUrl !== 'string') return;
+    if (!avatarUrl.startsWith('http') || !avatarUrl.includes('cloudinary')) return;
+    try {
+      const publicId = avatarUrl.split('/').pop().split('.')[0];
+      if (publicId) {
+        await imageService.deleteImage(`cardly_profiles/${publicId}`);
+      }
+    } catch (error) {
+      logger.warn(`Failed to delete old avatar: ${error.message}`);
     }
   }
 

@@ -12,6 +12,8 @@ const auditLogSchema = new mongoose.Schema({
     'notification.send', 'notification.mark_read',
     'policy.create', 'policy.update', 'policy.publish',
     'auth.password_change', 'auth.password_reset', 'auth.email_verify',
+    'auth.two_factor_enable', 'auth.two_factor_disable',
+    'auth.two_factor_login', 'auth.two_factor_login_failed',
     'system.error', 'system.backup', 'system.restore'
   ]},
   entityType: { type: String, enum: ['user', 'card', 'admin', 'template', 'policy', 'notification', 'system', null], default: null },

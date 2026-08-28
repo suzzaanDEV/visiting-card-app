@@ -109,25 +109,3 @@ exports.getStats = async () => {
     throw new Error('Failed to get short link statistics');
   }
 };
-
-// Add link analytics tracking
-const trackLinkClick = async (shortLink) => {
-  try {
-    const link = await ShortLink.findOneAndUpdate(
-      { shortCode: shortLink },
-      { 
-        $inc: { clickCount: 1 },
-        $push: { 
-          clicks: { 
-            timestamp: new Date(),
-            userAgent: req.headers['user-agent'] || 'unknown'
-          }
-        }
-      },
-      { new: true }
-    );
-    return link;
-  } catch (error) {
-    logger.error('Failed to track link click:', error);
-  }
-};

@@ -162,19 +162,8 @@ exports.toggleFeatured = async (req, res, next) => {
 exports.uploadBackground = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+    const imageUrl = resolveUploadedImageUrl(req.file);
     const Template = require('../models/templateModel');
-    let imageUrl;
-    if (req.file.path) {
-      imageUrl = req.file.path;
-    } else if (req.file.location) {
-      imageUrl = req.file.location;
-    } else if (req.file.buffer) {
-      const ext = (req.file.mimetype || 'image/png').split('/')[1];
-      const base64 = req.file.buffer.toString('base64');
-      imageUrl = `data:${req.file.mimetype};base64,${base64}`;
-    } else {
-      imageUrl = `/uploads/${req.file.filename || 'background.png'}`;
-    }
     const template = await Template.findOneAndUpdate(
       { id: req.params.templateId },
       { $set: { 'design.backgroundImage': imageUrl } },
@@ -183,6 +172,27 @@ exports.uploadBackground = async (req, res) => {
     if (!template) return res.status(404).json({ error: 'Template not found' });
     res.json({ success: true, imageUrl, template });
   } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+// Upload a background image before the template is saved — returns an image URL
+// that can be included in the template create/update payload.
+exports.uploadBackgroundImage = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No image uploaded' });
+    const imageUrl = resolveUploadedImageUrl(req.file);
+    res.json({ success: true, imageUrl });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+};
+
+// Derive a browser-usable URL from whatever the storage backend produced.
+const resolveUploadedImageUrl = (file) => {
+  if (file.path) return file.path;
+  if (file.location) return file.location;
+  if (file.buffer && file.buffer.length) {
+    const base64 = file.buffer.toString('base64');
+    return `data:${file.mimetype};base64,${base64}`;
+  }
+  return `/uploads/${file.filename || 'background.png'}`;
 };
 
 // Get all templates (admin view)

@@ -1,15 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateAdmin } = require('../middleware/adminMiddleware');
+const { authLimiter } = require('../middleware/authMiddleware');
+const { upload, handleMulterError } = require('../utils/multerConfig');
 const adminController = require('../controllers/adminController');
 
 // Public routes (no auth required)
 router.get('/settings/public', adminController.getPublicSettings);
 router.get('/categories', adminController.getCardCategories);
 
-// Admin authentication
-router.post('/login', adminController.adminLogin);
-router.post('/verify-otp', adminController.verifyAdminOtp);
+// Admin authentication — rate limited to prevent credential brute-force/OTP guessing
+router.post('/login', authLimiter, adminController.adminLogin);
+router.post('/verify-otp', authLimiter, adminController.verifyAdminOtp);
 router.post('/logout', authenticateAdmin, adminController.adminLogout);
 
 // Dashboard
@@ -47,9 +49,11 @@ router.get('/cards/:cardId/analytics', authenticateAdmin, adminController.getCar
 router.get('/templates', authenticateAdmin, adminController.getAllTemplates);
 router.get('/templates/:templateId', authenticateAdmin, adminController.getTemplateById);
 router.post('/templates', authenticateAdmin, adminController.createTemplate);
+router.post('/templates/background', authenticateAdmin, upload.single('image'), handleMulterError, adminController.uploadTemplateBackgroundImage);
 router.put('/templates/:templateId', authenticateAdmin, adminController.updateTemplate);
 router.delete('/templates/:templateId', authenticateAdmin, adminController.deleteTemplate);
 router.put('/templates/:templateId/featured', authenticateAdmin, adminController.toggleTemplateFeatured);
+router.post('/templates/:templateId/background', authenticateAdmin, upload.single('image'), handleMulterError, adminController.uploadTemplateBackground);
 
 // Analytics
 router.get('/analytics', authenticateAdmin, adminController.getAnalytics);

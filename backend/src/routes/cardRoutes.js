@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const cardController = require('../controllers/cardController');
-const { authenticateToken } = require('../middleware/authMiddleware');
-const { authenticateAdmin } = require('../middleware/adminMiddleware');
+const { authenticateToken, optionalAuthToken } = require('../middleware/authMiddleware');
 const { filterSensitiveData, addPrivacyHeaders } = require('../middleware/privacyMiddleware');
 const { upload, handleMulterError } = require('../utils/multerConfig');
 const { cardCreationLimiter } = require('../middleware/rateLimiter');
@@ -28,12 +27,13 @@ const validatePositiveInt = (queryName) => (req, res, next) => {
 
 // Public routes (no authentication required) - Apply privacy filtering
 router.get('/public', addPrivacyHeaders, filterSensitiveData, validatePositiveInt('page'), validatePositiveInt('limit'), cardController.getPublicCards);
+router.get('/discover', addPrivacyHeaders, filterSensitiveData, validatePositiveInt('page'), validatePositiveInt('limit'), optionalAuthToken, cardController.getDiscover);
 router.get('/trending', addPrivacyHeaders, filterSensitiveData, validatePositiveInt('limit'), cardController.getTrendingCards);
 router.get('/suggestions', validatePositiveInt('limit'), cardController.getSuggestions);
 
 // Public card viewing routes - Controller handles privacy logic
-router.get('/c/:shortLink', cardController.getCardByShortLink);
-router.get('/public/view/:cardId', validateObjectId('cardId'), cardController.getCardById);
+router.get('/c/:shortLink', addPrivacyHeaders, filterSensitiveData, cardController.getCardByShortLink);
+router.get('/public/view/:cardId', addPrivacyHeaders, filterSensitiveData, validateObjectId('cardId'), cardController.getCardById);
 
 // Public actions (no sensitive data)
 router.post('/:cardId/share', validateObjectId('cardId'), cardController.shareCard);

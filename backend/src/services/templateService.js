@@ -102,8 +102,22 @@ class TemplateService {
   // Create new template
   async createTemplate(templateData, adminId) {
     try {
+      const data = { ...templateData };
+      const design = data.design || {};
+
+      // The model requires a `preview` subdoc (backgroundColor). The admin UI
+      // only manages `design`, so derive preview from design when absent.
+      if (!data.preview) {
+        data.preview = {
+          backgroundColor: design.backgroundColor || '#ffffff',
+          textColor: design.textColor || '#1a1a1a',
+          fontFamily: design.fontFamily || 'Arial',
+          elements: design.elements || []
+        };
+      }
+
       const template = new Template({
-        ...templateData,
+        ...data,
         createdBy: adminId,
         usageCount: 0
       });

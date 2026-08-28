@@ -261,6 +261,7 @@ class NotificationService {
         message: `${lover.name || lover.username} loved your card "${card.title}"`,
         data: {
           cardId,
+          shortLink: card.shortLink,
           actionUrl: `/c/${card.shortLink}`
         }
       });
@@ -307,6 +308,7 @@ class NotificationService {
         message: `${sharer.name || sharer.username} shared your card "${card.title}"`,
         data: {
           cardId,
+          shortLink: card.shortLink,
           actionUrl: `/c/${card.shortLink}`
         }
       });

@@ -57,7 +57,12 @@ class CardService {
     category,
     tags,
     customShortLink,
-    privacy = 'public'
+    privacy = 'public',
+    industry,
+    profession,
+    skills,
+    services,
+    products
   }) {
     try {
       const shortLink = customShortLink || await shortLinkGenerator.generate();
@@ -120,7 +125,12 @@ class CardService {
             return String(category || 'general').toLowerCase();
           }
         })(),
-        tags: tags || []
+        tags: tags || [],
+        industry: industry || '',
+        profession: profession || '',
+        skills: Array.isArray(skills) ? skills : [],
+        services: Array.isArray(services) ? services : [],
+        products: Array.isArray(products) ? products : []
       });
 
       await card.save();
@@ -378,10 +388,31 @@ class CardService {
 
   async getUserCards(userId) {
     const cards = await Card.find({ ownerUserId: userId, isActive: true })
-      .populate('ownerUserId', 'username name email phone location website bio jobTitle company')
+      .populate('ownerUserId', 'username name avatar email phone location website bio jobTitle company')
       .sort({ createdAt: -1 });
 
-    return cards;
+    return this.attachTemplateSnapshots(cards);
+  }
+
+  // Attach a lightweight template snapshot ({ id, name, design }) to each card so
+  // frontend previews/thumbnails can render the real template design. Uses a single
+  // template lookup for the whole list to avoid N+1 queries.
+  async attachTemplateSnapshots(cardsOrCard) {
+    const list = Array.isArray(cardsOrCard) ? cardsOrCard : [cardsOrCard];
+    const templateIds = [...new Set(list.map(c => c && c.templateId).filter(Boolean))];
+    const templates = templateIds.length
+      ? await Template.find({ id: { $in: templateIds }, isActive: true }).select('id name design')
+      : [];
+    const templateMap = new Map(templates.map(t => [t.id, t]));
+
+    for (const card of list) {
+      if (!card || !card.set) continue;
+      const t = card.templateId ? templateMap.get(card.templateId) : null;
+      if (t) {
+        card.set('template', { id: t.id, name: t.name, design: t.design }, { strict: false });
+      }
+    }
+    return cardsOrCard;
   }
 
   async getUserCardStats(userId) {
@@ -449,7 +480,12 @@ class CardService {
     templateId,
     templateName,
     category,
-    tags
+    tags,
+    industry,
+    profession,
+    skills,
+    services,
+    products
   }) {
     const card = await Card.findById(cardId);
     if (!card) {
@@ -548,6 +584,11 @@ class CardService {
     if (socialLinks !== undefined) card.socialLinks = { ...card.socialLinks, ...socialLinks };
     if (templateId !== undefined) card.templateId = templateId;
     if (templateName !== undefined) card.templateName = templateName;
+    if (industry !== undefined) card.industry = industry;
+    if (profession !== undefined) card.profession = profession;
+    if (skills !== undefined) card.skills = Array.isArray(skills) ? skills : [];
+    if (services !== undefined) card.services = Array.isArray(services) ? services : [];
+    if (products !== undefined) card.products = Array.isArray(products) ? products : [];
     if (category !== undefined) {
       // Normalize category on update as well
       try {
@@ -636,34 +677,24 @@ class CardService {
         isActive: true
       };
 
-      // Apply privacy filter
-      if (privacy && privacy !== 'all') {
-        query.privacy = privacy;
-        // Also filter by isPublic for backward compatibility
-        if (privacy === 'public') {
-          query.isPublic = true;
-        } else if (privacy === 'private') {
-          query.isPublic = false;
+      // Private cards are never exposed in public browse lists — they are only
+      // reachable via their short link / QR code. Browse endpoints always return
+      // public cards only, regardless of any privacy query param.
+      query.isPrivate = { $ne: true };
+      query.$and = [
+        {
+          $or: [
+            { privacy: 'public' },
+            { privacy: { $exists: false }, isPublic: true }
+          ]
+        },
+        {
+          $or: [
+            { isPublic: true },
+            { isPrivate: { $ne: true } }
+          ]
         }
-      } else if (!privacy) {
-        // Default to public cards if no privacy filter specified
-        // Show only cards that are explicitly public
-        query.$and = [
-          {
-            $or: [
-              { privacy: 'public' },
-              { privacy: { $exists: false }, isPublic: true }
-            ]
-          },
-          {
-            $or: [
-              { isPublic: true },
-              { isPrivate: { $ne: true } }
-            ]
-          }
-        ];
-      }
-      // If privacy === 'all', don't add any privacy filter
+      ];
 
       // Add search functionality
       if (search) {
@@ -711,10 +742,16 @@ class CardService {
       else if (sortBy === 'trending') sortOptions = { views: -1, loveCount: -1, createdAt: -1 };
 
       const cards = await Card.find(query)
-        .populate('ownerUserId', 'username name')
+        .populate('ownerUserId', 'username name avatar')
         .sort(sortOptions)
         .skip(skip)
         .limit(limit);
+
+      try {
+        await this.attachTemplateSnapshots(cards);
+      } catch (templateError) {
+        logger.warn(`Template attach on public cards failed: ${templateError.message}`);
+      }
 
       const total = await Card.countDocuments(query);
       const pages = Math.ceil(total / limit);
@@ -738,7 +775,7 @@ class CardService {
     try {
       const { card: leanCard, fromCache, stages } = await qrPipeline.resolveCardFromScan(shortLink);
       const card = await Card.findById(leanCard._id)
-        .populate('ownerUserId', 'username name email phone location website bio jobTitle company');
+        .populate('ownerUserId', 'username name avatar email phone location website bio jobTitle company');
 
       if (!card) {
         throw new Error('Card not found');
@@ -761,7 +798,7 @@ class CardService {
     }
 
     const card = await Card.findOne({ shortLink, isActive: true })
-      .populate('ownerUserId', 'username name email phone location website bio jobTitle company');
+      .populate('ownerUserId', 'username name avatar email phone location website bio jobTitle company');
 
     if (!card) {
       throw new Error('Card not found');
@@ -791,7 +828,7 @@ class CardService {
   async getCardById(cardId) {
     try {
       const card = await Card.findById(cardId)
-        .populate('ownerUserId', 'username name email phone location website bio jobTitle company');
+        .populate('ownerUserId', 'username name avatar email phone location website bio jobTitle company');
 
       if (!card) {
         throw new Error('Card not found');
@@ -853,7 +890,7 @@ class CardService {
       'loves.userId': userId,
       isActive: true
     })
-      .populate('ownerUserId', 'username name')
+      .populate('ownerUserId', 'username name avatar')
       .sort({ createdAt: -1 });
 
     return cards;
@@ -910,7 +947,7 @@ class CardService {
 
   async generateVCF(cardId) {
     const card = await Card.findById(cardId)
-      .populate('ownerUserId', 'username name email phone location website bio');
+      .populate('ownerUserId', 'username name avatar email phone location website bio');
 
     if (!card) {
       throw new Error('Card not found');
@@ -932,6 +969,7 @@ class CardService {
       'VERSION:3.0',
       `FN:${contactName}`,
       `N:${lastName};${firstName};;;`,
+      ...(card.ownerUserId?.avatar ? [`PHOTO;VALUE=URI:${card.ownerUserId.avatar}`] : []),
       `EMAIL:${card.email || card.ownerUserId?.email || ''}`,
       `TEL:${card.phone || card.ownerUserId?.phone || ''}`,
       `URL:${card.website || card.ownerUserId?.website || ''}`,
@@ -980,10 +1018,16 @@ class CardService {
   }
 
   async getTrendingCards(limit = 10) {
-    const cards = await Card.find({ isPublic: true, isActive: true })
-      .populate('ownerUserId', 'username name')
+    const cards = await Card.find({ isPublic: true, isPrivate: { $ne: true }, privacy: { $ne: 'private' }, isActive: true })
+      .populate('ownerUserId', 'username name avatar')
       .sort({ loveCount: -1, views: -1 })
       .limit(limit);
+
+    try {
+      await this.attachTemplateSnapshots(cards);
+    } catch (err) {
+      logger.warn(`Template attach on trending cards failed: ${err.message}`);
+    }
 
     return cards;
   }
@@ -1033,10 +1077,16 @@ class CardService {
       sortOptions[sortBy] = sortOrder === 'desc' ? -1 : 1;
 
       const cards = await Card.find(query)
-        .populate('ownerUserId', 'username name')
+        .populate('ownerUserId', 'username name avatar')
         .sort(sortOptions)
         .skip(skip)
         .limit(limit);
+
+      try {
+        await this.attachTemplateSnapshots(cards);
+      } catch (templateError) {
+        logger.warn(`Template attach on admin cards failed: ${templateError.message}`);
+      }
 
       const total = await Card.countDocuments(query);
 
@@ -1103,7 +1153,7 @@ class CardService {
   async getCardAnalyticsAdmin(cardId) {
     try {
       const card = await Card.findById(cardId)
-        .populate('ownerUserId', 'username name');
+        .populate('ownerUserId', 'username name avatar');
 
       if (!card) {
         throw new Error('Card not found');
@@ -1139,7 +1189,7 @@ class CardService {
         isActive: true,
         createdAt: { $gte: startDate }
       })
-        .populate('ownerUserId', 'username name')
+        .populate('ownerUserId', 'username name avatar')
         .sort({ loveCount: -1, views: -1 })
         .limit(limit);
 

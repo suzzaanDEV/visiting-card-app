@@ -53,4 +53,49 @@ describe('Auth API', () => {
     expect(res.status).toBe(200);
     expect(res.body.token).toBeDefined();
   });
+
+  let twoFactorDevOtp;
+
+  test('POST /api/auth/profile/2fa/toggle requests verification when enabling 2FA', async () => {
+    const res = await request(app)
+      .post('/api/auth/profile/2fa/toggle')
+      .set('Authorization', `Bearer ${token}`);
+    
+    expect(res.status).toBe(200);
+    expect(res.body.requiresVerification).toBe(true);
+    expect(res.body.devOtp).toMatch(/^\d{6}$/);
+    twoFactorDevOtp = res.body.devOtp;
+  });
+
+  test('POST /api/auth/verify-enable-2fa completes enabling 2FA', async () => {
+    const res = await request(app)
+      .post('/api/auth/verify-enable-2fa')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ otp: twoFactorDevOtp });
+    
+    expect(res.status).toBe(200);
+    expect(res.body.twoFactorEnabled).toBe(true);
+  });
+
+  test('POST /api/auth/login requires 2FA OTP when 2FA is enabled', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email, password: 'password123' });
+    
+    expect(res.status).toBe(200);
+    expect(res.body.requiresOTP).toBe(true);
+    expect(res.body.devOtp).toMatch(/^\d{6}$/);
+    twoFactorDevOtp = res.body.devOtp;
+  });
+
+  test('POST /api/auth/verify-2fa completes login with correct OTP', async () => {
+    const res = await request(app)
+      .post('/api/auth/verify-2fa')
+      .send({ email, otp: twoFactorDevOtp });
+    
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeDefined();
+    expect(res.body.refreshToken).toBeDefined();
+    expect(res.body.user.twoFactorEnabled).toBe(true);
+  });
 });

@@ -19,7 +19,8 @@ class CardAccessService {
       }
 
       // Check if requester is the owner
-      if (card.ownerUserId.toString() === requesterId.toString()) {
+      const { getOwnerId } = require('../utils/cardPrivacy');
+      if (getOwnerId(card.ownerUserId) === String(requesterId)) {
         throw new Error('Cannot request access to your own card');
       }
 
@@ -69,8 +70,8 @@ class CardAccessService {
         return { access: true, reason: 'public_card' };
       }
 
-      // If user is the owner, allow access
-      if (card.ownerUserId.toString() === userId.toString()) {
+      const { getOwnerId } = require('../utils/cardPrivacy');
+      if (getOwnerId(card.ownerUserId) === String(userId)) {
         return { access: true, reason: 'owner' };
       }
 
@@ -201,42 +202,17 @@ class CardAccessService {
     }
   }
 
-  // Grant immediate access via QR scan
+  // QR scan still requires owner approval — creates a pending request
   async grantQRAccess(cardId, requesterId) {
     try {
-      const card = await Card.findById(cardId);
-      if (!card) {
-        throw new Error('Card not found');
-      }
-
-      if (card.privacy !== 'private') {
-        throw new Error('Card is not private');
-      }
-
-      // Create or update access request for QR scan
-      let request = await CardAccessRequest.findOne({
+      const result = await this.createAccessRequest(
         cardId,
         requesterId,
-        requestType: 'qr_scan'
-      });
-
-      if (!request) {
-        request = new CardAccessRequest({
-          cardId,
-          requesterId,
-          ownerId: card.ownerUserId,
-          requestType: 'qr_scan',
-          status: 'approved',
-          requestMessage: 'Access granted via QR code scan'
-        });
-      } else {
-        request.status = 'approved';
-        request.requestMessage = 'Access granted via QR code scan';
-      }
-
-      await request.save();
-      logger.info(`QR access granted for card ${cardId} to user ${requesterId}`);
-      return { access: true, request };
+        'qr_scan',
+        'Access requested via QR code scan'
+      );
+      logger.info(`QR access request created for card ${cardId} by user ${requesterId}`);
+      return result;
     } catch (error) {
       logger.error(`Grant QR access error: ${error.message}`);
       throw error;

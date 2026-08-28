@@ -1,5 +1,7 @@
 const authService = require('../services/authService');
+const imageService = require('../services/imageService');
 const logger = require('../utils/logger');
+const auditService = require('../services/auditService');
 
 // Add input validation
 const validateEmail = (email) => {
@@ -124,6 +126,34 @@ exports.updateProfile = async (req, res, next) => {
   }
 };
 
+exports.uploadAvatar = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No image uploaded' });
+    }
+    if (!imageService.validateImageFile(req.file)) {
+      return res.status(400).json({ error: 'Image must be PNG or JPEG and under 5MB' });
+    }
+    const userId = req.user._id || req.user.userId;
+    const user = await authService.updateUserAvatar(userId, req.file.buffer);
+    res.status(200).json({ user });
+  } catch (error) {
+    logger.error(`Upload avatar error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
+exports.removeAvatar = async (req, res, next) => {
+  try {
+    const userId = req.user._id || req.user.userId;
+    const user = await authService.removeUserAvatar(userId);
+    res.status(200).json({ user });
+  } catch (error) {
+    logger.error(`Remove avatar error: ${error.message}`);
+    res.status(400).json({ error: error.message });
+  }
+};
+
 exports.getUserStats = async (req, res, next) => {
   try {
     const userId = req.user._id || req.user.userId;
@@ -244,9 +274,49 @@ exports.verifyTwoFactor = async (req, res, next) => {
     if (!/^\d{6}$/.test(String(otp).trim())) return res.status(400).json({ error: 'OTP must be a 6-digit code' });
 
     const result = await authService.verifyTwoFactor(email, otp);
+    
+    // Audit log for successful 2FA verification
+    try {
+      const User = require('../models/userModel');
+      const user = await User.findOne({ email: email.toLowerCase().trim() });
+      if (user) {
+        await auditService.log({
+          action: 'auth.two_factor_login',
+          entityType: 'user',
+          entityId: user._id,
+          userId: user._id,
+          metadata: { email: user.email },
+          severity: 'info',
+          success: true
+        });
+      }
+    } catch (auditError) {
+      logger.error(`Failed to log 2FA login audit: ${auditError.message}`);
+    }
+    
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Verify 2FA error: ${error.message}`);
+    
+    // Audit log for failed 2FA attempt
+    try {
+      const User = require('../models/userModel');
+      const user = await User.findOne({ email: email.toLowerCase().trim() });
+      if (user) {
+        await auditService.log({
+          action: 'auth.two_factor_login_failed',
+          entityType: 'user',
+          entityId: user._id,
+          userId: user._id,
+          metadata: { email: user.email, error: error.message },
+          severity: 'warning',
+          success: false
+        });
+      }
+    } catch (auditError) {
+      logger.error(`Failed to log failed 2FA attempt audit: ${auditError.message}`);
+    }
+    
     const status = error.message.includes('expired') || error.message.includes('Invalid') ? 400 : 500;
     res.status(status).json({ error: error.message });
   }
@@ -322,8 +392,8 @@ exports.toggleTwoFactor = async (req, res) => {
 
       // Send OTP email
       try {
-        const { renderOtp } = require('../utils/emailTemplates');
-        const html = renderOtp({ otp, name: user.name || user.username, minutes: 5 });
+        const { render2fa } = require('../utils/emailTemplates');
+        const html = render2fa({ otp, name: user.name || user.username, minutes: 5 });
         await require('../utils/emailService').sendEmail({
           to: user.email,
           subject: 'Your Cardly two-factor enable code',
@@ -335,15 +405,35 @@ exports.toggleTwoFactor = async (req, res) => {
         require('../utils/logger').error(`2FA enable email failed: ${e.message}`);
       }
 
-      return res.json({ message: '2FA enable code sent', requiresVerification: true });
+      const responsePayload = { message: '2FA enable code sent', requiresVerification: true };
+      if (process.env.NODE_ENV !== 'production' && process.env.EMAIL_ENABLED !== 'true') {
+        responsePayload.devOtp = otp;
+      }
+      return res.json(responsePayload);
     }
 
     // Disabling 2FA: turn off directly
     user.twoFactorEnabled = false;
     await user.save();
+    
+    // Audit log for 2FA disable
+    try {
+      await auditService.log({
+        action: 'auth.two_factor_disable',
+        entityType: 'user',
+        entityId: user._id,
+        userId: user._id,
+        metadata: { email: user.email },
+        severity: 'info',
+        success: true
+      });
+    } catch (auditError) {
+      logger.error(`Failed to log 2FA disable audit: ${auditError.message}`);
+    }
+    
     res.json({ twoFactorEnabled: false });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -363,9 +453,121 @@ exports.verifyEnableTwoFactor = async (req, res) => {
     user.twoFactorEnablePendingHash = undefined;
     user.twoFactorEnablePendingExpires = undefined;
     await user.save();
+    
+    // Audit log for successful 2FA enablement
+    try {
+      await auditService.log({
+        action: 'auth.two_factor_enable',
+        entityType: 'user',
+        entityId: user._id,
+        userId: user._id,
+        metadata: { email: user.email },
+        severity: 'info',
+        success: true
+      });
+    } catch (auditError) {
+      logger.error(`Failed to log 2FA enable audit: ${auditError.message}`);
+    }
+    
     res.json({ message: 'Two-factor enabled', twoFactorEnabled: true });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.resendTwoFactorOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    if (!validateEmail(email)) return res.status(400).json({ error: 'Invalid email format' });
+
+    const User = require('../models/userModel');
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user.twoFactorEnabled) return res.status(400).json({ error: 'Two-factor authentication is not enabled for this account' });
+
+    const { otp, hash } = require('../utils/tokenUtils').generateOtp();
+    user.twoFactorOtpHash = hash;
+    user.twoFactorOtpExpires = new Date(Date.now() + 5 * 60 * 1000);
+    user.twoFactorOtpRequestedAt = new Date();
+    await user.save();
+
+    logger.info(`2FA OTP resent for user: ${email}`);
+
+    let emailDelivered = false;
+    try {
+      const { render2fa } = require('../utils/emailTemplates');
+      const html = render2fa({ otp, name: user.name || user.username, minutes: 5 });
+      await require('../utils/emailService').sendEmail({
+        to: user.email,
+        subject: 'Your Cardly Two-Factor Authentication Code',
+        text: `Your 2FA code is ${otp}. It expires in 5 minutes.`,
+        html,
+      });
+      emailDelivered = true;
+    } catch (e) {
+      logger.error(`2FA resend email failed: ${e.message}`);
+    }
+
+    const responsePayload = { 
+      message: '2FA code resent to your email', 
+      emailDelivered,
+      expiresInMinutes: 5 
+    };
+    if (process.env.NODE_ENV !== 'production' && process.env.EMAIL_ENABLED !== 'true') {
+      responsePayload.devOtp = otp;
+    }
+    return res.json(responsePayload);
+  } catch (error) {
+    logger.error(`Resend 2FA OTP error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.resendEnableTwoFactorOtp = async (req, res) => {
+  try {
+    const User = require('../models/userModel');
+    const userId = req.user._id || req.user.userId;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user.twoFactorEnablePendingHash || !user.twoFactorEnablePendingExpires) {
+      return res.status(400).json({ error: 'No 2FA enable pending. Please start the enable process first.' });
+    }
+
+    const { otp, hash } = require('../utils/tokenUtils').generateOtp();
+    user.twoFactorEnablePendingHash = hash;
+    user.twoFactorEnablePendingExpires = new Date(Date.now() + 5 * 60 * 1000);
+    await user.save();
+
+    logger.info(`2FA enable OTP resent for user: ${user.email}`);
+
+    let emailDelivered = false;
+    try {
+      const { render2fa } = require('../utils/emailTemplates');
+      const html = render2fa({ otp, name: user.name || user.username, minutes: 5 });
+      await require('../utils/emailService').sendEmail({
+        to: user.email,
+        subject: 'Your Cardly two-factor enable code',
+        text: `Your code is ${otp}. It expires in 5 minutes.`,
+        html,
+      });
+      emailDelivered = true;
+    } catch (e) {
+      logger.error(`2FA enable resend email failed: ${e.message}`);
+    }
+
+    const responsePayload = { 
+      message: '2FA enable code resent to your email', 
+      emailDelivered,
+      expiresInMinutes: 5 
+    };
+    if (process.env.NODE_ENV !== 'production' && process.env.EMAIL_ENABLED !== 'true') {
+      responsePayload.devOtp = otp;
+    }
+    return res.json(responsePayload);
+  } catch (error) {
+    logger.error(`Resend enable 2FA OTP error: ${error.message}`);
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -378,7 +580,7 @@ exports.deleteAccount = async (req, res) => {
     await User.findByIdAndDelete(userId);
     res.json({ message: 'Account deleted' });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -390,7 +592,7 @@ exports.getPrivacySettings = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
     res.json({ privacySettings: user.privacySettings || {} });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -409,6 +611,6 @@ exports.updatePrivacySettings = async (req, res) => {
     await user.save();
     res.json({ privacySettings: user.privacySettings });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ error: error.message });
   }
 };

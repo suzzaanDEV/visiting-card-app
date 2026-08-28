@@ -19,7 +19,7 @@ const { seedAdmin } = require('../../src/seeds/adminSeed');
 describe('Admin seed and login', () => {
   test('seedAdmin creates default admin when collection empty', async () => {
     await seedAdmin();
-    const admin = await Admin.findOne({ email: 'admin@gmail.com' });
+    const admin = await Admin.findOne({ email: 'suzan.privatespace@gmail.com' });
     expect(admin).toBeTruthy();
     expect(admin.name).toBe('System Admin');
     expect(admin.isVerified).toBe(true);
@@ -35,15 +35,28 @@ describe('Admin seed and login', () => {
     expect(countAfter).toBe(countBefore);
   });
 
+  test('seedAdmin --reset replaces existing admins', async () => {
+    const originalArgv = process.argv;
+    process.argv = [...originalArgv, '--reset'];
+    try {
+      await seedAdmin();
+      const admins = await Admin.find({});
+      expect(admins).toHaveLength(1);
+      expect(admins[0].email).toBe('suzan.privatespace@gmail.com');
+    } finally {
+      process.argv = originalArgv;
+    }
+  });
+
   test('POST /api/admin/login succeeds with seeded admin', async () => {
     await Admin.deleteMany({});
     await seedAdmin();
     const res = await request(app)
       .post('/api/admin/login')
-      .send({ email: 'admin@gmail.com', password: 'admin123' });
+      .send({ email: 'suzan.privatespace@gmail.com', password: 'admin123' });
     expect(res.status).toBe(200);
     expect(res.body.requiresOTP).toBe(true);
-    expect(res.body.adminEmail).toBe('admin@gmail.com');
+    expect(res.body.adminEmail).toBe('suzan.privatespace@gmail.com');
     // In dev mode, devOtp is returned so we can complete login
     expect(res.body.devOtp).toBeDefined();
   });

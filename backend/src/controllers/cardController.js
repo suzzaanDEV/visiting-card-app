@@ -2,7 +2,75 @@ const cardService = require('../services/cardService');
 const savedCardService = require('../services/savedCardService');
 const cardAccessService = require('../services/cardAccessService');
 const notificationService = require('../services/notificationService');
+const analyticsService = require('../services/analyticsService');
+const searchService = require('../services/searchService');
 const logger = require('../utils/logger');
+const { getOwnerId, isPrivateCard, sanitizePrivateCard } = require('../utils/cardPrivacy');
+
+const DEDUP_VIEW_MS = 5 * 60 * 1000;
+const DEDUP_ACTION_MS = 60 * 1000;
+
+// Best-effort analytics recording — never blocks or breaks the main flow
+const recordAnalytics = (cardId, actionType, userId, req, dedupMs = DEDUP_ACTION_MS) => {
+  if (!cardId) return;
+  const userAgent = req?.get?.('user-agent') || req?.headers?.['user-agent'];
+  analyticsService
+    .recordEvent({
+      cardId,
+      userId: userId || null,
+      actionType,
+      metadata: {
+        userAgent,
+        ipAddress: req?.ip,
+        pageUrl: req?.originalUrl || req?.url
+      },
+      dedupMs
+    })
+    .catch(err => logger.warn(`Analytics record failed (${actionType}): ${err.message}`));
+};
+
+const decodeViewer = (req) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return { isAuthenticated: false, userId: null };
+  try {
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return { isAuthenticated: !!decoded.userId, userId: decoded.userId || null };
+  } catch {
+    return { isAuthenticated: false, userId: null };
+  }
+};
+
+const applyPrivateCardAccess = async (result, userId) => {
+  if (!result?.card || !isPrivateCard(result.card)) {
+    return {
+      ...result,
+      access: { granted: true, reason: 'public_card', requiresRequest: false },
+    };
+  }
+
+  const ownerId = getOwnerId(result.card.ownerUserId);
+  const isOwner = userId && ownerId === String(userId);
+
+  let accessCheck = { access: false, reason: userId ? 'no_access' : 'unauthenticated' };
+  if (userId) {
+    accessCheck = await cardAccessService.checkAccess(result.card._id, userId);
+  }
+
+  const granted = Boolean(accessCheck.access);
+  if (!isOwner && !granted) {
+    result.card = sanitizePrivateCard(result.card);
+  }
+
+  result.access = {
+    granted: isOwner || granted,
+    reason: isOwner ? 'owner' : accessCheck.reason,
+    requiresRequest: !isOwner && !granted,
+    requestId: accessCheck.request?._id || null,
+  };
+
+  return result;
+};
 
 // Create a new card
 exports.createCard = async (req, res, next) => {
@@ -35,7 +103,15 @@ exports.createCard = async (req, res, next) => {
       cardDesign,
       templateName,
       category,
-      tags
+      tags,
+      backgroundColor,
+      textColor,
+      fontFamily,
+      industry,
+      profession,
+      skills,
+      services,
+      products
     } = req.body;
     const cardImage = req.file;
 
@@ -75,7 +151,15 @@ exports.createCard = async (req, res, next) => {
       cardDesign,
       templateName,
       category,
-      tags
+      tags,
+      backgroundColor,
+      textColor,
+      fontFamily,
+      industry,
+      profession,
+      skills,
+      services,
+      products
     });
 
     res.status(201).json(result);
@@ -226,7 +310,12 @@ exports.updateCard = async (req, res, next) => {
       templateId,
       templateName,
       category,
-      tags
+      tags,
+      industry,
+      profession,
+      skills,
+      services,
+      products
     } = req.body;
     const cardImage = req.file;
 
@@ -261,6 +350,11 @@ exports.updateCard = async (req, res, next) => {
       templateName,
       category,
       tags,
+      industry,
+      profession,
+      skills,
+      services,
+      products,
       cardImage
     });
 
@@ -340,81 +434,15 @@ exports.getCardByShortLink = async (req, res, next) => {
       await result.card.incrementViews();
     }
 
-    // Check if user is authenticated for privacy filtering
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    let isAuthenticated = false;
-    let userId = null;
+    const { userId } = decodeViewer(req);
+    recordAnalytics(result?.card?._id, 'view', userId, req, DEDUP_VIEW_MS);
+    const payload = await applyPrivateCardAccess(result, userId);
 
-    if (token) {
-      try {
-        const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        isAuthenticated = !!decoded.userId;
-        userId = decoded.userId;
-      } catch (error) {
-        isAuthenticated = false;
-      }
+    if (payload.card && isPrivateCard(payload.card)) {
+      res.setHeader('X-Privacy-Notice', 'Contact details require approved access');
     }
 
-    // Check if user has approved access for private cards
-    let hasApprovedAccess = false;
-    let isOwner = false;
-    if (isAuthenticated && result && result.card) {
-      // Check if user is the owner
-      isOwner = result.card.ownerUserId?.toString() === userId?.toString();
-
-      // Check if user has approved access for private cards
-      if (result.card.privacy === 'private') {
-        const accessCheck = await cardAccessService.checkAccess(result.card._id, userId);
-        hasApprovedAccess = accessCheck.access && (accessCheck.reason === 'approved_request' || accessCheck.reason === 'owner');
-      }
-    }
-
-    // Filter sensitive data for users without approved access to private cards
-    // Don't filter if user is the owner or has approved access
-    if (result && result.card && result.card.privacy === 'private' && !isOwner && !hasApprovedAccess) {
-      // Convert Mongoose document to plain object
-      const cardObj = result.card.toObject ? result.card.toObject() : result.card;
-      const filteredCard = { ...cardObj };
-
-      // Mask email
-      if (filteredCard.email) {
-        const [localPart, domain] = filteredCard.email.split('@');
-        if (localPart && domain) {
-          const maskedLocal = localPart.charAt(0) + '*'.repeat(localPart.length - 2) + localPart.charAt(localPart.length - 1);
-          filteredCard.email = `${maskedLocal}@${domain}`;
-        }
-      }
-
-      // Mask phone
-      if (filteredCard.phone) {
-        const cleaned = filteredCard.phone.replace(/\D/g, '');
-        if (cleaned.length >= 4) {
-          filteredCard.phone = `***-***-${cleaned.slice(-4)}`;
-        } else {
-          filteredCard.phone = '***-***-****';
-        }
-      }
-
-      // Hide address
-      if (filteredCard.address) {
-        filteredCard.address = 'Address hidden for privacy';
-      }
-
-      // Hide website
-      if (filteredCard.website) {
-        filteredCard.website = 'Website hidden for privacy';
-      }
-
-      result.card = filteredCard;
-    }
-
-    // Add privacy header only for private cards
-    if (result && result.card && result.card.privacy === 'private') {
-      res.setHeader('X-Privacy-Notice', 'Some contact information may be filtered for privacy');
-    }
-
-    res.status(200).json(result);
+    res.status(200).json(payload);
   } catch (error) {
     logger.error(`Get card by short link error: ${error.message}`);
     res.status(404).json({ error: error.message });
@@ -440,81 +468,15 @@ exports.getCardById = async (req, res, next) => {
       // Continue without incrementing views
     }
 
-    // Check if user is authenticated for privacy filtering
-    const token = req.headers.authorization?.replace('Bearer ', '');
-    let isAuthenticated = false;
-    let userId = null;
+    const { userId } = decodeViewer(req);
+    recordAnalytics(result?.card?._id, 'view', userId, req, DEDUP_VIEW_MS);
+    const payload = await applyPrivateCardAccess(result, userId);
 
-    if (token) {
-      try {
-        const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        isAuthenticated = !!decoded.userId;
-        userId = decoded.userId;
-      } catch (error) {
-        isAuthenticated = false;
-      }
+    if (payload.card && isPrivateCard(payload.card)) {
+      res.setHeader('X-Privacy-Notice', 'Contact details require approved access');
     }
 
-    // Check if user has approved access for private cards
-    let hasApprovedAccess = false;
-    let isOwner = false;
-    if (isAuthenticated && result && result.card) {
-      // Check if user is the owner
-      isOwner = result.card.ownerUserId?.toString() === userId?.toString();
-
-      // Check if user has approved access for private cards
-      if (result.card.privacy === 'private') {
-        const accessCheck = await cardAccessService.checkAccess(result.card._id, userId);
-        hasApprovedAccess = accessCheck.access && (accessCheck.reason === 'approved_request' || accessCheck.reason === 'owner');
-      }
-    }
-
-    // Filter sensitive data for users without approved access to private cards
-    // Don't filter if user is the owner or has approved access
-    if (result && result.card && result.card.privacy === 'private' && !isOwner && !hasApprovedAccess) {
-      // Convert Mongoose document to plain object
-      const cardObj = result.card.toObject ? result.card.toObject() : result.card;
-      const filteredCard = { ...cardObj };
-
-      // Mask email
-      if (filteredCard.email) {
-        const [localPart, domain] = filteredCard.email.split('@');
-        if (localPart && domain) {
-          const maskedLocal = localPart.charAt(0) + '*'.repeat(localPart.length - 2) + localPart.charAt(localPart.length - 1);
-          filteredCard.email = `${maskedLocal}@${domain}`;
-        }
-      }
-
-      // Mask phone
-      if (filteredCard.phone) {
-        const cleaned = filteredCard.phone.replace(/\D/g, '');
-        if (cleaned.length >= 4) {
-          filteredCard.phone = `***-***-${cleaned.slice(-4)}`;
-        } else {
-          filteredCard.phone = '***-***-****';
-        }
-      }
-
-      // Hide address
-      if (filteredCard.address) {
-        filteredCard.address = 'Address hidden for privacy';
-      }
-
-      // Hide website
-      if (filteredCard.website) {
-        filteredCard.website = 'Website hidden for privacy';
-      }
-
-      result.card = filteredCard;
-    }
-
-    // Add privacy header only for private cards
-    if (result && result.card && result.card.privacy === 'private') {
-      res.setHeader('X-Privacy-Notice', 'Some contact information may be filtered for privacy');
-    }
-
-    res.status(200).json(result);
+    res.status(200).json(payload);
   } catch (error) {
     logger.error(`Get card by ID error: ${error.message}`);
     res.status(404).json({ error: error.message });
@@ -526,6 +488,7 @@ exports.toggleLove = async (req, res, next) => {
   try {
     const { cardId } = req.params;
     const result = await cardService.toggleLove(cardId, req.user.userId);
+    recordAnalytics(cardId, result.loved ? 'love' : 'unlove', req.user.userId, req);
     // Notify card owner when someone loves their card (only on love, not unlove)
     if (result.loved) {
       notificationService.createCardLovedNotification(cardId, req.user.userId).catch(err =>
@@ -546,6 +509,7 @@ exports.saveCard = async (req, res, next) => {
     const { notes, tags } = req.body;
 
     const result = await savedCardService.saveCard(req.user.userId, cardId, { notes, tags });
+    recordAnalytics(cardId, 'save', req.user.userId, req);
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Save card error: ${error.message}`);
@@ -591,6 +555,21 @@ exports.generateQRCode = async (req, res, next) => {
 exports.exportContact = async (req, res, next) => {
   try {
     const { cardId } = req.params;
+    const { userId } = decodeViewer(req);
+    const cardDoc = await cardService.getCardById(cardId);
+    if (!cardDoc?.card) {
+      return res.status(404).json({ error: 'Card not found' });
+    }
+
+    if (isPrivateCard(cardDoc.card)) {
+      const accessCheck = userId
+        ? await cardAccessService.checkAccess(cardId, userId)
+        : { access: false };
+      if (!accessCheck.access) {
+        return res.status(403).json({ error: 'Access request required to export this private card' });
+      }
+    }
+
     const vcfContent = await cardService.generateVCF(cardId);
 
     res.setHeader('Content-Type', 'text/vcard');
@@ -607,6 +586,7 @@ exports.shareCard = async (req, res, next) => {
   try {
     const { cardId } = req.params;
     await cardService.incrementShares(cardId);
+    recordAnalytics(cardId, 'share', req.user?.userId, req);
     // Notify card owner when someone shares their card
     if (req.user?.userId) {
       notificationService.createCardSharedNotification(cardId, req.user.userId).catch(err =>
@@ -625,6 +605,7 @@ exports.downloadCard = async (req, res, next) => {
   try {
     const { cardId } = req.params;
     await cardService.incrementDownloads(cardId);
+    recordAnalytics(cardId, 'download', req.user?.userId, req);
     res.status(200).json({ message: 'Download recorded' });
   } catch (error) {
     logger.error(`Download card error: ${error.message}`);
@@ -652,6 +633,19 @@ exports.getTrendingCards = async (req, res, next) => {
     res.status(200).json({ cards });
   } catch (error) {
     logger.error(`Get trending cards error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Personalized discovery feed (optional auth; anonymous → trending)
+exports.getDiscover = async (req, res, next) => {
+  try {
+    const { limit = 12, page = 1, search = '', category = '', industry = '', location = '', sortBy = '' } = req.query;
+    const userId = req.user?.userId || null;
+    const data = await searchService.getDiscoverCards({ userId, limit, page, search, category, industry, location, sortBy });
+    res.status(200).json(data);
+  } catch (error) {
+    logger.error(`Get discover cards error: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 };
@@ -689,10 +683,20 @@ exports.getLovedCards = async (req, res, next) => {
 exports.saveContact = async (req, res, next) => {
   try {
     const { cardId } = req.params;
+    const { userId } = decodeViewer(req);
     const card = await cardService.getCardById(cardId);
 
-    if (!card) {
+    if (!card?.card) {
       return res.status(404).json({ error: 'Card not found' });
+    }
+
+    if (isPrivateCard(card.card)) {
+      const accessCheck = userId
+        ? await cardAccessService.checkAccess(cardId, userId)
+        : { access: false };
+      if (!accessCheck.access) {
+        return res.status(403).json({ error: 'Access request required to save this private contact' });
+      }
     }
 
     // Generate VCF content for contact
@@ -700,7 +704,7 @@ exports.saveContact = async (req, res, next) => {
 
     // Set headers for VCF download
     res.setHeader('Content-Type', 'text/vcard');
-    res.setHeader('Content-Disposition', `attachment; filename="contact-${card.shortLink}.vcf"`);
+      res.setHeader('Content-Disposition', `attachment; filename="contact-${card.card.shortLink}.vcf"`);
     res.status(200).send(vcfContent);
   } catch (error) {
     logger.error(`Save contact error: ${error.message}`);
@@ -737,7 +741,7 @@ exports.getCardWithEnhancedInfo = async (req, res, next) => {
     let isOwner = false;
     if (result.card.privacy === 'private' && userId) {
       // Check if user is the owner
-      isOwner = result.card.ownerUserId?.toString() === userId;
+      isOwner = getOwnerId(result.card.ownerUserId) === String(userId);
 
       // Check if user has approved access
       const accessCheck = await cardAccessService.checkAccess(cardId, userId);
@@ -750,7 +754,7 @@ exports.getCardWithEnhancedInfo = async (req, res, next) => {
         ...result.card.toObject(),
         isLoved: await cardService.isLovedByUser(cardId, userId),
         isSaved: await savedCardService.isCardSavedByUser(cardId, userId),
-        canEdit: result.card.ownerUserId?.toString() === userId,
+        canEdit: getOwnerId(result.card.ownerUserId) === String(userId),
         fullContactInfo: isOwner || hasApprovedAccess || result.card.privacy === 'public',
         hasApprovedAccess: hasApprovedAccess
       };
@@ -834,7 +838,7 @@ exports.grantQRAccess = async (req, res, next) => {
       success: true,
       access: result.access,
       request: result.request,
-      message: 'Access granted via QR code'
+      message: result.access ? 'You already have access' : 'Access request sent. The card owner must approve it.'
     });
   } catch (error) {
     logger.error(`Grant QR access error: ${error.message}`);

@@ -36,4 +36,30 @@ describe('recommendationEngine', () => {
     const results = recommendCards(source, [source, ...candidates], 5);
     expect(results.every((r) => String(r.card._id) !== '1')).toBe(true);
   });
+
+  test('similarity score is capped at 100 (never shows >100% match)', () => {
+    const rich = {
+      _id: '10',
+      jobTitle: 'Software Engineer',
+      company: 'Acme Corp',
+      category: 'technology',
+      profession: 'engineer',
+      city: 'Kathmandu',
+      country: 'Nepal',
+      skills: ['node', 'react', 'js'],
+      services: ['web dev'],
+      tags: ['web', 'startup'],
+      bio: 'Building web apps',
+    };
+    const clone = { ...rich, _id: '11' };
+    const duplicates = Array.from({ length: 12 }, (_, i) => ({ ...rich, _id: String(100 + i) }));
+
+    const results = recommendCards(rich, [clone, ...duplicates], 13);
+    expect(results).toHaveLength(13);
+    results.forEach((r) => {
+      expect(r.score).toBeGreaterThan(0);
+      expect(r.score).toBeLessThanOrEqual(100);
+    });
+    expect(results[0].score).toBeCloseTo(100, 1);
+  });
 });

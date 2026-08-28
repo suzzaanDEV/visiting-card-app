@@ -3,6 +3,7 @@ const userService = require('../services/userService');
 const cardService = require('../services/cardService');
 const templateService = require('../services/templateService');
 const cardAccessService = require('../services/cardAccessService');
+const templateController = require('./templateController');
 const logger = require('../utils/logger');
 const Template = require('../models/templateModel');
 
@@ -54,9 +55,14 @@ exports.verifyAdminOtp = async (req, res, next) => {
   }
 };
 
-// Admin logout
+// Admin logout — bump the token version to revoke all previously issued tokens
 exports.adminLogout = async (req, res, next) => {
   try {
+    const adminId = req.admin.adminId;
+    if (adminId && adminId !== 'dev-admin-id') {
+      const Admin = require('../models/adminModel');
+      await Admin.findByIdAndUpdate(adminId, { $inc: { tokenVersion: 1 } });
+    }
     res.status(200).json({ message: 'Admin logged out successfully' });
   } catch (error) {
     logger.error(`Admin logout error: ${error.message}`);
@@ -392,17 +398,18 @@ exports.deleteCard = async (req, res, next) => {
 // Get analytics
 exports.getAnalytics = async (req, res, next) => {
   try {
-    const { period = '7d' } = req.query;
-    const analytics = await adminService.getAnalytics(period);
-    
-    // Ensure we have proper data structure
+    const { period = '7d', from, to } = req.query;
+    const analytics = await adminService.getAnalytics(period, { from, to });
+
+    // Ensure we have proper data structure (all values come from real DB data)
     const response = {
       overview: {
         totalUsers: analytics.overview?.totalUsers || 0,
         totalCards: analytics.overview?.totalCards || 0,
         totalViews: analytics.overview?.totalViews || 0,
-        totalRevenue: analytics.overview?.totalRevenue || 0,
-        growthRate: analytics.overview?.growthRate || 0
+        totalLoves: analytics.overview?.totalLoves || 0,
+        totalShares: analytics.overview?.totalShares || 0,
+        totalDownloads: analytics.overview?.totalDownloads || 0
       },
       userGrowth: analytics.userGrowth || [],
       cardGrowth: analytics.cardGrowth || [],
@@ -413,19 +420,23 @@ exports.getAnalytics = async (req, res, next) => {
         loves: 0,
         shares: 0,
         downloads: 0,
-        avgSessionTime: 4.5,
-        bounceRate: 23.5
+        avgSessionTime: 0,
+        bounceRate: 0
       },
       topCards: analytics.topCards || [],
       recentActivity: analytics.recentActivity || []
     };
-    
+
     res.status(200).json(response);
   } catch (error) {
     logger.error(`Get analytics error: ${error.message}`);
     res.status(500).json({ error: error.message });
   }
 };
+
+// Upload a template background image (admin only) — delegates to templateController
+exports.uploadTemplateBackground = templateController.uploadBackground;
+exports.uploadTemplateBackgroundImage = templateController.uploadBackgroundImage;
 
 // Get user analytics
 exports.getUserAnalytics = async (req, res, next) => {

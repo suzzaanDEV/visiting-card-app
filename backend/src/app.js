@@ -124,6 +124,10 @@ app.use(express.urlencoded({
 const sanitize = require('./middleware/sanitize');
 app.use(sanitize);
 
+// Maintenance mode gate (admin routes + health + policy pages stay reachable)
+const maintenanceMiddleware = require('./middleware/maintenanceMiddleware');
+app.use(maintenanceMiddleware);
+
 // Request logging middleware
 if (config.isDevelopment) {
   app.use(morgan('dev'));
@@ -138,6 +142,8 @@ if (config.isDevelopment) {
 }
 
 // Request timing middleware
+const requestStats = require('./utils/requestStats');
+app.use(requestStats);
 app.use((req, res, next) => {
   req.startTime = Date.now();
   res.on('finish', () => {
@@ -363,6 +369,14 @@ async function startServer() {
       await categoryService.seed();
     } catch (seedError) {
       logger.warn(`Category auto-seed skipped: ${seedError.message}`);
+    }
+
+    // Seed default legal policies (privacy / terms / cookie) if collection is empty
+    try {
+      const policyService = require('./services/policyService');
+      await policyService.seedDefaults();
+    } catch (seedError) {
+      logger.warn(`Policy auto-seed skipped: ${seedError.message}`);
     }
 
     // Start HTTP server

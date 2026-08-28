@@ -4,12 +4,40 @@ const User = require('../models/userModel');
 const logger = require('../utils/logger');
 
 class AnalyticsService {
-  // Track user interaction
+  // Track user interaction (public endpoint) — dedup-aware
   async trackInteraction(cardId, userId, actionType, metadata = {}) {
     try {
-      const analytics = new Analytics({
+      return await this.recordEvent({
         cardId,
         userId,
+        actionType,
+        metadata,
+        dedupMs: actionType === 'view' ? 5 * 60 * 1000 : 60 * 1000
+      });
+    } catch (error) {
+      logger.error(`Track interaction error: ${error.message}`);
+      throw error;
+    }
+  }
+
+  // Record an analytics event with best-effort dedup. Repeated identical events
+  // (same card + actor + action) within the dedup window are ignored so that
+  // refreshes/re-clicks don't inflate the counters.
+  async recordEvent({ cardId, userId, actionType, metadata = {}, dedupMs = 0 }) {
+    if (!cardId || !actionType) {
+      logger.warn('recordEvent skipped: cardId and actionType are required');
+      return null;
+    }
+
+    try {
+      const dup = dedupMs > 0 ? await this.findDuplicate(cardId, userId, actionType, metadata, dedupMs) : null;
+      if (dup) {
+        return { deduplicated: true, analytics: dup };
+      }
+
+      const analytics = new Analytics({
+        cardId,
+        userId: userId || null,
         actionType,
         metadata: {
           userAgent: metadata.userAgent,
@@ -30,11 +58,27 @@ class AnalyticsService {
       // Update card stats based on action type
       await this.updateCardStats(cardId, actionType);
 
-      return analytics;
+      return { deduplicated: false, analytics };
     } catch (error) {
-      logger.error(`Track interaction error: ${error.message}`);
-      throw error;
+      logger.error(`Record event error: ${error.message}`);
+      return null;
     }
+  }
+
+  // Find a recent, identical event from the same actor (or IP for anonymous) & card
+  async findDuplicate(cardId, userId, actionType, metadata, windowMs) {
+    const windowStart = new Date(Date.now() - windowMs);
+    const query = {
+      cardId,
+      actionType,
+      timestamp: { $gte: windowStart }
+    };
+    if (userId) {
+      query.userId = userId;
+    } else if (metadata.ipAddress) {
+      query['metadata.ipAddress'] = metadata.ipAddress;
+    }
+    return Analytics.findOne(query).sort({ timestamp: -1 }).lean();
   }
 
   // Get device type from user agent

@@ -33,6 +33,20 @@ const MATCH_SCORES = {
   popularityBonus: 5,
 };
 
+// Similarity "match %" is a percentage and must never exceed 100.
+// The maximum reachable field-match component is the sum of every one-shot
+// MATCH_SCORES entry (30+20+20+10+12) plus the full popularity bonus (5) = 97.
+// Field-overlap bonuses (shared skills/services/tags) are unbounded, so the raw
+// field score is clamped to this cap before being normalized to 0..1 — a card that
+// matches every one-shot field therefore gets 100% field credit. Cosine similarity
+// (0..1) is blended 50/50 with that normalized field credit, so the combined
+// percentage is a true [0, 100] value and saturates at exactly 100 for
+// essentially-identical cards.
+const MAX_SIMILARITY_SCORE = 100;
+const FIELD_SCORE_CAP = 97;
+const COSINE_WEIGHT = 0.5;
+const FIELD_WEIGHT = 0.5;
+
 const tokenize = (text = '') =>
   String(text)
     .toLowerCase()
@@ -154,12 +168,15 @@ const recommendCards = (sourceCard, candidateCards, limit = 6) => {
     .filter((card) => String(card._id || card.cardId) !== sourceId)
     .map((card) => {
       const cosineSim = cosineSimilarity(sourceVector, buildFeatureVector(card));
-      const fieldSc = computeFieldScore(sourceCard, card);
-      // Combined score: weighted sum of cosine similarity (0-1 scaled to 0-100) and field score
-      const combinedScore = (cosineSim * 100 + fieldSc);
+      const fieldSc = Math.min(computeFieldScore(sourceCard, card), FIELD_SCORE_CAP);
+      // Blend cosine similarity (0..1) with the normalized field-match credit (0..1)
+      // on a 50/50 scale so the result is a true percentage bounded in [0, 100].
+      const combinedScore =
+        COSINE_WEIGHT * (cosineSim * MAX_SIMILARITY_SCORE) +
+        FIELD_WEIGHT * ((fieldSc / FIELD_SCORE_CAP) * MAX_SIMILARITY_SCORE);
       return {
         card,
-        score: combinedScore,
+        score: Math.min(MAX_SIMILARITY_SCORE, Number(combinedScore.toFixed(2))),
         algorithm: 'content-based-hybrid',
       };
     })

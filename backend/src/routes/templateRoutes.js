@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const templateController = require('../controllers/templateController');
-const { authenticateToken, authenticateAdmin } = require('../middleware/authMiddleware');
+const { authenticateAdmin } = require('../middleware/authMiddleware');
 const { upload, handleMulterError } = require('../utils/multerConfig');
 
 // Public routes (no authentication required)
@@ -11,14 +11,14 @@ router.get('/category/:category', templateController.getTemplatesByCategory);
 router.get('/search', templateController.searchTemplates);
 
 // Admin list routes BEFORE /:templateId (route-order fix)
-router.get('/admin/all', authenticateToken, authenticateAdmin, templateController.getAllTemplatesAdmin);
-router.get('/admin/stats', authenticateToken, authenticateAdmin, templateController.getTemplateStats);
+router.get('/admin/all', authenticateAdmin, templateController.getAllTemplatesAdmin);
+router.get('/admin/stats', authenticateAdmin, templateController.getTemplateStats);
 
 router.get('/:templateId', templateController.getTemplateById);
 router.post('/:templateId/generate', templateController.generateDesignFromTemplate);
 
-// Admin mutation routes
-router.use(authenticateToken);
+// Admin mutation routes — admin JWT only (authenticateToken would reject
+// admin tokens because admins live in the Admin collection, not User).
 router.use(authenticateAdmin);
 
 router.post('/', templateController.createTemplate);

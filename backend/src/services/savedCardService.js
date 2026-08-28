@@ -1,5 +1,6 @@
 const SavedCard = require('../models/savedCardModel');
 const Card = require('../models/cardModel');
+const Template = require('../models/templateModel');
 const cardAccessService = require('./cardAccessService');
 const logger = require('../utils/logger');
 
@@ -61,15 +62,30 @@ class SavedCardService {
       const savedCards = await SavedCard.find({ userId })
         .populate({
           path: 'cardId',
-          select: 'title shortLink qrCode loveCount views shares downloads createdAt ownerUserId templateId privacy fullName jobTitle company email phone website address bio',
+          select: 'title shortLink qrCode loveCount views shares downloads createdAt ownerUserId templateId privacy fullName jobTitle company email phone website address bio cardDesign backgroundColor textColor fontFamily socialLinks',
           populate: {
             path: 'ownerUserId',
-            select: 'username name'
+            select: 'username name avatar'
           }
         })
         .sort({ savedAt: -1 })
         .skip(skip)
         .limit(limit);
+
+      // Attach template snapshots so library thumbnails render with the real template design
+      const populatedCards = savedCards.map(s => s.cardId).filter(Boolean);
+      const templateIds = [...new Set(populatedCards.map(c => c.templateId).filter(Boolean))];
+      const templates = templateIds.length
+        ? await Template.find({ id: { $in: templateIds }, isActive: true }).select('id name design')
+        : [];
+      const templateMap = new Map(templates.map(t => [t.id, t]));
+      for (const card of populatedCards) {
+        if (!card || !card.set) continue;
+        const t = card.templateId ? templateMap.get(card.templateId) : null;
+        if (t) {
+          card.set('template', { id: t.id, name: t.name, design: t.design }, { strict: false });
+        }
+      }
 
       // Check access permissions for each saved card
       const cardsWithAccess = await Promise.all(

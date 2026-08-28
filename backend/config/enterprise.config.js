@@ -83,7 +83,7 @@ const environments = {
       lockoutDuration: 1000,
     },
   },
-  
+
   staging: {
     port: process.env.PORT || 5050,
     frontendUrl: process.env.FRONTEND_URL,
@@ -120,7 +120,7 @@ const environments = {
       lockoutDuration: 15 * 60 * 1000
     }
   },
-  
+
   production: {
     port: process.env.PORT || 5050,
     frontendUrl: process.env.FRONTEND_URL,
@@ -184,7 +184,7 @@ module.exports = {
   isDevelopment: env === 'development',
   isStaging: env === 'staging',
   isProduction: env === 'production',
-  
+
   // Additional enterprise features
   monitoring: {
     enabled: process.env.MONITORING_ENABLED === 'true',
@@ -198,7 +198,7 @@ module.exports = {
       interval: 30000 // 30 seconds
     }
   },
-  
+
   cache: {
     redis: {
       enabled: process.env.REDIS_ENABLED === 'true',
@@ -206,7 +206,7 @@ module.exports = {
       ttl: 3600 // 1 hour
     }
   },
-  
+
   email: {
     enabled: process.env.EMAIL_ENABLED === 'true',
     provider: process.env.EMAIL_PROVIDER || 'smtp',
@@ -220,7 +220,7 @@ module.exports = {
       }
     }
   },
-  
+
   fileUpload: {
     maxSize: 10 * 1024 * 1024, // 10MB
     allowedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
@@ -233,7 +233,7 @@ module.exports = {
       }
     }
   },
-  
+
   analytics: {
     enabled: true,
     retention: {

@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/emailService');
 const { generateOtp, hashValue } = require('../utils/tokenUtils');
-const { renderOtp } = require('../utils/emailTemplates');
+const { renderOtp, render2fa } = require('../utils/emailTemplates');
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 const EMAIL_ENABLED = process.env.EMAIL_ENABLED === 'true';
@@ -45,7 +45,7 @@ class AdminService {
       // Send OTP via email
       let emailDelivered = false;
       try {
-        const html = renderOtp({ otp, name: admin.name || admin.username, minutes: 5 });
+        const html = render2fa({ otp, name: admin.name || admin.username, minutes: 5 });
         const emailResult = await sendEmail({
           to: admin.email,
           subject: 'Your Cardly Admin Login Code',
@@ -125,10 +125,10 @@ class AdminService {
       admin.adminOtpExpires = null;
       await admin.save();
 
-      // Generate JWT token
+      // Generate JWT token (tv = tokenVersion for revocation support)
       const token = jwt.sign(
-        { userId: admin._id, email: admin.email, role: 'admin' },
-        process.env.JWT_SECRET,
+        { userId: admin._id, email: admin.email, role: 'admin', tv: admin.tokenVersion ?? 0 },
+        process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET,
         { expiresIn: '7d' }
       );
 
@@ -389,20 +389,31 @@ class AdminService {
         createdAt: { $gte: today }
       });
 
-      // System uptime (approximation based on process uptime)
-      const uptimeMs = process.uptime() * 1000;
-      const uptimePercentage = uptimeMs > 0 ? 99.9 : 0;
+      // System uptime from the actual process (100% if the process is alive, expressed in days/hours)
+      const uptimeSeconds = process.uptime();
+      const uptimeDays = Math.floor(uptimeSeconds / 86400);
+      const uptimeHours = Math.floor((uptimeSeconds % 86400) / 3600);
+      const uptimeMinutes = Math.floor((uptimeSeconds % 3600) / 60);
 
-      // Average API latency (approximation from process metrics)
-      const apiLatency = Math.round(Math.random() * 100 + 50);
+      // Average API latency from real request samples collected by the middleware
+      const avgLatency = (global.__apiLatencySamples?.length ?? 0) > 0
+        ? Math.round(
+            global.__apiLatencySamples.reduce((sum, ms) => sum + ms, 0) / global.__apiLatencySamples.length
+          )
+        : 0;
 
       return {
         activeUsers,
         todayViews: todayViews[0]?.totalViews || 0,
         todayCards,
         todayUsers,
-        uptimePercentage,
-        averageApiLatency: apiLatency
+        uptimeDetails: {
+          seconds: uptimeSeconds,
+          days: uptimeDays,
+          hours: uptimeHours,
+          minutes: uptimeMinutes
+        },
+        averageApiLatency: avgLatency
       };
     } catch (error) {
       logger.error(`Get real-time data error: ${error.message}`);
@@ -415,45 +426,60 @@ class AdminService {
     }
   }
 
-  async getAnalytics(period = '7d') {
+  async getAnalytics(period = '7d', { from, to } = {}) {
     try {
-      const days = period === '30d' ? 30 : period === '90d' ? 90 : 7;
-      const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      // Build the analysis window. An explicit { from, to } range wins over the period presets.
+      let startDate;
+      let endDate = null;
+      if (from) {
+        startDate = new Date(from);
+        if (isNaN(startDate.getTime())) {
+          throw new Error('Invalid "from" date');
+        }
+        if (to) {
+          endDate = new Date(to);
+          if (isNaN(endDate.getTime())) {
+            throw new Error('Invalid "to" date');
+          }
+          endDate.setHours(23, 59, 59, 999);
+        }
+      } else {
+        const days = period === '30d' ? 30 : period === '90d' ? 90 : period === '1y' ? 365 : 7;
+        startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      }
+
+      const periodMatch = { createdAt: { $gte: startDate } };
+      if (endDate) periodMatch.createdAt.$lte = endDate;
+      const analyticsMatch = { timestamp: { $gte: startDate } };
+      if (endDate) analyticsMatch.timestamp.$lte = endDate;
 
       // User growth
       const userGrowth = await User.aggregate([
-        {
-          $match: { createdAt: { $gte: startDate } }
-        },
+        { $match: periodMatch },
         {
           $group: {
             _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
             count: { $sum: 1 }
           }
         },
-        {
-          $sort: { _id: 1 }
-        }
+        { $sort: { _id: 1 } }
       ]);
 
       // Card creation
       const cardGrowth = await Card.aggregate([
-        {
-          $match: { createdAt: { $gte: startDate } }
-        },
+        { $match: periodMatch },
         {
           $group: {
             _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
             count: { $sum: 1 }
           }
         },
-        {
-          $sort: { _id: 1 }
-        }
+        { $sort: { _id: 1 } }
       ]);
 
-      // Engagement metrics from analytics
-      const totalViews = await Analytics.aggregate([
+      // Engagement metrics from analytics (scoped to the selected period)
+      const engagementAgg = await Analytics.aggregate([
+        { $match: analyticsMatch },
         {
           $group: {
             _id: null,
@@ -464,32 +490,43 @@ class AdminService {
           }
         }
       ]);
-
-      // Device analytics from analytics data
-      const deviceAnalytics = await Analytics.aggregate([
-        {
-          $group: {
-            _id: '$metadata.deviceType',
-            count: { $sum: 1 }
-          }
-        },
-        {
-          $project: {
-            deviceType: '$_id',
-            percentage: { $multiply: [{ $divide: ['$count', { $sum: '$count' }] }, 100] }
-          }
-        }
-      ]);
-
-      // Convert to expected format - use real data or defaults
-      const deviceBreakdown = {
-        desktop: deviceAnalytics.find(d => d.deviceType === 'desktop')?.percentage || 0,
-        mobile: deviceAnalytics.find(d => d.deviceType === 'mobile')?.percentage || 0,
-        tablet: deviceAnalytics.find(d => d.deviceType === 'tablet')?.percentage || 0
+      const engagement = engagementAgg[0] || {
+        totalViews: 0, totalLoves: 0, totalShares: 0, totalDownloads: 0
       };
 
-      // Top performing cards
+      // Bounce rate: percentage of active users in the period who produced exactly one event.
+      // Computed from real Analytics rows; 0 when there is no activity data yet.
+      let bounceRate = 0;
+      const bounceAgg = await Analytics.aggregate([
+        { $match: analyticsMatch },
+        { $group: { _id: '$userId', events: { $sum: 1 } } }
+      ]);
+      const uniqueUsers = bounceAgg.length;
+      if (uniqueUsers > 0) {
+        const bounced = bounceAgg.filter(u => u.events === 1).length;
+        bounceRate = Math.round((bounced / uniqueUsers) * 1000) / 10;
+      }
+
+      // Device analytics from analytics data (real percentages of recorded events)
+      const deviceAnalytics = await Analytics.aggregate([
+        { $match: analyticsMatch },
+        { $group: { _id: '$metadata.deviceType', count: { $sum: 1 } } }
+      ]);
+      const deviceTotal = deviceAnalytics.reduce((sum, d) => sum + d.count, 0) || 1;
+      const deviceBreakdown = {
+        desktop: Math.round(((deviceAnalytics.find(d => d.deviceType === 'desktop')?.count || 0) / deviceTotal) * 100),
+        mobile: Math.round(((deviceAnalytics.find(d => d.deviceType === 'mobile')?.count || 0) / deviceTotal) * 100),
+        tablet: Math.round(((deviceAnalytics.find(d => d.deviceType === 'tablet')?.count || 0) / deviceTotal) * 100)
+      };
+
+      // Top performing cards within the period
       const topCards = await Analytics.aggregate([
+        {
+          $match: {
+            ...analyticsMatch,
+            actionType: { $in: ['view', 'love', 'share'] }
+          }
+        },
         {
           $group: {
             _id: '$cardId',
@@ -498,12 +535,8 @@ class AdminService {
             shares: { $sum: { $cond: [{ $eq: ['$actionType', 'share'] }, 1, 0] } }
           }
         },
-        {
-          $sort: { views: -1 }
-        },
-        {
-          $limit: 5
-        }
+        { $sort: { views: -1 } },
+        { $limit: 5 }
       ]);
 
       // Populate card details
@@ -529,7 +562,7 @@ class AdminService {
       const geoStats = await Analytics.aggregate([
         {
           $match: {
-            timestamp: { $gte: startDate },
+            ...analyticsMatch,
             'metadata.location.country': { $exists: true, $ne: null }
           }
         },
@@ -539,12 +572,8 @@ class AdminService {
             count: { $sum: 1 }
           }
         },
-        {
-          $sort: { count: -1 }
-        },
-        {
-          $limit: 10
-        }
+        { $sort: { count: -1 } },
+        { $limit: 10 }
       ]);
 
       const geographicAnalytics = {};
@@ -562,18 +591,20 @@ class AdminService {
       const overview = {
         totalUsers: await User.countDocuments(),
         totalCards: await Card.countDocuments(),
-        totalViews: totalViews[0]?.totalViews || 0,
-        totalLoves: totalViews[0]?.totalLoves || 0,
-        totalShares: totalViews[0]?.totalShares || 0,
-        totalDownloads: totalViews[0]?.totalDownloads || 0
+        totalViews: engagement.totalViews,
+        totalLoves: engagement.totalLoves,
+        totalShares: engagement.totalShares,
+        totalDownloads: engagement.totalDownloads
       };
 
       // Engagement metrics
       const engagementMetrics = {
-        views: totalViews[0]?.totalViews || 0,
-        loves: totalViews[0]?.totalLoves || 0,
-        shares: totalViews[0]?.totalShares || 0,
-        downloads: totalViews[0]?.totalDownloads || 0
+        views: engagement.totalViews,
+        loves: engagement.totalLoves,
+        shares: engagement.totalShares,
+        downloads: engagement.totalDownloads,
+        avgSessionTime: 0,
+        bounceRate
       };
 
       return {

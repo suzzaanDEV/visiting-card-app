@@ -285,7 +285,7 @@ async function seedTemplates() {
 module.exports = seedTemplates;
 
 if (require.main === module) {
-  require('dotenv').config({ path: '../config.env' });
+  require('dotenv').config();
   const mongoose = require('mongoose');
   mongoose.connect(process.env.DATABASE_URL).then(async () => {
     await seedTemplates();
