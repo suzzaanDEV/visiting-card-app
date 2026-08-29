@@ -1,4 +1,6 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
+import { API_BASE_URL } from '../../services/apiService';
+import { getToken } from '../../utils/authStorage';
 
 // Fetch user's cards with pagination
 export const fetchUserCards = createAsyncThunk(
@@ -36,7 +38,10 @@ export const fetchPublicCard = createAsyncThunk(
   'cards/fetchPublicCard',
   async (cardId, { rejectWithValue }) => {
     try {
-      const response = await fetch(`/api/cards/public/view/${cardId}`);
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}/cards/public/view/${cardId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
 
       if (!response.ok) {
         throw new Error('Card not found');
@@ -80,14 +85,14 @@ export const fetchCardByShortLink = createAsyncThunk(
   'cards/fetchCardByShortLink',
   async (shortLink, { rejectWithValue }) => {
     try {
-      const token = localStorage.getItem('token');
+      const token = getToken();
       const headers = {};
 
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`/api/cards/c/${shortLink}`, {
+      const response = await fetch(`${API_BASE_URL}/cards/c/${shortLink}`, {
         headers
       });
 
@@ -324,7 +329,34 @@ export const fetchRecommendations = createAsyncThunk(
   }
 );
 
-// Save/unsave a card
+// Personalized discovery feed (public; uses the user's token when present so the
+// backend ranks cards by their profile instead of showing the same trending list)
+export const fetchDiscover = createAsyncThunk(
+  'cards/fetchDiscover',
+  async ({ page = 1, limit = 12, search, category, industry, location } = {}, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('token');
+      let url = `/api/cards/discover?page=${page}&limit=${limit}`;
+      if (category) url += `&category=${encodeURIComponent(category)}`;
+      if (search) url += `&search=${encodeURIComponent(search)}`;
+      if (industry) url += `&industry=${encodeURIComponent(industry)}`;
+      if (location) url += `&location=${encodeURIComponent(location)}`;
+
+      const response = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to load discovery feed');
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
 export const toggleCardSave = createAsyncThunk(
   'cards/toggleCardSave',
   async (cardId, { rejectWithValue }) => {

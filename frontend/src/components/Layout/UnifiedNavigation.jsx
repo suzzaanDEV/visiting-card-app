@@ -14,6 +14,15 @@ import { useTheme } from '../../context/ThemeContext';
 import Dropdown from '../ui/Dropdown';
 import { API_BASE_URL } from '../../services/apiService';
 
+// Landing page section anchors (used when on the homepage)
+const SECTION_LINKS = [
+  { label: 'Features', hash: '#features' },
+  { label: 'Templates', hash: '#templates' },
+  { label: 'How It Works', hash: '#how-it-works' },
+  { label: 'Discover', hash: '#discover' },
+  { label: 'Contact', hash: '#contact' },
+];
+
 const UnifiedNavigation = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -22,6 +31,7 @@ const UnifiedNavigation = () => {
 
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [publicSettings, setPublicSettings] = useState({ siteName: 'Cardly', maintenanceMode: false, registrationEnabled: true });
 
   useEffect(() => {
@@ -29,6 +39,11 @@ const UnifiedNavigation = () => {
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/admin/settings/public`)
@@ -45,13 +60,14 @@ const UnifiedNavigation = () => {
 
   const isHome = location.pathname === '/';
   const transparent = isHome && !isScrolled;
+  const hero = transparent && isDark;
 
   const navBg = transparent
     ? 'bg-transparent'
     : 'bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-gray-200/60 dark:border-slate-800/60 shadow-sm';
 
-  const textColor = transparent ? 'text-white' : 'text-gray-700 dark:text-slate-300';
-  const textMuted = transparent ? 'text-white/70' : 'text-gray-500 dark:text-slate-400';
+  const textColor = hero ? 'text-white' : 'text-gray-700 dark:text-slate-300';
+  const textMuted = hero ? 'text-white/70' : 'text-gray-500 dark:text-slate-400';
 
   const profileMenuItems = [
     { label: 'Profile', icon: FiUser, onClick: () => navigate('/profile') },
@@ -77,50 +93,56 @@ const UnifiedNavigation = () => {
 
             {/* Left – Logo */}
             <Link to="/" className="flex items-center gap-2.5 shrink-0">
-              <Logo className="h-8 w-8" color={transparent ? '#ffffff' : '#047857'} />
-              <span className={`text-xl font-bold tracking-tight ${transparent ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+              <Logo className="h-8 w-8" color={hero ? '#ffffff' : '#047857'} />
+              <span className={`text-xl font-bold tracking-tight ${hero ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
                 {publicSettings.siteName || 'Cardly'}
               </span>
             </Link>
 
             {/* Center – Nav Links */}
             <div className="flex items-center gap-1">
-              <NavLink to="/" end className={({ isActive }) => `
-                px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
-                ${isActive
-                  ? transparent ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                  : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
-                }
-              `}>
-                Home
-              </NavLink>
+              {isHome ? (
+                <>
+                  {SECTION_LINKS.map(link => (
+                    <a
+                      key={link.hash}
+                      href={link.hash}
+                      className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150 ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}
+                    >
+                      {link.label}
+                    </a>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <NavLink to="/discover" className={({ isActive }) => `
+                    px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                    ${isActive
+                      ? hero ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
+                    }
+                  `}>
+                    Discover
+                  </NavLink>
 
-              <NavLink to="/discover" className={({ isActive }) => `
-                px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
-                ${isActive
-                  ? transparent ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                  : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
-                }
-              `}>
-                Discover
-              </NavLink>
-
-              <NavLink to="/search" className={({ isActive }) => `
-                px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
-                ${isActive
-                  ? transparent ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
-                  : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
-                }
-              `}>
-                <FiSearch className="inline mr-1 h-3.5 w-3.5 -mt-0.5" />Search
-              </NavLink>
+                  <NavLink to="/search" className={({ isActive }) => `
+                    px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                    ${isActive
+                      ? hero ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
+                    }
+                  `}>
+                    <FiSearch className="inline mr-1 h-3.5 w-3.5 -mt-0.5" />Search
+                  </NavLink>
+                </>
+              )}
 
               {isAuthenticated && (
                 <>
                   <NavLink to="/cards" className={({ isActive }) => `
                     px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
                     ${isActive
-                      ? transparent ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      ? hero ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                       : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
                     }
                   `}>
@@ -130,7 +152,7 @@ const UnifiedNavigation = () => {
                   <NavLink to="/library" className={({ isActive }) => `
                     px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
                     ${isActive
-                      ? transparent ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      ? hero ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
                       : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
                     }
                   `}>
@@ -146,7 +168,7 @@ const UnifiedNavigation = () => {
               <button
                 onClick={toggleTheme}
                 className={`p-2 rounded-lg transition-colors duration-150 cursor-pointer
-                  ${transparent ? 'text-white/80 hover:text-white hover:bg-white/10' : `${textMuted} hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800`}
+                  ${hero ? 'text-white/80 hover:text-white hover:bg-white/10' : `${textMuted} hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-slate-800`}
                 `}
                 aria-label="Toggle theme"
               >
@@ -162,10 +184,14 @@ const UnifiedNavigation = () => {
                     width="w-52"
                     trigger={
                       <button className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors duration-150
-                        ${transparent ? 'text-white hover:bg-white/10' : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}
+                        ${hero ? 'text-white hover:bg-white/10' : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}
                       `}>
-                        <div className="w-7 h-7 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0">
-                          {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                        <div className={`w-7 h-7 ${hero ? 'bg-white/20' : 'bg-emerald-600'} text-white rounded-full flex items-center justify-center text-xs font-bold shrink-0 overflow-hidden`}>
+                          {user?.avatar ? (
+                            <img src={user.avatar} alt={user?.name || 'User'} className="w-full h-full object-cover" />
+                          ) : (
+                            (user?.name || user?.username)?.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'U'
+                          )}
                         </div>
                         <span className="text-sm font-medium max-w-[100px] truncate">{user?.name || user?.username}</span>
                         <FiChevronDown className="w-3.5 h-3.5 opacity-60" />
@@ -184,7 +210,7 @@ const UnifiedNavigation = () => {
                   <NavLink
                     to="/login"
                     className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
-                      ${transparent ? 'text-white hover:bg-white/10' : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}
+                      ${hero ? 'text-white hover:bg-white/10' : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}
                     `}
                   >
                     Log In
@@ -204,12 +230,12 @@ const UnifiedNavigation = () => {
         </div>
       </nav>
 
-      {/* ── Mobile Top Bar (minimal) ── */}
+      {/* ── Mobile Top Bar ── */}
       <nav className={`lg:hidden fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${navBg}`}>
         <div className="flex items-center justify-between h-14 px-4">
-          <Link to="/" className="flex items-center gap-2">
-            <Logo className="h-7 w-7" color={transparent ? '#ffffff' : '#047857'} />
-            <span className={`text-lg font-bold tracking-tight ${transparent ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
+          <Link to="/" className="flex items-center gap-2" onClick={() => setMobileMenuOpen(false)}>
+            <Logo className="h-7 w-7" color={hero ? '#ffffff' : '#047857'} />
+            <span className={`text-lg font-bold tracking-tight ${hero ? 'text-white' : 'text-gray-900 dark:text-white'}`}>
               {publicSettings.siteName || 'Cardly'}
             </span>
           </Link>
@@ -218,7 +244,7 @@ const UnifiedNavigation = () => {
             <button
               onClick={toggleTheme}
               className={`p-2 rounded-lg transition-colors cursor-pointer
-                ${transparent ? 'text-white/80 hover:bg-white/10' : `${textMuted} hover:bg-gray-100 dark:hover:bg-slate-800`}
+                ${hero ? 'text-white/80 hover:bg-white/10' : `${textMuted} hover:bg-gray-100 dark:hover:bg-slate-800`}
               `}
               aria-label="Toggle theme"
             >
@@ -226,8 +252,86 @@ const UnifiedNavigation = () => {
             </button>
 
             {isAuthenticated && <NotificationDropdown />}
+
+            {/* Hamburger Menu */}
+            <button
+              onClick={() => setMobileMenuOpen(prev => !prev)}
+              className={`p-2 rounded-lg transition-colors cursor-pointer
+                ${hero ? 'text-white/80 hover:bg-white/10' : `${textMuted} hover:bg-gray-100 dark:hover:bg-slate-800`}
+              `}
+              aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+              aria-expanded={mobileMenuOpen}
+            >
+              <div className="w-5 h-4 flex flex-col justify-between">
+                <span className={`block h-0.5 w-full rounded-full transition-all duration-300 bg-current ${mobileMenuOpen ? 'translate-y-[7px] rotate-45' : ''}`} />
+                <span className={`block h-0.5 w-full rounded-full bg-current transition-opacity duration-300 ${mobileMenuOpen ? 'opacity-0' : ''}`} />
+                <span className={`block h-0.5 w-full rounded-full bg-current transition-all duration-300 ${mobileMenuOpen ? '-translate-y-[7px] -rotate-45' : ''}`} />
+              </div>
+            </button>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shadow-lg">
+            <div className="px-4 py-3 space-y-1">
+              {isHome && SECTION_LINKS.map(link => (
+                <a
+                  key={link.hash}
+                  href={link.hash}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}
+                >
+                  {link.label}
+                </a>
+              ))}
+              {!isHome && (
+                <>
+                  <Link to="/discover" onClick={() => setMobileMenuOpen(false)} className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}>
+                    Discover
+                  </Link>
+                  <Link to="/search" onClick={() => setMobileMenuOpen(false)} className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}>
+                    Search
+                  </Link>
+                </>
+              )}
+              {isAuthenticated && (
+                <>
+                  <Link to="/cards" onClick={() => setMobileMenuOpen(false)} className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}>
+                    My Cards
+                  </Link>
+                  <Link to="/library" onClick={() => setMobileMenuOpen(false)} className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}>
+                    Library
+                  </Link>
+                </>
+              )}
+              <div className="pt-2 pb-1 border-t border-gray-100 dark:border-slate-800 mt-1">
+                {isAuthenticated ? (
+                  <>
+                    <Link to="/profile" onClick={() => setMobileMenuOpen(false)} className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}>
+                      Profile
+                    </Link>
+                    <button
+                      onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                      className="block w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+                    >
+                      Sign Out
+                    </button>
+                  </>
+                ) : (
+                  <div className="flex gap-2">
+                    <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold text-center text-gray-900 dark:text-white border border-gray-200 dark:border-slate-700 transition-colors hover:bg-gray-50 dark:hover:bg-slate-800">
+                      Log In
+                    </Link>
+                    <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold text-center bg-emerald-600 text-white hover:bg-emerald-700 transition-colors">
+                      Get Started
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* ── Mobile Bottom Tab Bar ── */}

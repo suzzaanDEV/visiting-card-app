@@ -8,6 +8,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Card from '../components/ui/Card';
 import Skeleton from '../components/ui/Skeleton';
+import CardRenderer from '../components/Cards/CardRenderer';
 import toast from 'react-hot-toast';
 
 const ALGORITHM_LABELS = {
@@ -674,6 +675,10 @@ const SearchPage = () => {
                       transition={{ duration: 0.2, delay: idx * 0.04 }}
                     >
                       <Card elevation="sm" hoverLift className="flex flex-col h-full">
+                        {/* Real card design preview */}
+                        <div className="h-40 overflow-hidden">
+                          <CardRenderer card={card} className="w-full h-full" />
+                        </div>
                         {/* Card top section */}
                         <div className="p-5 border-b border-brand-border/30 dark:border-slate-700/60">
                           <div className="flex items-start justify-between">
@@ -849,6 +854,9 @@ const SearchPage = () => {
                       transition={{ duration: 0.3, delay: idx * 0.05 }}
                     >
                       <Card elevation="sm" hoverLift className="flex flex-col h-full">
+                        <div className="h-28 overflow-hidden">
+                          <CardRenderer card={card} className="w-full h-full" />
+                        </div>
                         <div className="p-4 border-b border-brand-border/30 dark:border-slate-700/60">
                           <h4 className="font-semibold text-brand-text dark:text-slate-200 text-sm truncate">
                             {card.fullName || card.title || 'Untitled'}
@@ -860,7 +868,7 @@ const SearchPage = () => {
                           )}
                           {card.similarityScore != null && card.similarityScore > 0 && (
                             <span className="inline-block mt-1.5 px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
-                              {Math.round(card.similarityScore)}% match
+                              {Math.min(100, Math.round(card.similarityScore))}% match
                             </span>
                           )}
                         </div>

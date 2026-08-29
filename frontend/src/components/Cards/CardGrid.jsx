@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import CardRenderer from './CardRenderer';
 
 export default function CardGrid({ cards, loading, emptyMessage }) {
@@ -22,13 +23,13 @@ export default function CardGrid({ cards, loading, emptyMessage }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {cards.map(card => (
-        <a
+        <Link
           key={card._id}
-          href={`/card/${card._id}`}
-          className="block hover:shadow-lg transition-shadow rounded-xl overflow-hidden"
+          to={card.shortLink ? `/c/${card.shortLink}` : `/view/${card._id}`}
+          className="block hover:shadow-xl hover:shadow-emerald-500/10 hover:-translate-y-1 transition-all duration-300 rounded-xl overflow-hidden"
         >
-          <CardRenderer card={card} mode="preview" />
-        </a>
+          <CardRenderer card={card} className="w-full h-72" />
+        </Link>
       ))}
     </div>
   );

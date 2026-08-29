@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '../../services/apiService';
 import { clearAuth, getToken } from '../../utils/authStorage';
+import BrandLoader from '../ui/BrandLoader';
 
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading, isInitialized, user } = useSelector((state) => state.auth);
@@ -41,12 +42,11 @@ const ProtectedRoute = ({ children }) => {
     }
   }, [isAuthenticated, user, isInitialized]);
 
-  if (!isInitialized || isLoading || isChecking) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
-      </div>
-    );
+  // Only blank while boot/login is deciding an *unauthenticated* redirect.
+  // Once a user is authenticated, isLoading (avatar upload, stats refresh…) must
+  // never swap the whole protected page for a spinner.
+  if (!isInitialized || (!isAuthenticated && isLoading) || isChecking) {
+    return <BrandLoader />;
   }
 
   if (isBlocked) {

@@ -8,6 +8,7 @@ import {
 import { FaHeart, FaShareAlt, FaDownload, FaEye } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import { fetchUserCards, deleteCard } from '../../features/cards/cardsThunks';
+import CardRenderer from '../../components/Cards/CardRenderer';
 import toast from 'react-hot-toast';
 
 const CardsPage = () => {
@@ -68,8 +69,10 @@ const CardsPage = () => {
     }
   };
 
-  const copyCardLink = (cardId) => {
-    const link = `${window.location.origin}/view/${cardId}`;
+  const copyCardLink = (card) => {
+    const link = card?.shortLink
+      ? `${window.location.origin}/c/${card.shortLink}`
+      : `${window.location.origin}/view/${card._id}`;
     navigator.clipboard.writeText(link);
     toast.success('Link copied to clipboard!');
   };
@@ -336,16 +339,6 @@ const CardItem = ({ card, index, viewMode, onDelete, onCopyLink }) => {
     });
   };
 
-  const getInitials = (name) => {
-    if (!name) return '';
-    return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
-  };
-
   if (viewMode === 'list') {
     return (
       <motion.div
@@ -356,8 +349,8 @@ const CardItem = ({ card, index, viewMode, onDelete, onCopyLink }) => {
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center text-white font-bold">
-              {getInitials(card.fullName || card.title)}
+            <div className="w-16 h-11 rounded-lg overflow-hidden flex-shrink-0 bg-gray-100 dark:bg-slate-950 border border-gray-100 dark:border-slate-700">
+              <CardRenderer card={card} className="w-full h-full" />
             </div>
             <div>
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">{card.title || card.fullName}</h3>
@@ -368,7 +361,7 @@ const CardItem = ({ card, index, viewMode, onDelete, onCopyLink }) => {
           
           <div className="flex items-center space-x-2">
             <Link
-              to={`/cards/${card._id}`}
+              to={`/c/${card.shortLink}`}
               className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:bg-emerald-900/40 rounded-lg transition-colors"
             >
               <FiEye className="h-5 w-5" />
@@ -380,7 +373,7 @@ const CardItem = ({ card, index, viewMode, onDelete, onCopyLink }) => {
               <FiEdit className="h-5 w-5" />
             </Link>
             <button
-              onClick={() => onCopyLink(card._id)}
+              onClick={() => onCopyLink(card)}
               className="p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:bg-green-900/40 rounded-lg transition-colors"
             >
               <FiCopy className="h-5 w-5" />
@@ -406,8 +399,8 @@ const CardItem = ({ card, index, viewMode, onDelete, onCopyLink }) => {
     >
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center text-white font-bold">
-            {getInitials(card.fullName || card.title)}
+          <div className="w-16 h-11 rounded-lg overflow-hidden bg-gray-100 dark:bg-slate-950 border border-gray-100 dark:border-slate-700">
+            <CardRenderer card={card} className="w-full h-full" />
           </div>
           <div className="flex items-center space-x-1">
             <span className="text-sm text-gray-500 dark:text-slate-400">{card.views || 0}</span>
@@ -450,7 +443,7 @@ const CardItem = ({ card, index, viewMode, onDelete, onCopyLink }) => {
         <div className="flex items-center justify-between">
           <div className="flex space-x-2">
             <Link
-              to={`/cards/${card._id}`}
+              to={`/c/${card.shortLink}`}
               className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:bg-emerald-900/40 rounded-lg transition-colors"
             >
               <FiEye className="h-5 w-5" />
@@ -462,7 +455,7 @@ const CardItem = ({ card, index, viewMode, onDelete, onCopyLink }) => {
               <FiEdit className="h-5 w-5" />
             </Link>
             <button
-              onClick={() => onCopyLink(card._id)}
+              onClick={() => onCopyLink(card)}
               className="p-2 text-green-600 dark:text-green-400 hover:bg-green-100 dark:bg-green-900/40 rounded-lg transition-colors"
             >
               <FiCopy className="h-5 w-5" />

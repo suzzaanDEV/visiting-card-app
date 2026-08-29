@@ -5,25 +5,12 @@ import {
   FiGrid, FiExternalLink, FiClock, FiEye, FiHeart, FiLock, FiGlobe, FiUsers,
   FiMail, FiPhone, FiMapPin, FiLink
 } from 'react-icons/fi';
+import CardRenderer from './CardRenderer';
 
-const getInitials = (card) => {
-  const name = card.fullName || card.title || '';
-  if (!name) return '?';
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  return parts[0].substring(0, 2).toUpperCase();
-};
-
-const DiscoverCardItem = ({ card, cardDesign, viewMode = 'grid', showTimeAgo = false, timeAgo, isAuthenticated = false }) => {
+const DiscoverCardItem = ({ card, viewMode = 'grid', showTimeAgo = false, timeAgo, isAuthenticated = false }) => {
   if (!card) return null;
 
-  const initials = getInitials(card);
   const isPrivate = card.privacy === 'private';
-  const headerGradient = cardDesign?.backgroundColor
-    ? `linear-gradient(135deg, ${cardDesign.backgroundColor}, ${cardDesign.backgroundColor}dd, #059669)`
-    : 'linear-gradient(135deg, #059669, #10b981, #34d399)';
 
   /* ---- List view ---- */
   if (viewMode === 'list') {
@@ -37,23 +24,9 @@ const DiscoverCardItem = ({ card, cardDesign, viewMode = 'grid', showTimeAgo = f
             : 'border-l-emerald-400 dark:border-l-emerald-500 border border-white/20 dark:border-slate-700/50'
         }`}
       >
-        {/* Left thumbnail */}
-        <div className="w-48 flex-shrink-0 relative overflow-hidden">
-          {cardDesign?.cardImageUrl ? (
-            <img
-              src={cardDesign.cardImageUrl}
-              alt={`${card.title} preview`}
-              className="w-full h-full object-cover"
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-          ) : (
-            <div
-              className="w-full h-full flex items-center justify-center"
-              style={{ background: headerGradient }}
-            >
-              <span className="text-3xl font-bold text-white/80">{initials}</span>
-            </div>
-          )}
+        {/* Left thumbnail — real card design */}
+        <div className="w-48 flex-shrink-0 relative overflow-hidden h-full">
+          <CardRenderer card={card} className="w-full h-full" />
         </div>
 
         {/* Content */}
@@ -142,37 +115,9 @@ const DiscoverCardItem = ({ card, cardDesign, viewMode = 'grid', showTimeAgo = f
       transition={{ duration: 0.25, ease: 'easeOut' }}
       className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-white/20 dark:border-slate-700/50 rounded-2xl shadow-md overflow-hidden transition-shadow duration-300 hover:shadow-2xl flex flex-col h-full"
     >
-      {/* ---- Header / Preview ---- */}
-      <div className="relative h-44 overflow-hidden">
-        {cardDesign?.cardImageUrl ? (
-          <img
-            src={cardDesign.cardImageUrl}
-            alt={`${card.title} preview`}
-            className="w-full h-full object-cover"
-            onError={(e) => { e.target.style.display = 'none'; }}
-          />
-        ) : (
-          <div className="w-full h-full relative" style={{ background: headerGradient }}>
-            {/* Mesh pattern overlay */}
-            <div
-              className="absolute inset-0 opacity-[0.12]"
-              style={{
-                backgroundImage:
-                  'radial-gradient(circle at 25% 25%, white 1px, transparent 1px), radial-gradient(circle at 75% 75%, white 1px, transparent 1px)',
-                backgroundSize: '20px 20px',
-              }}
-            />
-            {/* Initials avatar */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center shadow-lg">
-                <span className="text-2xl font-bold text-white drop-shadow-sm">{initials}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Frosted glass fade at bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-white/90 dark:from-slate-900/90 to-transparent backdrop-blur-[2px]" />
+      {/* ---- Header / Preview — real card design ---- */}
+      <div className="relative h-60 overflow-hidden">
+        <CardRenderer card={card} className="w-full h-full" />
 
         {/* Privacy badge — floating top-right */}
         <div className={`absolute top-3 right-3 z-10 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold backdrop-blur-md shadow-sm ${

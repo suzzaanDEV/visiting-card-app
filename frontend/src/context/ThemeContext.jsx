@@ -1,28 +1,47 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 const ThemeContext = createContext({
-  theme: 'light',
+  theme: 'system',
+  setTheme: () => {},
   toggleTheme: () => {},
   isDark: false,
 });
 
-export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(() => {
-    // Check localStorage
+const getInitialTheme = () => {
+  try {
     const savedTheme = localStorage.getItem('cardly-theme');
-    if (savedTheme === 'light' || savedTheme === 'dark') {
+    if (savedTheme === 'light' || savedTheme === 'dark' || savedTheme === 'system') {
       return savedTheme;
     }
-    // Check system preferences
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'dark';
-    }
-    return 'light';
+  } catch { /* ignore */ }
+  return 'system';
+};
+
+export const ThemeProvider = ({ children }) => {
+  const [theme, setThemeMode] = useState(getInitialTheme);
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return false;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
+
+  // Keep in sync with system preference changes while in 'system' mode
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (event) => setSystemPrefersDark(event.matches);
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  const setTheme = useCallback((mode) => {
+    if (mode !== 'light' && mode !== 'dark' && mode !== 'system') return;
+    setThemeMode(mode);
+  }, []);
 
   useEffect(() => {
     const root = window.document.documentElement;
-    if (theme === 'dark') {
+    const isDark = theme === 'system' ? systemPrefersDark : theme === 'dark';
+    if (isDark) {
       root.classList.add('dark');
       root.style.colorScheme = 'dark';
     } else {
@@ -30,16 +49,21 @@ export const ThemeProvider = ({ children }) => {
       root.style.colorScheme = 'light';
     }
     localStorage.setItem('cardly-theme', theme);
-  }, [theme]);
+  }, [theme, systemPrefersDark]);
 
   const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
+    // Cycle through dark -> light; from 'system' resolve to the opposite of the current preference
+    if (theme === 'system') {
+      setThemeMode(systemPrefersDark ? 'light' : 'dark');
+    } else {
+      setThemeMode(theme === 'dark' ? 'light' : 'dark');
+    }
   };
 
-  const isDark = theme === 'dark';
+  const isDark = theme === 'system' ? systemPrefersDark : theme === 'dark';
 
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, isDark }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme, isDark }}>
       {children}
     </ThemeContext.Provider>
   );

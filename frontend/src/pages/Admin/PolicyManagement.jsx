@@ -30,6 +30,12 @@ export default function PolicyManagement() {
     setShowEditor(true);
   };
 
+  const existingSlugs = new Set((Array.isArray(policies) ? policies : []).map(p => p.slug));
+  const createableTypes = POLICY_TYPES.filter(p => !existingSlugs.has(p.slug));
+  const slugOptions = editing
+    ? [...POLICY_TYPES.filter(p => p.slug !== editing.slug), { slug: editing.slug, title: editing.title }]
+    : createableTypes;
+
   const handleEdit = (policy) => {
     setEditing(policy);
     setForm({ slug: policy.slug, title: policy.title, content: policy.content, summary: policy.summary || '', version: policy.version, isRequired: policy.isRequired });
@@ -84,14 +90,21 @@ export default function PolicyManagement() {
             <button onClick={() => setShowEditor(false)} className="text-slate-400 hover:text-slate-600"><FiX className="w-5 h-5" /></button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Slug</label>
-              <select value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value })} disabled={!!editing}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white">
-                <option value="">Select type...</option>
-                {POLICY_TYPES.map(p => <option key={p.slug} value={p.slug}>{p.title}</option>)}
-              </select>
-            </div>
+<div>
+                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Slug</label>
+                <select
+                  value={form.slug}
+                  onChange={e => setForm({ ...form, slug: e.target.value })}
+                  disabled={!!editing}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white"
+                >
+                  <option value="">{editing ? 'Editing existing policy' : 'Select type...'}</option>
+                  {slugOptions.map(p => <option key={p.slug} value={p.slug}>{p.title}{editing ? '' : ''}</option>)}
+                </select>
+                {!editing && slugOptions.length === 0 && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">All policy types already exist</p>
+                )}
+              </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Title</label>
               <input value={form.title} onChange={e => setForm({ ...form, title: e.target.value })}

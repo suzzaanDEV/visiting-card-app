@@ -1,14 +1,32 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   FiHome, FiUsers, FiCreditCard, FiLayers, FiBarChart2, FiSettings, 
   FiBell, FiSearch, FiMenu, FiX, FiLogOut, FiUser, FiShield,
   FiMessageSquare, FiFileText, FiActivity, FiTag, FiSend,
+  FiSun, FiMoon, FiMonitor,
 } from 'react-icons/fi';
 import { FaCrown } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { API_BASE_URL } from '../../services/apiService';
+import { useTheme } from '../../context/ThemeContext';
+
+const ThemeModeButton = ({ mode, icon: Icon, label, current, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label={label}
+    title={label}
+    className={`p-2 rounded-lg transition-colors ${
+      current(mode)
+        ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'
+        : 'text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300'
+    }`}
+  >
+    <Icon className="w-4 h-4" />
+  </button>
+);
 
 const AdminLayout = ({ children, title = "Admin Panel" }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -16,6 +34,7 @@ const AdminLayout = ({ children, title = "Admin Panel" }) => {
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [siteSettings, setSiteSettings] = useState({ siteName: 'Cardly', maintenanceMode: false });
+  const { theme, setTheme } = useTheme();
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -271,6 +290,13 @@ const AdminLayout = ({ children, title = "Admin Panel" }) => {
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* Theme toggle */}
+              <div className="flex items-center rounded-lg border border-gray-200 dark:border-slate-700 p-0.5" title="Theme preference">
+                <ThemeModeButton mode="light" icon={FiSun} label="Light mode" current={(m) => theme === m} onClick={() => setTheme('light')} />
+                <ThemeModeButton mode="dark" icon={FiMoon} label="Dark mode" current={(m) => theme === m} onClick={() => setTheme('dark')} />
+                <ThemeModeButton mode="system" icon={FiMonitor} label="Follow system" current={(m) => theme === m} onClick={() => setTheme('system')} />
+              </div>
+
               {/* Search */}
               <div className="hidden md:block relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -350,7 +376,7 @@ const AdminLayout = ({ children, title = "Admin Panel" }) => {
                       </div>
                       {notifications.length > 0 && (
                         <div className="p-3 border-t border-gray-200 dark:border-slate-700">
-                          <button onClick={() => { setShowNotifications(false); navigate('/notifications'); }}
+                          <button onClick={() => { setShowNotifications(false); navigate('/admin/notifications'); }}
                             className="w-full text-center text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium transition-colors">
                             View all notifications
                           </button>

@@ -21,6 +21,7 @@ const RegisterPage = () => {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -71,6 +72,11 @@ const RegisterPage = () => {
 
     if (!isStrongPassword(formData.password)) {
       toast.error('Password must be at least 8 characters long');
+      return;
+    }
+
+    if (!acceptTerms) {
+      toast.error('Please accept the Terms of Service and Privacy Policy to continue');
       return;
     }
 
@@ -221,6 +227,31 @@ const RegisterPage = () => {
                   />
                 </div>
               </div>
+
+              {/* Terms Acceptance */}
+              <label className="flex items-start gap-3 cursor-pointer py-1">
+                <input
+                  type="checkbox"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-brand-border text-brand-primary focus:ring-brand-primary/30 focus:ring-2 cursor-pointer"
+                />
+                <span className="text-xs text-brand-textMuted leading-relaxed">
+                  I agree to the{' '}
+                  <Link to="/terms" target="_blank" className="text-brand-primary hover:underline font-semibold">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link to="/privacy" target="_blank" className="text-brand-primary hover:underline font-semibold">
+                    Privacy Policy
+                  </Link>
+                  , and I consent to the use of cookies as described in our{' '}
+                  <Link to="/cookie-policy" target="_blank" className="text-brand-primary hover:underline font-semibold">
+                    Cookie Policy
+                  </Link>
+                  .
+                </span>
+              </label>
 
               {/* Submit Button */}
               <Button

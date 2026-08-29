@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSearch, FiFilter, FiEye, FiEyeOff, FiLock, FiGlobe, FiUsers, FiShield, FiGrid, FiLogIn, FiStar, FiMapPin, FiBriefcase } from 'react-icons/fi';
-import { fetchPublicCards, fetchSuggestions } from '../../features/cards/cardsThunks';
+import { FiSearch, FiFilter, FiEye, FiEyeOff, FiGlobe, FiUsers, FiShield, FiGrid, FiLogIn, FiStar, FiMapPin, FiBriefcase } from 'react-icons/fi';
+import { fetchSuggestions, fetchDiscover } from '../../features/cards/cardsThunks';
 import DiscoverCardItem from '../../components/Cards/DiscoverCardItem';
 import toast from 'react-hot-toast';
 import Button from '../../components/ui/Button';
@@ -36,8 +36,10 @@ const getPageNumbers = (currentPage, totalPages) => {
 
 const DiscoverCards = () => {
   const dispatch = useDispatch();
-  const { cards, pagination, isLoading, error, suggestions } = useSelector((state) => state.cards);
+  const { pagination, isLoading, error, discover, suggestions } = useSelector((state) => state.cards);
   const { isAuthenticated } = useSelector((state) => state.auth);
+
+  const feedCards = discover.data || [];
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -68,20 +70,19 @@ const DiscoverCards = () => {
 
   const loadCards = useCallback(async () => {
     try {
-      await dispatch(fetchPublicCards({
+      await dispatch(fetchDiscover({
         page: currentPage,
         limit: 12,
         search: searchTerm,
         category: selectedCategory,
         industry: selectedIndustry,
         location: locationFilter,
-        privacy: privacyFilter,
         sortBy
       })).unwrap();
     } catch {
       toast.error('Failed to load cards');
     }
-  }, [dispatch, currentPage, searchTerm, selectedCategory, selectedIndustry, locationFilter, privacyFilter, sortBy]);
+  }, [dispatch, currentPage, searchTerm, selectedCategory, selectedIndustry, locationFilter, sortBy]);
 
   useEffect(() => {
     loadCards();
@@ -121,18 +122,13 @@ const DiscoverCards = () => {
     setCurrentPage(1);
   };
 
-  const handlePrivacyFilterChange = (filter) => {
-    setPrivacyFilter(filter);
-    setCurrentPage(1);
-  };
-
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
 
   const getFilteredCards = () => {
-    if (!cards) return [];
-    let filtered = [...cards];
+    if (!feedCards.length) return [];
+    let filtered = [...feedCards];
     if (!isAuthenticated) {
       filtered = filtered.filter(card => card.privacy === 'public');
     }
@@ -265,34 +261,6 @@ const DiscoverCards = () => {
 
           {/* Filters content (collapsible on mobile) */}
           <div className={`${showFilters ? 'block' : 'hidden'} lg:block`}>
-            {/* Privacy Filters */}
-            {isAuthenticated && (
-              <div className="mt-5 border-t border-brand-border/30 dark:border-slate-800/40 pt-4">
-                <div className="flex items-center gap-2 text-xs font-bold text-brand-textMuted uppercase tracking-wide mb-3">
-                  <FiFilter />
-                  <span>Privacy Mode</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { value: 'all', label: 'All Cards', icon: FiGlobe },
-                    { value: 'public', label: 'Public Profiles', icon: FiEye },
-                    { value: 'private', label: 'Private Only', icon: FiLock }
-                  ].map((filter) => (
-                    <Button
-                      key={filter.value}
-                      onClick={() => handlePrivacyFilterChange(filter.value)}
-                      variant={privacyFilter === filter.value ? 'primary' : 'ghost'}
-                      size="sm"
-                      className={privacyFilter === filter.value ? '' : 'bg-brand-background dark:bg-slate-800 hover:bg-brand-border'}
-                    >
-                      <filter.icon className="mr-1.5" />
-                      {filter.label}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* Industry & Location Filters */}
             <div className="mt-5 border-t border-brand-border/30 dark:border-slate-800/40 pt-4">
               <div className="flex items-center gap-2 text-xs font-bold text-brand-textMuted uppercase tracking-wide mb-3">
@@ -373,12 +341,20 @@ const DiscoverCards = () => {
         </Card>
 
         {/* Results Info */}
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-brand-text dark:text-white">
-            Professionals found ({filteredCards.length})
-          </h2>
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-brand-text dark:text-white">
+              {discover.personalized ? 'Recommended for you' : 'Professionals found'}
+            </h2>
+            {discover.personalized && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold uppercase tracking-wide">
+                <FiStar className="h-3 w-3" />
+                Personalized
+              </span>
+            )}
+          </div>
           <span className="text-xs font-semibold text-brand-textMuted uppercase">
-            Page {currentPage} of {totalPages}
+            {filteredCards.length} results · Page {currentPage} of {totalPages}
           </span>
         </div>
 
@@ -482,8 +458,8 @@ const DiscoverCards = () => {
               </div>
             )}
 
-            {/* Suggested for You */}
-            {suggestions.length > 0 && (
+            {/* Suggested for You (guests — personalized feed is shown above for members) */}
+            {!discover.personalized && suggestions.length > 0 && (
               <div className="mt-12">
                 <div className="flex items-center gap-2 mb-6">
                   <FiStar className="text-amber-500" />

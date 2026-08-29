@@ -35,6 +35,7 @@ export const normalizeUser = (user) => {
     email: user.email,
     name: user.name,
     isEmailVerified: Boolean(user.isEmailVerified),
+    twoFactorEnabled: Boolean(user.twoFactorEnabled),
     avatar: user.avatar,
     phone: user.phone,
     location: user.location,

@@ -21,8 +21,9 @@ describe('authStorage', () => {
   });
 
   it('normalizes user shape', () => {
-    const user = normalizeUser({ _id: 'abc', email: 'x@y.com', isEmailVerified: 1 });
+    const user = normalizeUser({ _id: 'abc', email: 'x@y.com', isEmailVerified: 1, twoFactorEnabled: true });
     expect(user.userId).toBe('abc');
     expect(user.isEmailVerified).toBe(true);
+    expect(user.twoFactorEnabled).toBe(true);
   });
 });

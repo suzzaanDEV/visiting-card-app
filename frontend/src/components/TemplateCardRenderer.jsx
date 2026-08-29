@@ -1,6 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
+const PLACEHOLDERS = {
+  '{{fullName}}': (d) => d.fullName,
+  '{{jobTitle}}': (d) => d.jobTitle,
+  '{{company}}': (d) => d.company,
+  '{{email}}': (d) => d.email,
+  '{{phone}}': (d) => d.phone,
+  '{{website}}': (d) => d.website,
+  '{{address}}': (d) => d.address,
+  '{{bio}}': (d) => d.bio
+};
+
+const resolveText = (text, cardData) => {
+  if (!text) return '';
+  return String(text).replace(/{{(\w+)}}/g, (match) => {
+    const resolve = PLACEHOLDERS[match];
+    return resolve ? resolve(cardData) : match;
+  });
+};
+
 const TemplateCardRenderer = ({ card, template, className = "", style = {} }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,13 +30,7 @@ const TemplateCardRenderer = ({ card, template, className = "", style = {} }) =>
       setIsLoading(false);
       return;
     }
-
-    // Simple timeout to simulate loading
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 500);
-
-    return () => clearTimeout(timer);
+    setIsLoading(false);
   }, [card, template]);
 
   if (isLoading) {
@@ -82,6 +95,17 @@ const TemplateCardRenderer = ({ card, template, className = "", style = {} }) =>
         ...style
       }}
     >
+      {design.backgroundImage && (
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `url(${design.backgroundImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
+        />
+      )}
+
       <div className="relative w-full h-full p-6">
         {/* Render elements using HTML/CSS */}
         {elements.length === 0 ? (
@@ -108,18 +132,10 @@ const TemplateCardRenderer = ({ card, template, className = "", style = {} }) =>
           // Render template elements
           <div className="relative w-full h-full">
             {elements.map((element, index) => {
-              // Handle Text elements
-              if (element.type === 'Text') {
-                let text = element.text;
-                if (text === '{{fullName}}') text = cardData.fullName;
-                else if (text === '{{jobTitle}}') text = cardData.jobTitle;
-                else if (text === '{{company}}') text = cardData.company;
-                else if (text === '{{email}}') text = cardData.email;
-                else if (text === '{{phone}}') text = cardData.phone;
-                else if (text === '{{website}}') text = cardData.website;
-                else if (text === '{{address}}') text = cardData.address;
-                else if (text === '{{bio}}') text = cardData.bio;
+              const type = (element.type || '').toLowerCase();
 
+              // Handle Text elements
+              if (type === 'text') {
                 return (
                   <div
                     key={index}
@@ -128,19 +144,20 @@ const TemplateCardRenderer = ({ card, template, className = "", style = {} }) =>
                       left: `${element.x || 0}px`,
                       top: `${element.y || 0}px`,
                       fontSize: `${element.fontSize || 16}px`,
-                      fontFamily: element.fontFamily || 'Arial',
+                      fontFamily: element.fontFamily || design.fontFamily || 'Arial',
                       fontWeight: element.fontWeight || 'normal',
                       color: element.fill || element.color || '#000000',
-                      textAlign: element.textAlign || 'left'
+                      textAlign: element.textAlign || 'left',
+                      whiteSpace: 'pre-wrap'
                     }}
                   >
-                    {text}
+                    {resolveText(element.text, cardData)}
                   </div>
                 );
               }
 
               // Handle Rect elements
-              if (element.type === 'Rect') {
+              if (type === 'rect') {
                 return (
                   <div
                     key={index}
@@ -159,31 +176,37 @@ const TemplateCardRenderer = ({ card, template, className = "", style = {} }) =>
               }
 
               // Handle Circle elements
-              if (element.type === 'Circle') {
+              if (type === 'circle') {
                 return (
-                  <div
+                  <svg
                     key={index}
-                    className="absolute rounded-full"
+                    className="absolute"
                     style={{
-                      left: `${element.x || 0}px`,
-                      top: `${element.y || 0}px`,
-                      width: `${(element.radius || 50) * 2}px`,
-                      height: `${(element.radius || 50) * 2}px`,
-                      backgroundColor: element.fill || '#ffffff',
-                      border: element.strokeWidth ? `${element.strokeWidth}px solid ${element.stroke || '#000000'}` : 'none',
-                      transform: 'translate(-50%, -50%)'
+                      left: '0',
+                      top: '0',
+                      width: '100%',
+                      height: '100%',
+                      pointerEvents: 'none'
                     }}
-                  />
+                  >
+                    <circle
+                      cx={element.x || 0}
+                      cy={element.y || 0}
+                      r={element.radius || (element.width || 50) / 2}
+                      fill={element.fill || '#ffffff'}
+                      stroke={element.strokeWidth ? element.stroke || '#000000' : 'none'}
+                      strokeWidth={element.strokeWidth || 0}
+                    />
+                  </svg>
                 );
               }
 
               // Handle Line elements
-              if (element.type === 'Line') {
-                const points = element.points || [0, 0, 100, 0];
-                const x1 = element.x || 0;
-                const y1 = element.y || 0;
-                const x2 = x1 + points[2];
-                const y2 = y1 + points[3];
+              if (type === 'line') {
+                const x1 = element.x1 ?? element.x ?? 0;
+                const y1 = element.y1 ?? element.y ?? 0;
+                const x2 = element.x2 ?? (x1 + (Array.isArray(element.points) ? element.points[2] : 0));
+                const y2 = element.y2 ?? (y1 + (Array.isArray(element.points) ? element.points[3] : 0));
 
                 return (
                   <svg
@@ -202,7 +225,7 @@ const TemplateCardRenderer = ({ card, template, className = "", style = {} }) =>
                       y1={y1}
                       x2={x2}
                       y2={y2}
-                      stroke={element.stroke || '#000000'}
+                      stroke={element.stroke || element.fill || '#000000'}
                       strokeWidth={element.strokeWidth || 1}
                     />
                   </svg>
@@ -218,4 +241,4 @@ const TemplateCardRenderer = ({ card, template, className = "", style = {} }) =>
   );
 };
 
-export default TemplateCardRenderer; 
+export default TemplateCardRenderer;

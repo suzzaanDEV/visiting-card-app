@@ -89,11 +89,20 @@ const AdminDashboard = () => {
   }, [overview.totalViews, totalEngagement]);
 
   const platformHealth = useMemo(() => {
-    const uptime = realtimeData?.uptimePercentage ?? 99.9;
+    const uptime = realtimeData?.uptimeDetails || null;
     const apiLatency = realtimeData?.averageApiLatency ?? 0;
-    const status = uptime >= 99.5 && apiLatency < 500 ? 'Healthy' : 'Attention needed';
-    return { uptime, apiLatency, status };
-  }, [realtimeData]);
+    const dbConnected = dashboardData?.databaseStatus !== 'disconnected';
+    const status = dbConnected && apiLatency < 500 ? 'Healthy' : 'Attention needed';
+    const uptimeLabel = uptime
+      ? `${uptime.days > 0 ? `${uptime.days}d ` : ''}${uptime.hours > 0 ? `${uptime.hours}h ` : ''}${uptime.minutes}m`
+      : '—';
+    return { uptimeLabel, apiLatency, status };
+  }, [realtimeData, dashboardData]);
+
+  const geoCount = Object.keys(analyticsData?.geographicAnalytics || {}).length;
+  const deviceTotalPct = (analyticsData?.deviceAnalytics?.desktop || 0) +
+    (analyticsData?.deviceAnalytics?.mobile || 0) +
+    (analyticsData?.deviceAnalytics?.tablet || 0);
 
   const StatCard = ({ title, value, icon, color, trend, subtitle }) => (
     <motion.div
@@ -219,16 +228,14 @@ const AdminDashboard = () => {
             value={dashboardData?.totalUsers || overview.totalUsers || 0}
             icon={<FaUsers className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />}
             color="bg-emerald-100 dark:bg-emerald-900/40"
-            trend={dashboardData?.userGrowth || 0}
-            subtitle="Active accounts"
+            subtitle="All time"
           />
           <StatCard
             title="Total Cards"
             value={dashboardData?.totalCards || overview.totalCards || 0}
             icon={<FaCreditCard className="w-6 h-6 text-green-600 dark:text-green-400" />}
             color="bg-green-100 dark:bg-green-900/40"
-            trend={dashboardData?.cardGrowth || 0}
-            subtitle="Created cards"
+            subtitle="All time"
           />
           <StatCard
             title="Total Views"
@@ -290,10 +297,17 @@ const AdminDashboard = () => {
             className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6"
           >
             <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Device Distribution</h3>
-            <PieChartComponent
-              data={analyticsData?.deviceAnalytics || { desktop: 0, mobile: 0, tablet: 0 }}
-              title="Traffic by Device"
-            />
+            {deviceTotalPct === 0 ? (
+              <div className="text-center py-12">
+                <FiActivity className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-slate-400" />
+                <p className="text-gray-500 dark:text-slate-400 text-sm">No device data available yet</p>
+              </div>
+            ) : (
+              <PieChartComponent
+                data={analyticsData?.deviceAnalytics || { desktop: 0, mobile: 0, tablet: 0 }}
+                title="Traffic by Device"
+              />
+            )}
           </motion.div>
 
           <motion.div
@@ -302,10 +316,17 @@ const AdminDashboard = () => {
             className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6"
           >
             <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Global Reach</h3>
-            <PieChartComponent
-              data={analyticsData?.geographicAnalytics || { Unknown: 100 }}
-              title="Visits by Region"
-            />
+            {geoCount === 0 ? (
+              <div className="text-center py-12">
+                <FiActivity className="w-12 h-12 mx-auto mb-3 text-gray-300 dark:text-slate-400" />
+                <p className="text-gray-500 dark:text-slate-400 text-sm">No geographic data available yet</p>
+              </div>
+            ) : (
+              <PieChartComponent
+                data={analyticsData?.geographicAnalytics || {}}
+                title="Visits by Region"
+              />
+            )}
           </motion.div>
         </div>
 
@@ -424,7 +445,7 @@ const AdminDashboard = () => {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600 dark:text-slate-400">Uptime</span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{platformHealth.uptime}%</span>
+                <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{platformHealth.uptimeLabel}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-600 dark:text-slate-400">Avg API Latency</span>

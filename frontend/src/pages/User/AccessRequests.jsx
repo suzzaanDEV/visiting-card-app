@@ -18,6 +18,8 @@ import {
 } from 'react-icons/fa';
 
 import toast from 'react-hot-toast';
+import { API_BASE_URL } from '../../services/apiService';
+import { getToken } from '../../utils/authStorage';
 
 const AccessRequests = () => {
   const [requests, setRequests] = useState([]);
@@ -35,14 +37,14 @@ const AccessRequests = () => {
   const fetchAccessRequests = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
+      const token = getToken();
       
       if (!token) {
         toast.error('Authentication required');
         return;
       }
 
-      const response = await fetch('/api/cards/access-requests', {
+      const response = await fetch(`${API_BASE_URL}/cards/access-requests`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -65,8 +67,8 @@ const AccessRequests = () => {
 
   const handleApproveRequest = async (requestId) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/cards/access-requests/${requestId}/approve`, {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}/cards/access-requests/${requestId}/approve`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -92,8 +94,8 @@ const AccessRequests = () => {
 
   const handleRejectRequest = async (requestId) => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/cards/access-requests/${requestId}/reject`, {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}/cards/access-requests/${requestId}/reject`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

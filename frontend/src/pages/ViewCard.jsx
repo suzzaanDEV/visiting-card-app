@@ -33,9 +33,11 @@ const ViewCard = () => {
 
   useEffect(() => {
     if (currentCard) {
-      // Handle both direct card object and nested card object
       const cardData = currentCard.card || currentCard;
-      setCard(cardData);
+      setCard({
+        ...cardData,
+        access: currentCard.access || cardData.access,
+      });
     }
   }, [currentCard]);
 

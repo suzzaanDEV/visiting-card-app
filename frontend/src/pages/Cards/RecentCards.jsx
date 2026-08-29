@@ -8,6 +8,7 @@ import {
 import { FaHeart, FaShareAlt, FaSave, FaEye, FaRegClock } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import CardRenderer from '../../components/Cards/CardRenderer';
 
 const RecentCards = () => {
   const [cards, setCards] = useState([]);
@@ -352,26 +353,16 @@ const CardItem = ({ card, index, onSave }) => {
         await navigator.share({
           title: `${card.fullName} - ${card.jobTitle}`,
           text: `Check out ${card.fullName}'s digital business card`,
-          url: `${window.location.origin}/view/${card._id}`
+          url: card.shortLink ? `${window.location.origin}/c/${card.shortLink}` : `${window.location.origin}/view/${card._id}`
         });
         toast.success('Shared successfully!');
       } else {
-        await navigator.clipboard.writeText(`${window.location.origin}/view/${card._id}`);
+        await navigator.clipboard.writeText(card.shortLink ? `${window.location.origin}/c/${card.shortLink}` : `${window.location.origin}/view/${card._id}`);
         toast.success('Link copied to clipboard!');
       }
     } catch {
       toast.error('Failed to share');
     }
-  };
-
-  const getInitials = (name) => {
-    if (!name) return '';
-    return name
-      .split(' ')
-      .map(word => word.charAt(0))
-      .join('')
-      .toUpperCase()
-      .slice(0, 2);
   };
 
   const formatTimeAgo = (dateString) => {
@@ -393,15 +384,17 @@ const CardItem = ({ card, index, onSave }) => {
       transition={{ delay: index * 0.1 }}
       className="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-gray-100 dark:border-slate-700 hover:shadow-xl transition-shadow overflow-hidden"
     >
+      {/* Real card design preview */}
+      <Link
+        to={card.shortLink ? `/c/${card.shortLink}` : `/view/${card._id}`}
+        className="block h-48 overflow-hidden border-b border-gray-100 dark:border-slate-700"
+      >
+        <CardRenderer card={card} className="w-full h-full" />
+      </Link>
       <div className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center text-white font-bold">
-            {getInitials(card.fullName || card.title)}
-          </div>
-          <div className="flex items-center space-x-1">
-            <span className="text-sm text-gray-500 dark:text-slate-400">{card.views || 0}</span>
-            <FiEye className="h-4 w-4 text-gray-400 dark:text-slate-500" />
-          </div>
+        <div className="flex items-center justify-end mb-4">
+          <span className="text-sm text-gray-500 dark:text-slate-400">{card.views || 0}</span>
+          <FiEye className="h-4 w-4 text-gray-400 dark:text-slate-500 ml-1.5" />
         </div>
         
         <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-2">{card.title || card.fullName}</h3>
@@ -443,7 +436,7 @@ const CardItem = ({ card, index, onSave }) => {
         <div className="flex items-center justify-between">
           <div className="flex space-x-2">
             <Link
-              to={`/view/${card._id}`}
+              to={card.shortLink ? `/c/${card.shortLink}` : `/view/${card._id}`}
               className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:bg-emerald-900/40 rounded-lg transition-colors"
             >
               <FiEye className="h-5 w-5" />

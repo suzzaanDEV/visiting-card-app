@@ -14,6 +14,9 @@ import toast from 'react-hot-toast';
 import QRCodeDisplay from '../QRCodeDisplay';
 import html2canvas from 'html2canvas';
 import CardRenderer from './CardRenderer';
+import { API_BASE_URL } from '../../services/apiService';
+import { getToken } from '../../utils/authStorage';
+import { Link } from 'react-router-dom';
 
 const CardViewer = ({ card, isLoved = false }) => {
   const dispatch = useDispatch();
@@ -29,6 +32,8 @@ const CardViewer = ({ card, isLoved = false }) => {
   const [accessStatus, setAccessStatus] = useState(null);
   const [requestMessage, setRequestMessage] = useState('');
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [relatedCards, setRelatedCards] = useState([]);
+  const [relatedLoading, setRelatedLoading] = useState(false);
 
   const isCardInLibrary = savedCards?.some(savedCard => savedCard.cardId?._id === card._id);
 
@@ -46,12 +51,36 @@ const CardViewer = ({ card, isLoved = false }) => {
     }
   }, [card]);
 
+  useEffect(() => {
+    let active = true;
+    if (!card?._id) return undefined;
+    setRelatedLoading(true);
+    fetch(`${API_BASE_URL}/search/recommendations/${card._id}?limit=4`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active) return;
+        const recs = (data?.recommendations || []).filter((c) => String(c._id) !== String(card._id));
+        setRelatedCards(recs);
+      })
+      .catch(() => { if (active) setRelatedCards([]); })
+      .finally(() => { if (active) setRelatedLoading(false); });
+    return () => { active = false; };
+  }, [card?._id]);
+
   const checkAccessStatus = async () => {
+    if (card?.access?.granted) {
+      setAccessStatus({ access: true, reason: card.access.reason });
+      setAccessRequested(true);
+    } else if (card?.access?.reason === 'pending_request') {
+      setAccessStatus({ access: false, reason: 'pending_request' });
+      setAccessRequested(true);
+    }
+
     if (!isAuthenticated || !card || card.privacy !== 'private') return;
 
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/cards/access/check/${card._id}`, {
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}/cards/access/check/${card._id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -74,12 +103,17 @@ const CardViewer = ({ card, isLoved = false }) => {
     }
   };
 
-  const hasAccess = () => {
+  const canViewFullContact = () => {
+    if (!card || !isAuthenticated) return false;
     if (card.privacy === 'public') return true;
-    if (!isAuthenticated) return false;
-    if (card.ownerUserId?._id === user?.id) return true;
-    return accessStatus?.access || card.hasApprovedAccess || false;
+    if (card.access?.granted) return true;
+    const ownerId = card.ownerUserId?._id || card.ownerUserId;
+    const viewerId = user?.userId || user?._id;
+    if (ownerId && viewerId && String(ownerId) === String(viewerId)) return true;
+    return Boolean(accessStatus?.access);
   };
+
+  const hasAccess = () => canViewFullContact();
 
   const _shouldShowFullInfo = () => {
     return card.privacy === 'public' || hasAccess();
@@ -256,10 +290,12 @@ const CardViewer = ({ card, isLoved = false }) => {
 
     setIsSavingContact(true);
     try {
+      const avatar = card.ownerUserId?.avatar || card.avatar;
       const vCard = [
         'BEGIN:VCARD',
         'VERSION:3.0',
         `FN:${card.fullName}`,
+        ...(avatar ? [`PHOTO;VALUE=URI:${avatar}`] : []),
         `ORG:${card.company || ''}`,
         `TITLE:${card.jobTitle || ''}`,
         `EMAIL:${card.email || ''}`,
@@ -296,11 +332,11 @@ const CardViewer = ({ card, isLoved = false }) => {
     }
 
     try {
-      const response = await fetch(`/api/cards/${card._id}/request-access`, {
+      const response = await fetch(`${API_BASE_URL}/cards/${card._id}/request-access`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${getToken()}`
         },
         body: JSON.stringify({ message: requestMessage })
       });
@@ -310,7 +346,9 @@ const CardViewer = ({ card, isLoved = false }) => {
       if (response.ok) {
         setAccessRequested(true);
         setShowRequestModal(false);
-        toast.success(data.message);
+        setAccessStatus({ access: Boolean(data.access), reason: data.access ? 'approved_request' : 'pending_request', request: data.request });
+        toast.success(data.message || 'Access request sent to the card owner');
+        await checkAccessStatus();
       } else {
         toast.error(data.error || 'Failed to request access');
       }
@@ -347,12 +385,51 @@ const CardViewer = ({ card, isLoved = false }) => {
     { label: 'Downloads', value: card.downloads || 0, icon: FaDownload, gradient: 'from-violet-500 to-purple-600', bgLight: 'bg-violet-50', bgDark: 'dark:bg-violet-950/40', textLight: 'text-violet-700', textDark: 'dark:text-violet-400', ringColor: 'ring-violet-500/20' },
   ];
 
-  const contactFields = [
-    card.email && { label: 'Email', value: card.email, icon: FaEnvelope, accentColor: 'border-emerald-500', link: `mailto:${card.email}`, textColor: 'text-emerald-600 dark:text-emerald-400', hoverColor: 'hover:text-emerald-700 dark:hover:text-emerald-300' },
-    card.phone && { label: 'Phone', value: formatPhone(card.phone), icon: FaPhone, accentColor: 'border-blue-500', link: `tel:${card.phone}`, textColor: 'text-blue-600 dark:text-blue-400', hoverColor: 'hover:text-blue-700 dark:hover:text-blue-300' },
-    card.website && { label: 'Website', value: card.website, icon: FaGlobe, accentColor: 'border-violet-500', link: card.website.startsWith('http') ? card.website : `https://${card.website}`, textColor: 'text-violet-600 dark:text-violet-400', hoverColor: 'hover:text-violet-700 dark:hover:text-violet-300' },
-    card.address && { label: 'Address', value: card.address, icon: FaMapMarkerAlt, accentColor: 'border-rose-500', link: null, textColor: 'text-rose-600 dark:text-rose-400', hoverColor: 'hover:text-rose-700 dark:hover:text-rose-300' },
-  ].filter(Boolean);
+  const contactFields = hasAccess()
+    ? [
+      card.email && {
+        label: 'Email',
+        value: card.email,
+        icon: FaEnvelope,
+        accentColor: 'border-emerald-500',
+        link: `mailto:${card.email}`,
+        textColor: 'text-emerald-600 dark:text-emerald-400',
+        hoverColor: 'hover:text-emerald-700 dark:hover:text-emerald-300',
+      },
+
+      card.phone && {
+        label: 'Phone',
+        value: formatPhone(card.phone),
+        icon: FaPhone,
+        accentColor: 'border-blue-500',
+        link: `tel:${card.phone}`,
+        textColor: 'text-blue-600 dark:text-blue-400',
+        hoverColor: 'hover:text-blue-700 dark:hover:text-blue-300',
+      },
+
+      card.website && {
+        label: 'Website',
+        value: card.website,
+        icon: FaGlobe,
+        accentColor: 'border-violet-500',
+        link: card.website.startsWith('http')
+          ? card.website
+          : `https://${card.website}`,
+        textColor: 'text-violet-600 dark:text-violet-400',
+        hoverColor: 'hover:text-violet-700 dark:hover:text-violet-300',
+      },
+
+      card.address && {
+        label: 'Address',
+        value: card.address,
+        icon: FaMapMarkerAlt,
+        accentColor: 'border-rose-500',
+        link: null,
+        textColor: 'text-rose-600 dark:text-rose-400',
+        hoverColor: 'hover:text-rose-700 dark:hover:text-rose-300',
+      },
+    ].filter(Boolean)
+    : [];
 
   const personalFields = [
     card.jobTitle && { label: 'Job Title', value: card.jobTitle, icon: FiBriefcase, accentColor: 'border-green-500', textColor: 'text-green-600 dark:text-green-400' },
@@ -380,9 +457,13 @@ const CardViewer = ({ card, isLoved = false }) => {
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
-                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white/20 backdrop-blur-sm border-4 border-white/30 flex items-center justify-center text-white text-3xl sm:text-4xl font-extrabold shadow-2xl shadow-emerald-900/30"
+                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-white/20 backdrop-blur-sm border-4 border-white/30 flex items-center justify-center text-white text-3xl sm:text-4xl font-extrabold shadow-2xl shadow-emerald-900/30 overflow-hidden"
                 >
-                  {getInitials(card.fullName)}
+                  {card.ownerUserId?.avatar || card.avatar ? (
+                    <img src={card.ownerUserId?.avatar || card.avatar} alt={card.fullName} className="w-full h-full object-cover" />
+                  ) : (
+                    getInitials(card.fullName)
+                  )}
                 </motion.div>
 
                 <div className="text-center sm:text-left flex-1">
@@ -468,10 +549,18 @@ const CardViewer = ({ card, isLoved = false }) => {
                     Request Access
                   </button>
                 )}
+                {!isAuthenticated && (
+                  <Link
+                    to="/login"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all font-semibold text-sm"
+                  >
+                    Login to Request Access
+                  </Link>
+                )}
                 {accessRequested && (
                   <div className="flex items-center gap-2 px-5 py-2.5 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-xl font-semibold text-sm">
                     <FiCheck className="w-4 h-4" />
-                    {accessStatus?.access ? 'Access Granted' : 'Access Requested'}
+                    {accessStatus?.access ? 'Access Granted' : 'Waiting for owner approval'}
                   </div>
                 )}
               </div>
@@ -501,7 +590,7 @@ const CardViewer = ({ card, isLoved = false }) => {
                 <div className="flex justify-center">
                   <div className="w-full max-w-sm h-80 rounded-2xl overflow-hidden shadow-inner">
                     <CardRenderer
-                      card={card}
+                      card={hasAccess() ? card : { ...card, email: '', phone: '', website: '', address: '', socialLinks: {} }}
                       mode="public"
                       className="w-full h-full"
                     />
@@ -539,11 +628,10 @@ const CardViewer = ({ card, isLoved = false }) => {
                     whileTap={{ scale: 0.97 }}
                     onClick={handleLove}
                     disabled={!isAuthenticated || !hasAccess()}
-                    className={`relative flex items-center justify-center gap-2.5 py-4 px-4 rounded-2xl font-semibold text-sm transition-all overflow-hidden ${
-                      isLoved
-                        ? 'bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/30'
-                        : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-100 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/30'
-                    } ${!isAuthenticated || !hasAccess() ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    className={`relative flex items-center justify-center gap-2.5 py-4 px-4 rounded-2xl font-semibold text-sm transition-all overflow-hidden ${isLoved
+                      ? 'bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/30'
+                      : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-100 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/30'
+                      } ${!isAuthenticated || !hasAccess() ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     {isLoved && (
                       <span className="absolute inset-0 bg-white/10 animate-ping rounded-2xl" />
@@ -569,11 +657,10 @@ const CardViewer = ({ card, isLoved = false }) => {
                     whileTap={{ scale: 0.97 }}
                     onClick={handleSaveCard}
                     disabled={!isAuthenticated || isCardInLibrary || !hasAccess()}
-                    className={`flex items-center justify-center gap-2.5 py-4 px-4 rounded-2xl font-semibold text-sm transition-all ${
-                      isCardInLibrary
-                        ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
-                        : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40'
-                    } ${!isAuthenticated || !hasAccess() ? 'opacity-40 cursor-not-allowed' : ''}`}
+                    className={`flex items-center justify-center gap-2.5 py-4 px-4 rounded-2xl font-semibold text-sm transition-all ${isCardInLibrary
+                      ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
+                      : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40'
+                      } ${!isAuthenticated || !hasAccess() ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
                     <FaBookmark className="h-5 w-5" />
                     <span>{isCardInLibrary ? 'Saved' : 'Save'}</span>
@@ -709,6 +796,20 @@ const CardViewer = ({ card, isLoved = false }) => {
                       </div>
                     );
                   })}
+
+                  {contactFields.length === 0 && (
+                    <div className="flex items-center gap-4 p-3.5 bg-white dark:bg-slate-800/80 rounded-2xl border border-gray-100 dark:border-slate-700/50">
+                      <div className="bg-amber-100 dark:bg-amber-900/50 p-2.5 rounded-xl flex-shrink-0">
+                        <FiLock className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-gray-500 dark:text-slate-400 font-semibold uppercase tracking-wide">Contact Details Hidden</p>
+                        <p className="font-bold text-sm text-gray-900 dark:text-slate-100">
+                          {isAuthenticated ? 'Request access to view contact information.' : 'Log in to view contact information.'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -723,7 +824,7 @@ const CardViewer = ({ card, isLoved = false }) => {
                   <div>
                     <h4 className="text-sm font-bold text-emerald-700 dark:text-emerald-300">Public Card</h4>
                     <p className="text-xs text-emerald-600 dark:text-emerald-400/80">
-                      All contact information is visible to everyone.
+                      {isAuthenticated ? 'Card is shared with everyone. Contact information is visible.' : 'Card is shared with everyone, but contact information is visible only after you log in.'}
                     </p>
                   </div>
                 </div>
@@ -787,6 +888,69 @@ const CardViewer = ({ card, isLoved = false }) => {
               })}
             </div>
           </motion.div>
+
+          {/* You May Also Like (recommendation engine) */}
+          {(relatedCards.length > 0 || relatedLoading) && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.35 }}
+              className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl shadow-black/5 dark:shadow-black/30 p-8 border border-white/60 dark:border-slate-700/50 mb-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-3 tracking-tight">
+                  <div className="bg-emerald-100 dark:bg-emerald-900/40 p-2.5 rounded-xl">
+                    <FiUserPlus className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  You May Also Like
+                </h3>
+                <span className="text-xs font-semibold text-gray-400 dark:text-slate-500 uppercase tracking-wider">
+                  Content-based recommendations
+                </span>
+              </div>
+
+              {relatedLoading && relatedCards.length === 0 ? (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((n) => (
+                    <div key={n} className="animate-pulse bg-gray-100 dark:bg-slate-800 rounded-2xl h-36" />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  {relatedCards.map((rc) => (
+                    <Link
+                      key={rc._id}
+                      to={`/c/${rc.shortLink}`}
+                      onClick={() => window.scrollTo({ top: 0 })}
+                      className="group bg-white dark:bg-slate-800/80 border border-gray-100 dark:border-slate-700/50 rounded-2xl p-4 hover:border-emerald-300 dark:hover:border-emerald-500/50 hover:shadow-lg hover:shadow-emerald-500/5 hover:-translate-y-1 transition-all duration-300"
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 text-white flex items-center justify-center text-sm font-extrabold overflow-hidden flex-shrink-0">
+                          {rc.ownerUserId?.avatar || rc.avatar ? (
+                            <img src={rc.ownerUserId?.avatar || rc.avatar} alt={rc.fullName} className="w-full h-full object-cover" />
+                          ) : (
+                            getInitials(rc.fullName)
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-gray-900 dark:text-slate-100 text-sm truncate">{rc.fullName}</p>
+                          <p className="text-xs text-gray-500 dark:text-slate-400 truncate">
+                            {[rc.jobTitle, rc.company].filter(Boolean).join(' at ')}
+                          </p>
+                        </div>
+                      </div>
+                      {rc.similarityScore != null && rc.similarityScore > 0 && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold uppercase">
+                          <FiStar className="w-3 h-3" />
+                          {Math.min(100, Math.round(rc.similarityScore))}% similar
+                        </span>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
 
           {/* Footer */}
           <motion.div

@@ -1,15 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { updateCard, fetchCard } from '../../features/cards/cardsThunks';
-import { fetchCardTemplates } from '../../features/cards/cardsThunks';
+import { motion } from 'framer-motion';
+import { updateCard, fetchCard, fetchCardTemplates } from '../../features/cards/cardsThunks';
+import { setCurrentCard } from '../../features/cards/cardsSlice';
 import TemplateSelector from '../../components/TemplateSelector';
-import CardEditor from '../../components/CardEditor';
-import PrivacyToggle from '../../components/Cards/PrivacyToggle';
 import CardRenderer from '../../components/Cards/CardRenderer';
+import BrandLoader from '../../components/ui/BrandLoader';
+import Card from '../../components/ui/Card';
+import Button from '../../components/ui/Button';
+import Input from '../../components/ui/Input';
 import toast from 'react-hot-toast';
-import { 
-  FiArrowLeft, FiUpload, FiEye, FiCheck, FiLoader, FiSave, FiGlobe, FiLock, FiX, FiPlus, FiTag
+import { isValidEmail, isValidPhone, isValidWebsite } from '../../utils/validation';
+import {
+  FiArrowLeft, FiSave, FiEye, FiEyeOff, FiUser, FiTag, FiMail, FiBriefcase, FiFileText, FiGlobe, FiLock, FiX, FiAlertCircle
 } from 'react-icons/fi';
 
 const TagInput = ({ label, tags, setTags, placeholder }) => {
@@ -60,14 +64,16 @@ const EditCard = () => {
   const { cardId } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { currentCard, isLoading, error } = useSelector((state) => state.cards);
-  const { templates } = useSelector((state) => state.cards);
-  
+  const { currentCard, isLoading, error, templates } = useSelector((state) => state.cards);
+  const initializedCardId = useRef(null);
+
   const [formData, setFormData] = useState({
     title: '',
     fullName: '',
     jobTitle: '',
     company: '',
+    profession: '',
+    industry: '',
     email: '',
     phone: '',
     website: '',
@@ -77,8 +83,8 @@ const EditCard = () => {
     textColor: '#ffffff',
     fontFamily: 'Arial',
     category: '',
-    industry: '',
-    profession: ''
+    privacy: 'public',
+    templateId: ''
   });
 
   const [skills, setSkills] = useState([]);
@@ -88,10 +94,11 @@ const EditCard = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [showPreview, setShowPreview] = useState(typeof window !== 'undefined' && window.innerWidth >= 1024);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [cardPrivacy, setCardPrivacy] = useState('public');
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     if (cardId) {
+      dispatch(setCurrentCard(null));
       dispatch(fetchCard(cardId));
     }
   }, [cardId, dispatch]);
@@ -99,11 +106,17 @@ const EditCard = () => {
   useEffect(() => {
     if (currentCard) {
       const card = currentCard.card || currentCard;
+      const resolvedId = card._id || card.id;
+      if (initializedCardId.current === resolvedId) return;
+
+      initializedCardId.current = resolvedId;
       setFormData({
         title: card.title || '',
         fullName: card.fullName || '',
         jobTitle: card.jobTitle || '',
         company: card.company || '',
+        profession: card.profession || '',
+        industry: card.industry || '',
         email: card.email || '',
         phone: card.phone || '',
         website: card.website || '',
@@ -113,19 +126,13 @@ const EditCard = () => {
         textColor: card.textColor || '#ffffff',
         fontFamily: card.fontFamily || 'Arial',
         category: card.category || '',
-        industry: card.industry || '',
-        profession: card.profession || ''
+        privacy: card.isPublic ? 'public' : 'private',
+        templateId: card.templateId || ''
       });
       setSkills(Array.isArray(card.skills) ? card.skills : []);
       setServices(Array.isArray(card.services) ? card.services : []);
       setProducts(Array.isArray(card.products) ? card.products : []);
-      
-      if (card.templateId) {
-        setSelectedTemplate(card.templateId);
-      }
-      
-      // Set privacy from card data
-      setCardPrivacy(card.isPublic ? 'public' : 'private');
+      setSelectedTemplate(card.templateId || 'default');
     }
   }, [currentCard]);
 
@@ -141,7 +148,6 @@ const EditCard = () => {
   }, []);
 
   useEffect(() => {
-    // Fetch templates with error handling
     const loadTemplates = async () => {
       try {
         await dispatch(fetchCardTemplates()).unwrap();
@@ -150,257 +156,522 @@ const EditCard = () => {
         toast.error('Failed to load templates. Please try again.');
       }
     };
-    
+
     loadTemplates();
   }, [dispatch]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleTemplateSelect = (template) => {
     setSelectedTemplate(template.id);
+    if (errors.templateId) {
+      setErrors(prev => ({ ...prev, templateId: '' }));
+    }
   };
 
-  const handlePrivacyChange = (newPrivacy) => {
-    setCardPrivacy(newPrivacy);
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!formData.title.trim()) {
+      newErrors.title = 'Card title is required';
+    }
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = 'Full name is required';
+    }
+    if (!selectedTemplate) {
+      newErrors.templateId = 'Please select a template';
+    }
+    if (formData.email && !isValidEmail(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+    if (formData.phone && !isValidPhone(formData.phone)) {
+      newErrors.phone = 'Please enter a valid phone number';
+    }
+    if (formData.website && !isValidWebsite(formData.website)) {
+      newErrors.website = 'Please enter a valid website URL';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const saveCard = async () => {
+    if (!validateForm()) {
+      toast.error('Please fix the errors in the form');
+      return;
+    }
+
     setIsSubmitting(true);
-    
     try {
-      await dispatch(updateCard({ 
-        cardId, 
-        cardData: { 
-          ...formData, 
+      await dispatch(updateCard({
+        cardId,
+        cardData: {
+          ...formData,
           skills,
           services,
           products,
           templateId: selectedTemplate,
-          isPublic: cardPrivacy === 'public'
-        } 
+          privacy: formData.privacy,
+          isPublic: formData.privacy === 'public'
+        }
       })).unwrap();
-      
+
       toast.success('Card updated successfully!');
-      navigate(`/cards/${cardId}`);
-    } catch (error) {
-      console.error('Error updating card:', error);
-      toast.error(error.message || 'Failed to update card');
+      const shortLink = currentCard?.card?.shortLink || currentCard?.shortLink;
+      if (shortLink) {
+        navigate(`/c/${shortLink}`);
+      } else {
+        navigate('/cards');
+      }
+    } catch (err) {
+      console.error('Error updating card:', err);
+      toast.error(err.message || 'Failed to update card');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (isLoading) {
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    saveCard();
+  };
+
+  if (isLoading && !currentCard) {
+    return <BrandLoader full label="Loading card…" />;
+  }
+
+  if (error && !currentCard) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <FiLoader className="animate-spin h-8 w-8 text-emerald-600 dark:text-emerald-400 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-slate-400">Loading card...</p>
-        </div>
+      <div className="min-h-screen bg-brand-background dark:bg-slate-950 flex items-center justify-center px-4">
+        <Card elevation="sm" className="max-w-md w-full p-8 text-center bg-brand-surface dark:bg-slate-900 border border-brand-border/40 dark:border-slate-800/80">
+          <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-brand-danger/10 dark:bg-red-900/20 mb-4">
+            <FiAlertCircle className="h-6 w-6 text-brand-danger dark:text-red-400" />
+          </div>
+          <h2 className="text-lg font-bold text-brand-text dark:text-white mb-2">Couldn&apos;t load this card</h2>
+          <p className="text-sm text-brand-textMuted dark:text-slate-400 mb-6">{error}</p>
+          <Button onClick={() => navigate('/cards')} variant="primary" className="w-full justify-center">
+            <FiArrowLeft className="mr-2" />
+            Back to Cards
+          </Button>
+        </Card>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
-          <button
-            onClick={() => navigate('/cards')}
-            className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700"
-          >
-            Back to Cards
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const backgroundColors = [
+    { name: 'Emerald Gradient', value: '#10B981' },
+    { name: 'Deep Green Gradient', value: '#047857' },
+    { name: 'Green Gradient', value: '#11998e' },
+    { name: 'Orange Gradient', value: '#f12711' },
+    { name: 'Pink Gradient', value: '#ff6b6b' },
+    { name: 'Dark Blue', value: '#1a3a63' },
+    { name: 'Deep Purple', value: '#4a148c' },
+    { name: 'Forest Green', value: '#2e7d32' },
+    { name: 'Dark Orange', value: '#e65100' },
+    { name: 'Rose', value: '#c2185b' }
+  ];
+
+  const textColors = [
+    { name: 'White', value: '#ffffff' },
+    { name: 'Black', value: '#000000' },
+    { name: 'Dark Gray', value: '#333333' },
+    { name: 'Light Gray', value: '#666666' }
+  ];
+
+  const fontFamilies = [
+    { name: 'Arial', value: 'Arial' },
+    { name: 'Helvetica', value: 'Helvetica' },
+    { name: 'Times New Roman', value: 'Times New Roman' },
+    { name: 'Georgia', value: 'Georgia' },
+    { name: 'Verdana', value: 'Verdana' },
+    { name: 'Courier New', value: 'Courier New' }
+  ];
+
+  const selectClasses = "px-4 py-2.5 bg-brand-surface dark:bg-slate-800 text-brand-text border border-brand-border dark:border-slate-700 rounded-xl transition-all duration-200 outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 text-sm";
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-brand-background dark:bg-slate-950 transition-colors duration-200 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center space-x-4">
-            <button
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8 select-none">
+          <div>
+            <Button
               onClick={() => navigate('/cards')}
-              className="flex items-center space-x-2 text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 transition-colors"
+              variant="ghost"
+              className="mb-3 pl-0 hover:bg-transparent text-brand-textMuted hover:text-brand-primary"
             >
-              <FiArrowLeft className="h-5 w-5" />
-              <span>Back to Cards</span>
-            </button>
+              <FiArrowLeft className="mr-2" />
+              Back to Cards
+            </Button>
+            <h1 className="text-3xl font-extrabold text-brand-text dark:text-white tracking-tight">Edit Card</h1>
+            <p className="text-xs text-brand-textMuted mt-1">Update your custom digital visiting card and save your changes.</p>
           </div>
-          
-          <div className="flex items-center space-x-4">
-            {/* Privacy Toggle */}
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-slate-300">Privacy:</span>
-              <PrivacyToggle
-                cardId={cardId}
-                initialPrivacy={cardPrivacy}
-                onPrivacyChange={handlePrivacyChange}
-                showLabel={false}
-                size="md"
-              />
-            </div>
-            
-            {/* Preview Button */}
-            <button
+
+          <div className="flex items-center gap-3">
+            <Button
               onClick={() => setShowPreview(!showPreview)}
-              className="flex items-center space-x-2 bg-gray-600 dark:bg-slate-700 text-white px-4 py-2 rounded-lg hover:bg-gray-700 dark:hover:bg-slate-600 transition-colors"
+              variant="outline"
+              size="md"
+              className="lg:hidden"
             >
-              <FiEye className="h-4 w-4" />
-              <span>{showPreview ? 'Hide Preview' : 'Show Preview'}</span>
-            </button>
-            
-            {/* Save Button */}
-            <button
-              onClick={handleSubmit}
-              disabled={isSubmitting}
-              className="flex items-center space-x-2 bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              {showPreview ? <FiEyeOff className="mr-2" /> : <FiEye className="mr-2" />}
+              {showPreview ? 'Hide Preview' : 'Show Preview'}
+            </Button>
+
+            <Button
+              onClick={saveCard}
+              isLoading={isSubmitting}
+              disabled={!currentCard}
+              size="md"
             >
-              {isSubmitting ? (
-                <FiLoader className="animate-spin h-4 w-4" />
-              ) : (
-                <FiSave className="h-4 w-4" />
-              )}
-              <span>{isSubmitting ? 'Saving...' : 'Save Changes'}</span>
-            </button>
+              <FiSave className="mr-2" />
+              {isSubmitting ? 'Saving…' : 'Save Changes'}
+            </Button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Editor Section */}
-          <div className="space-y-6">
-            {/* Template Selector */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Choose Template</h3>
-              <TemplateSelector
-                templates={templates || []}
-                selectedTemplate={selectedTemplate}
-                onTemplateSelect={handleTemplateSelect}
-              />
-            </div>
+          {/* Form Column */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="space-y-6"
+          >
+            <form onSubmit={handleSubmit}>
+              <div className="space-y-6">
+                {/* Basic Details */}
+                <Card elevation="sm" className="p-6 sm:p-8 bg-brand-surface dark:bg-slate-900 border border-brand-border/40 dark:border-slate-800/80">
+                  <h3 className="text-base font-bold text-brand-text dark:text-white uppercase tracking-wider mb-4 border-b border-brand-border/30 dark:border-slate-800/40 pb-2 flex items-center">
+                    <FiUser className="mr-2 text-brand-primary" />
+                    <span>Basic Details</span>
+                  </h3>
 
-            {/* Card Information */}
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Card Information</h3>
-              
-              <div className="space-y-4">
-                {/* Basic fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Card Title *</label>
-                    <input name="title" value={formData.title} onChange={handleInputChange}
-                      className="px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      placeholder="e.g. Ram's Tech Solutions" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Card Title *"
+                      name="title"
+                      value={formData.title}
+                      onChange={handleInputChange}
+                      error={errors.title}
+                      placeholder="e.g. Ram's Tech Solutions"
+                    />
+                    <Input
+                      label="Full Name *"
+                      name="fullName"
+                      value={formData.fullName}
+                      onChange={handleInputChange}
+                      error={errors.fullName}
+                      placeholder="e.g. Ram Bahadur Thapa"
+                    />
+                    <Input
+                      label="Job Title"
+                      name="jobTitle"
+                      value={formData.jobTitle}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Lead Developer"
+                    />
+                    <Input
+                      label="Company Name"
+                      name="company"
+                      value={formData.company}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Leapfrog Technology"
+                    />
+                    <Input
+                      label="Profession"
+                      name="profession"
+                      value={formData.profession}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Software Engineer"
+                    />
+                    <Input
+                      label="Industry"
+                      name="industry"
+                      value={formData.industry}
+                      onChange={handleInputChange}
+                      placeholder="e.g. Technology"
+                    />
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Full Name *</label>
-                    <input name="fullName" value={formData.fullName} onChange={handleInputChange}
-                      className="px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      placeholder="e.g. Ram Bahadur Thapa" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Job Title</label>
-                    <input name="jobTitle" value={formData.jobTitle} onChange={handleInputChange}
-                      className="px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      placeholder="e.g. Lead Developer" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Company</label>
-                    <input name="company" value={formData.company} onChange={handleInputChange}
-                      className="px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      placeholder="e.g. Leapfrog Technology" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Profession</label>
-                    <input name="profession" value={formData.profession} onChange={handleInputChange}
-                      className="px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      placeholder="e.g. Software Engineer" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Industry</label>
-                    <input name="industry" value={formData.industry} onChange={handleInputChange}
-                      className="px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      placeholder="e.g. Technology" />
-                  </div>
-                </div>
+                </Card>
 
-                {/* Category */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Category</label>
-                  <select name="category" value={formData.category} onChange={handleInputChange}
-                    className="px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
-                    <option value="">Select a category</option>
-                    {categories.map((cat) => (
-                      <option key={cat._id || cat.slug} value={cat.slug || cat.name}>{cat.name}</option>
-                    ))}
-                  </select>
-                </div>
+                {/* Category & Tags */}
+                <Card elevation="sm" className="p-6 sm:p-8 bg-brand-surface dark:bg-slate-900 border border-brand-border/40 dark:border-slate-800/80">
+                  <h3 className="text-base font-bold text-brand-text dark:text-white uppercase tracking-wider mb-4 border-b border-brand-border/30 dark:border-slate-800/40 pb-2 flex items-center">
+                    <FiTag className="mr-2 text-brand-primary" />
+                    <span>Category &amp; Tags</span>
+                  </h3>
 
-                {/* Tags */}
-                <TagInput label="Skills" tags={skills} setTags={setSkills} placeholder="Type a skill and press Enter" />
-                <TagInput label="Services" tags={services} setTags={setServices} placeholder="Type a service and press Enter" />
-                <TagInput label="Products" tags={products} setTags={setProducts} placeholder="Type a product and press Enter" />
+                  <div className="flex flex-col gap-1.5 mb-4">
+                    <label className="text-xs font-semibold text-brand-text dark:text-brand-text/90 tracking-wide uppercase">Category</label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className={selectClasses}
+                    >
+                      <option value="">Select a category</option>
+                      {categories.map((cat) => (
+                        <option key={cat._id || cat.slug} value={cat.slug || cat.name}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
 
-                {/* Contact fields */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Email</label>
-                    <input name="email" type="email" value={formData.email} onChange={handleInputChange}
-                      className="px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      placeholder="you@company.com.np" />
+                  <div className="grid grid-cols-1 gap-4">
+                    <TagInput
+                      label="Skills"
+                      tags={skills}
+                      setTags={setSkills}
+                      placeholder="Type a skill and press Enter"
+                    />
+                    <TagInput
+                      label="Services"
+                      tags={services}
+                      setTags={setServices}
+                      placeholder="Type a service and press Enter"
+                    />
+                    <TagInput
+                      label="Products"
+                      tags={products}
+                      setTags={setProducts}
+                      placeholder="Type a product and press Enter"
+                    />
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Phone</label>
-                    <input name="phone" type="tel" value={formData.phone} onChange={handleInputChange}
-                      className="px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      placeholder="+977-9800000000" />
+                </Card>
+
+                {/* Contact Info */}
+                <Card elevation="sm" className="p-6 sm:p-8 bg-brand-surface dark:bg-slate-900 border border-brand-border/40 dark:border-slate-800/80">
+                  <h3 className="text-base font-bold text-brand-text dark:text-white uppercase tracking-wider mb-4 border-b border-brand-border/30 dark:border-slate-800/40 pb-2 flex items-center">
+                    <FiMail className="mr-2 text-brand-primary" />
+                    <span>Contact Info</span>
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Input
+                      label="Email Address"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange}
+                      error={errors.email}
+                      placeholder="you@company.com.np"
+                    />
+                    <Input
+                      label="Phone Number"
+                      name="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={handleInputChange}
+                      error={errors.phone}
+                      placeholder="+977-9800000000"
+                    />
+                    <Input
+                      label="Website URL"
+                      name="website"
+                      type="url"
+                      value={formData.website}
+                      onChange={handleInputChange}
+                      error={errors.website}
+                      placeholder="https://company.com.np"
+                    />
+                    <Input
+                      label="Address Location"
+                      name="address"
+                      value={formData.address}
+                      onChange={handleInputChange}
+                      placeholder="Kathmandu, Nepal"
+                    />
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Website</label>
-                    <input name="website" type="url" value={formData.website} onChange={handleInputChange}
-                      className="px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      placeholder="https://company.com.np" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Address</label>
-                    <input name="address" value={formData.address} onChange={handleInputChange}
-                      className="px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      placeholder="Kathmandu, Nepal" />
-                  </div>
-                </div>
+                </Card>
 
                 {/* Bio */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wide">Bio</label>
-                  <textarea name="bio" value={formData.bio} onChange={handleInputChange} rows="3"
-                    className="w-full px-3 py-2 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-slate-600 rounded-lg text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                    placeholder="Brief overview to display on card..." />
-                </div>
-              </div>
-            </div>
-          </div>
+                <Card elevation="sm" className="p-6 sm:p-8 bg-brand-surface dark:bg-slate-900 border border-brand-border/40 dark:border-slate-800/80">
+                  <h3 className="text-base font-bold text-brand-text dark:text-white uppercase tracking-wider mb-4 border-b border-brand-border/30 dark:border-slate-800/40 pb-2 flex items-center">
+                    <FiUser className="mr-2 text-brand-primary" />
+                    <span>Biography Description</span>
+                  </h3>
+                  <textarea
+                    name="bio"
+                    value={formData.bio}
+                    onChange={handleInputChange}
+                    rows="3"
+                    className="w-full px-4 py-2.5 bg-brand-surface dark:bg-slate-800 text-brand-text border border-brand-border dark:border-slate-700 rounded-xl transition-all duration-200 outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 text-sm"
+                    placeholder="Brief overview to display on card..."
+                  />
+                </Card>
 
-          {/* Preview Section */}
-          {showPreview && (
-            <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">Preview</h3>
-              <div className="border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                {/* Template Layout */}
+                <Card elevation="sm" className="p-6 sm:p-8 bg-brand-surface dark:bg-slate-900 border border-brand-border/40 dark:border-slate-800/80">
+                  <h3 className="text-base font-bold text-brand-text dark:text-white uppercase tracking-wider mb-4 border-b border-brand-border/30 dark:border-slate-800/40 pb-2 flex items-center">
+                    <FiBriefcase className="mr-2 text-brand-primary" />
+                    <span>Select Template Layout</span>
+                  </h3>
+
+                  {errors.templateId && (
+                    <p className="text-xs text-brand-danger mb-3">{errors.templateId}</p>
+                  )}
+
+                  <TemplateSelector
+                    templates={templates || []}
+                    selectedTemplateId={selectedTemplate}
+                    onTemplateSelect={handleTemplateSelect}
+                  />
+                </Card>
+
+                {/* Privacy */}
+                <Card elevation="sm" className="p-6 sm:p-8 bg-brand-surface dark:bg-slate-900 border border-brand-border/40 dark:border-slate-800/80">
+                  <h3 className="text-base font-bold text-brand-text dark:text-white uppercase tracking-wider mb-4 border-b border-brand-border/30 dark:border-slate-800/40 pb-2 flex items-center">
+                    <FiLock className="mr-2 text-brand-primary" />
+                    <span>Card Visibility Settings</span>
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className={`relative p-3.5 border rounded-xl cursor-pointer transition-all flex items-start gap-3 select-none ${
+                      formData.privacy === 'public'
+                        ? 'border-brand-success bg-brand-success/5 dark:bg-brand-success/10'
+                        : 'border-brand-border dark:border-slate-700 bg-brand-surface dark:bg-slate-850 hover:border-brand-primary/45'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="privacy"
+                        value="public"
+                        checked={formData.privacy === 'public'}
+                        onChange={handleInputChange}
+                        className="sr-only"
+                      />
+                      <div className={`w-4 h-4 border rounded-full mt-0.5 flex items-center justify-center flex-shrink-0 ${
+                        formData.privacy === 'public' ? 'border-brand-success bg-brand-success text-white' : 'border-brand-border'
+                      }`}>
+                        {formData.privacy === 'public' && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                      </div>
+                      <div>
+                        <p className="font-bold text-xs text-brand-text dark:text-white flex items-center gap-1.5">
+                          <FiGlobe className="text-brand-success text-xs" />
+                          Public Card
+                        </p>
+                        <p className="text-[9px] text-brand-textMuted mt-1 leading-normal">
+                          Searchable in public list. Shared with everyone.
+                        </p>
+                      </div>
+                    </label>
+
+                    <label className={`relative p-3.5 border rounded-xl cursor-pointer transition-all flex items-start gap-3 select-none ${
+                      formData.privacy === 'private'
+                        ? 'border-brand-danger bg-brand-danger/5 dark:bg-brand-danger/10'
+                        : 'border-brand-border dark:border-slate-700 bg-brand-surface dark:bg-slate-850 hover:border-brand-primary/45'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="privacy"
+                        value="private"
+                        checked={formData.privacy === 'private'}
+                        onChange={handleInputChange}
+                        className="sr-only"
+                      />
+                      <div className={`w-4 h-4 border rounded-full mt-0.5 flex items-center justify-center flex-shrink-0 ${
+                        formData.privacy === 'private' ? 'border-brand-danger bg-brand-danger text-white' : 'border-brand-border'
+                      }`}>
+                        {formData.privacy === 'private' && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                      </div>
+                      <div>
+                        <p className="font-bold text-xs text-brand-text dark:text-white flex items-center gap-1.5">
+                          <FiLock className="text-brand-danger text-xs" />
+                          Private Card
+                        </p>
+                        <p className="text-[9px] text-brand-textMuted mt-1 leading-normal">
+                          Only accessible via link/QR. Hidden from public list.
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </Card>
+
+                {/* Visual Configurations */}
+                <Card elevation="sm" className="p-6 sm:p-8 bg-brand-surface dark:bg-slate-900 border border-brand-border/40 dark:border-slate-800/80">
+                  <h3 className="text-base font-bold text-brand-text dark:text-white uppercase tracking-wider mb-4 border-b border-brand-border/30 dark:border-slate-800/40 pb-2 flex items-center">
+                    <FiFileText className="mr-2 text-brand-primary" />
+                    <span>Visual Configurations</span>
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-brand-textMuted uppercase tracking-wider">Back Color</label>
+                      <select
+                        name="backgroundColor"
+                        value={formData.backgroundColor}
+                        onChange={handleInputChange}
+                        className={`${selectClasses} h-10 cursor-pointer`}
+                      >
+                        {backgroundColors.map((color) => (
+                          <option key={color.value} value={color.value}>{color.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-brand-textMuted uppercase tracking-wider">Text Color</label>
+                      <select
+                        name="textColor"
+                        value={formData.textColor}
+                        onChange={handleInputChange}
+                        className={`${selectClasses} h-10 cursor-pointer`}
+                      >
+                        {textColors.map((color) => (
+                          <option key={color.value} value={color.value}>{color.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-bold text-brand-textMuted uppercase tracking-wider">Font Family</label>
+                      <select
+                        name="fontFamily"
+                        value={formData.fontFamily}
+                        onChange={handleInputChange}
+                        className={`${selectClasses} h-10 cursor-pointer`}
+                      >
+                        {fontFamilies.map((font) => (
+                          <option key={font.value} value={font.value}>{font.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Save */}
+                <Button
+                  type="submit"
+                  isLoading={isSubmitting}
+                  className="w-full justify-center py-3.5 shadow-md mt-6 text-sm"
+                >
+                  <FiSave className="mr-2" />
+                  {isSubmitting ? 'Saving…' : 'Save Changes'}
+                </Button>
+              </div>
+            </form>
+          </motion.div>
+
+          {/* Live Preview */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className={`flex flex-col ${showPreview ? 'block' : 'hidden'} lg:block`}
+          >
+            <Card elevation="sm" className="p-6 bg-brand-surface dark:bg-slate-900 border border-brand-border/40 dark:border-slate-800/80 sticky top-24">
+              <h3 className="text-lg font-bold text-brand-text dark:text-white mb-4">Live Design Preview</h3>
+              <div className="p-1 bg-brand-background dark:bg-slate-950 rounded-xl overflow-hidden shadow-inner border border-brand-border/20 dark:border-slate-800/50">
                 <div className="w-full h-72">
                   <CardRenderer
                     card={{
                       ...formData,
-                      socialLinks: (skills.length > 0 || services.length > 0) ? {} : {},
+                      tags: [...skills, ...services, ...products],
+                      socialLinks: {},
                       cardDesign: {
                         backgroundColor: formData.backgroundColor || '#10B981',
                         textColor: formData.textColor || '#ffffff',
@@ -416,8 +687,11 @@ const EditCard = () => {
                   />
                 </div>
               </div>
-            </div>
-          )}
+              <p className="text-[10px] text-brand-textMuted mt-3">
+                Preview updates instantly as you type. Changes are saved when you click Save.
+              </p>
+            </Card>
+          </motion.div>
         </div>
       </div>
     </div>

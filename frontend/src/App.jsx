@@ -8,7 +8,7 @@ import AccountBlocked from './components/Auth/AccountBlocked';
 import AdminRoute from './components/Admin/AdminRoute';
 import ErrorBoundary from './components/UI/ErrorBoundary';
 
-import HomePage from './pages/HomePage';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
 import ForgotPassword from './pages/Auth/ForgotPassword';
@@ -19,10 +19,16 @@ import AboutPage from './pages/AboutPage';
 import Contact from './pages/Contact';
 import NotFoundPage from './pages/NotFoundPage';
 import AdminLogin from './pages/Admin/AdminLogin';
+import PolicyPage from './pages/PolicyPage';
+import MaintenancePage from './pages/MaintenancePage';
+import CookieConsent from './components/ui/CookieConsent';
+import PolicyAgreement from './components/ui/PolicyAgreement';
+import MaintenanceGuard from './components/Auth/MaintenanceGuard';
+import BrandLoader from './components/ui/BrandLoader';
 
 const PageLoader = () => (
-  <div className="flex justify-center items-center min-h-[40vh]">
-    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600" />
+  <div className="min-h-[50vh]">
+    <BrandLoader label="Loading page…" />
   </div>
 );
 
@@ -32,7 +38,6 @@ const DashboardPage = lazyPage(() => import('./pages/Dashboard/DashboardPage'));
 const CardsPage = lazyPage(() => import('./pages/Cards/CardsPage'));
 const AddCard = lazyPage(() => import('./pages/Cards/AddCard'));
 const EditCard = lazyPage(() => import('./pages/Cards/EditCard'));
-const CardDetail = lazyPage(() => import('./pages/Cards/CardDetail'));
 const DiscoverCards = lazyPage(() => import('./pages/Cards/DiscoverCards'));
 const PopularCards = lazyPage(() => import('./pages/Cards/PopularCards'));
 const RecentCards = lazyPage(() => import('./pages/Cards/RecentCards'));
@@ -56,6 +61,7 @@ const Notifications = lazyPage(() => import('./pages/User/Notifications'));
 const BroadcastManagement = lazyPage(() => import('./pages/Admin/BroadcastManagement'));
 const NotificationTemplateManagement = lazyPage(() => import('./pages/Admin/NotificationTemplateManagement'));
 const AdminProfile = lazyPage(() => import('./pages/Admin/AdminProfile'));
+const AdminNotifications = lazyPage(() => import('./pages/Admin/AdminNotifications'));
 
 const withSuspense = (element) => (
   <ErrorBoundary>
@@ -66,13 +72,17 @@ const withSuspense = (element) => (
 function App() {
   return (
     <AuthInitializer>
-      <div className="App">
-        <Routes>
-          <Route index element={<HomePage />} />
-          <Route path="/" element={<Layout />}>
-            <Route path="about" element={<AboutPage />} />
-            <Route path="contact" element={<Contact />} />
-            <Route path="login" element={<LoginPage />} />
+      <MaintenanceGuard>
+        <div className="App">
+          <Routes>
+            <Route index element={<LandingPage />} />
+            <Route path="/" element={<Layout />}>
+              <Route path="about" element={<AboutPage />} />
+              <Route path="contact" element={<Contact />} />
+              <Route path="privacy" element={<PolicyPage slug="privacy-policy" />} />
+              <Route path="terms" element={<PolicyPage slug="terms-of-service" />} />
+              <Route path="cookie-policy" element={<PolicyPage slug="cookie-policy" />} />
+              <Route path="login" element={<LoginPage />} />
             <Route path="register" element={<RegisterPage />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="reset-password" element={<ResetPassword />} />
@@ -88,7 +98,6 @@ function App() {
             <Route path="cards/add" element={<ProtectedRoute>{withSuspense(<AddCard />)}</ProtectedRoute>} />
             <Route path="create" element={<ProtectedRoute>{withSuspense(<AddCard />)}</ProtectedRoute>} />
             <Route path="cards/edit/:cardId" element={<ProtectedRoute>{withSuspense(<EditCard />)}</ProtectedRoute>} />
-            <Route path="cards/:cardId" element={<ProtectedRoute>{withSuspense(<CardDetail />)}</ProtectedRoute>} />
             <Route path="search" element={withSuspense(<SearchPage />)} />
             <Route path="library" element={<ProtectedRoute>{withSuspense(<LibraryPage />)}</ProtectedRoute>} />
             <Route path="access-requests" element={<ProtectedRoute>{withSuspense(<UserAccessRequests />)}</ProtectedRoute>} />
@@ -112,12 +121,16 @@ function App() {
           <Route path="admin/categories" element={<AdminRoute>{withSuspense(<CategoryManagement />)}</AdminRoute>} />
           <Route path="admin/broadcasts" element={<AdminRoute>{withSuspense(<BroadcastManagement />)}</AdminRoute>} />
           <Route path="admin/notification-templates" element={<AdminRoute>{withSuspense(<NotificationTemplateManagement />)}</AdminRoute>} />
+          <Route path="admin/notifications" element={<AdminRoute>{withSuspense(<AdminNotifications />)}</AdminRoute>} />
           <Route path="admin/profile" element={<AdminRoute>{withSuspense(<AdminProfile />)}</AdminRoute>} />
 
           <Route path="blocked" element={<AccountBlocked />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
+        <CookieConsent />
+        <PolicyAgreement />
       </div>
+      </MaintenanceGuard>
     </AuthInitializer>
   );
 }

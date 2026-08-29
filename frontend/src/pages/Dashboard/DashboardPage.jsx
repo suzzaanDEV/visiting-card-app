@@ -256,7 +256,7 @@ const DashboardPage = () => {
                       <div className="h-48 overflow-hidden bg-brand-background dark:bg-slate-950 border-b border-brand-border/40 dark:border-slate-800/80 relative">
                         <CardPreview 
                           card={card} 
-                          template={card.templateId ? { id: card.templateId } : null}
+                          template={card.template || null}
                           className="h-full w-full object-cover"
                           showActions={false}
                         />

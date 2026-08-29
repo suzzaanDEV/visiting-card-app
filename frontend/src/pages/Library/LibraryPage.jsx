@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
@@ -7,7 +8,7 @@ import {
   FiRefreshCw, FiHeart, FiEye, FiTrash2, FiClock
 } from 'react-icons/fi';
 import CardPreview from '../../components/Cards/CardPreview';
-import SavedCardViewer from '../../components/Library/SavedCardViewer';
+import CardRenderer from '../../components/Cards/CardRenderer';
 import DeleteConfirmationModal from '../../components/Library/DeleteConfirmationModal';
 import QuickViewModal from '../../components/Library/QuickViewModal';
 import {
@@ -23,13 +24,12 @@ import Skeleton from '../../components/ui/Skeleton';
 
 const LibraryPage = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { items: savedCards, isLoading: loading, error, stats } = useSelector(state => state.library);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
-  const [selectedCard, setSelectedCard] = useState(null);
-  const [showCardModal, setShowCardModal] = useState(false);
   const [cardToDelete, setCardToDelete] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -70,8 +70,9 @@ const LibraryPage = () => {
   };
 
   const handleViewCard = (card) => {
-    setSelectedCard(card);
-    setShowCardModal(true);
+    if (card?.shortLink) {
+      navigate(`/c/${card.shortLink}`);
+    }
   };
 
   const handleQuickView = (card) => {
@@ -80,10 +81,11 @@ const LibraryPage = () => {
   };
 
   const handleViewFullFromQuick = () => {
-    setSelectedCard(cardToQuickView);
-    setShowCardModal(true);
     setShowQuickViewModal(false);
     setCardToQuickView(null);
+    if (cardToQuickView?.shortLink) {
+      navigate(`/c/${cardToQuickView.shortLink}`);
+    }
   };
 
   const cardsArray = Array.isArray(savedCards) ? savedCards : [];
@@ -263,7 +265,7 @@ const LibraryPage = () => {
                     <div className="h-48 overflow-hidden bg-brand-background dark:bg-slate-950 border-b border-brand-border/40 dark:border-slate-800/80 relative">
                       <CardPreview
                         card={savedCard.cardId}
-                        template={savedCard.cardId?.templateId ? { id: savedCard.cardId.templateId } : null}
+                        template={savedCard.cardId?.template || null}
                         className="h-full w-full object-cover"
                         showActions={false}
                       />
@@ -364,7 +366,9 @@ const LibraryPage = () => {
                     <tr key={savedCard._id} className="hover:bg-brand-background/40 dark:hover:bg-slate-850/40 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-8 bg-gradient-to-r from-brand-primary/30 to-brand-secondary/30 rounded-lg flex-shrink-0"></div>
+                          <div className="w-14 h-10 rounded-md overflow-hidden flex-shrink-0 bg-brand-background dark:bg-slate-950 border border-brand-border/30 dark:border-slate-800/60">
+                            <CardRenderer card={savedCard.cardId} className="w-full h-full" />
+                          </div>
                           <div className="min-w-0">
                             <div className="font-bold text-brand-text dark:text-white truncate">
                               {savedCard.cardId?.title || 'Untitled Card'}
@@ -420,14 +424,6 @@ const LibraryPage = () => {
         )}
       </div>
 
-      {/* Enhanced Card Viewer */}
-      <SavedCardViewer
-        card={selectedCard}
-        isOpen={showCardModal}
-        onClose={() => setShowCardModal(false)}
-        onRemove={handleRemoveFromLibrary}
-      />
-
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
         isOpen={showDeleteModal}
@@ -449,6 +445,11 @@ const LibraryPage = () => {
           setCardToQuickView(null);
         }}
         onViewFull={handleViewFullFromQuick}
+        onRemove={async (cardId) => {
+          await handleRemoveFromLibrary(cardId);
+          setShowQuickViewModal(false);
+          setCardToQuickView(null);
+        }}
       />
     </div>
   );

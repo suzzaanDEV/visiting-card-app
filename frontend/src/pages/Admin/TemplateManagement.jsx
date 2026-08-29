@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  FiPlus, FiEdit, FiTrash2, FiEye, FiEyeOff, FiStar, FiGrid, 
-  FiSearch, FiFilter, FiDownload, FiUpload, FiSettings
+  FiPlus, FiEdit, FiTrash2, FiEye, FiStar, FiGrid, 
+  FiSearch
 } from 'react-icons/fi';
 import { FaLayerGroup, FaPalette } from 'react-icons/fa';
 import AdminLayout from '../../components/Admin/AdminLayout';
@@ -20,6 +20,7 @@ const TemplateManagement = () => {
   }));
   const [showForm, setShowForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
+  const [viewingTemplate, setViewingTemplate] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedTemplates, setSelectedTemplates] = useState([]);
@@ -92,7 +93,7 @@ const TemplateManagement = () => {
           avatarShape: formData.design.avatarShape,
           avatarSize: Number(formData.design.avatarSize) || 120,
           backgroundImage: formData.design.backgroundImage,
-          elements: []
+          elements: editingTemplate ? (editingTemplate.design?.elements || []) : []
         }
       };
       
@@ -107,6 +108,7 @@ const TemplateManagement = () => {
       setShowForm(false);
       setEditingTemplate(null);
       resetForm();
+      dispatch(fetchTemplates());
     } catch (error) {
       toast.error(error.message || 'Failed to save template');
     }
@@ -144,6 +146,7 @@ const TemplateManagement = () => {
       try {
         await dispatch(deleteTemplate(templateId)).unwrap();
         toast.success('Template deleted successfully!');
+        dispatch(fetchTemplates());
       } catch (error) {
         toast.error(error.message || 'Failed to delete template');
       }
@@ -219,6 +222,9 @@ const TemplateManagement = () => {
     const matchesCategory = !selectedCategory || template.category === selectedCategory;
     return matchesSearch && matchesCategory;
   }) : [];
+
+  const vd = (viewingTemplate || {}).design || {};
+  const viewElements = (viewingTemplate || {}).design?.elements || [];
 
   return (
     <AdminLayout title="Template Management">
@@ -474,13 +480,11 @@ const TemplateManagement = () => {
                     <input type="file" accept="image/*" onChange={async (e) => {
                       const file = e.target.files[0];
                       if (!file) return;
-                      const tid = editingTemplate?.id || editingTemplate?._id || formData.id;
-                      if (!tid) { toast.error('Save the template first, then upload a background'); return; }
                       const fd = new FormData();
                       fd.append('image', file);
                       try {
                         const token = localStorage.getItem('adminToken');
-                        const res = await fetch(`${API_BASE_URL}/templates/${tid}/background`, {
+                        const res = await fetch(`${API_BASE_URL}/admin/templates/background`, {
                           method: 'POST',
                           headers: { 'Authorization': `Bearer ${token}` },
                           body: fd
@@ -488,7 +492,7 @@ const TemplateManagement = () => {
                         const data = await res.json();
                         if (data.imageUrl) {
                           setFormData(f => ({ ...f, design: { ...f.design, backgroundImage: data.imageUrl } }));
-                          toast.success('Background uploaded');
+                          toast.success('Background added');
                         } else {
                           toast.error(data.error || 'Upload failed');
                         }
@@ -560,6 +564,120 @@ const TemplateManagement = () => {
         )}
       </AnimatePresence>
 
+      {/* View Template Modal */}
+      <AnimatePresence>
+        {viewingTemplate && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-slate-800 rounded-lg shadow-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">{viewingTemplate.name}</h2>
+                  <p className="text-sm text-gray-500 dark:text-slate-400 capitalize">{viewingTemplate.category} · {viewingTemplate.id}</p>
+                </div>
+                <button
+                  onClick={() => setViewingTemplate(null)}
+                  className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:hover:text-slate-300"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex items-center space-x-2 mb-4">
+                {viewingTemplate.isPremium && (
+                  <span className="text-[10px] bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-bold">PRO</span>
+                )}
+                {viewingTemplate.isFeatured && (
+                  <span className="text-[10px] bg-yellow-400 text-white px-1.5 py-0.5 rounded-full font-bold">FEATURED</span>
+                )}
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold text-white ${viewingTemplate.isActive ? 'bg-green-500' : 'bg-gray-400'}`}>
+                  {viewingTemplate.isActive ? 'ACTIVE' : 'INACTIVE'}
+                </span>
+              </div>
+
+              <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">{viewingTemplate.description}</p>
+
+              <div
+                className="rounded-lg overflow-hidden border border-gray-200 dark:border-slate-600 mb-4"
+                style={{ backgroundColor: vd.backgroundColor || '#ffffff', color: vd.textColor || '#1a1a1a', fontFamily: vd.fontFamily || 'Inter' }}
+              >
+                <div className="p-6 h-52 flex flex-col items-center justify-center text-center">
+                  <div
+                    className="w-16 h-16 rounded-full mb-3 flex items-center justify-center font-bold"
+                    style={{ backgroundColor: (vd.accentColor || '#6366f1') + '33', color: vd.accentColor || '#6366f1' }}
+                  >
+                    {(viewingTemplate.name || 'T').charAt(0).toUpperCase()}
+                  </div>
+                  <p className="font-bold text-base">Template Name</p>
+                  <p className="text-xs opacity-70">Job Title - Company</p>
+                  <div className="w-16 h-0.5 mt-2 rounded" style={{ backgroundColor: vd.accentColor || '#6366f1' }}></div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-4 h-4 rounded border border-gray-300 dark:border-slate-600" style={{ backgroundColor: vd.backgroundColor }}></span>
+                  <span className="text-gray-700 dark:text-slate-300">Background</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-4 h-4 rounded border border-gray-300 dark:border-slate-600" style={{ backgroundColor: vd.accentColor }}></span>
+                  <span className="text-gray-700 dark:text-slate-300">Accent</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-4 h-4 rounded border border-gray-300 dark:border-slate-600" style={{ backgroundColor: vd.textColor }}></span>
+                  <span className="text-gray-700 dark:text-slate-300">Text</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-4 h-4 rounded border border-gray-300 dark:border-slate-600 text-center text-xs gray-400">Aa</span>
+                  <span className="text-gray-700 dark:text-slate-300 truncate">{vd.fontFamily || 'Inter'}</span>
+                </div>
+                <div><span className="text-gray-500 dark:text-slate-400">Layout</span><p className="font-medium text-gray-900 dark:text-slate-100 capitalize">{vd.layout || 'standard'}</p></div>
+                <div><span className="text-gray-500 dark:text-slate-400">Header style</span><p className="font-medium text-gray-900 dark:text-slate-100 capitalize">{vd.headerStyle || 'centered'}</p></div>
+                <div><span className="text-gray-500 dark:text-slate-400">Avatar shape</span><p className="font-medium text-gray-900 dark:text-slate-100 capitalize">{vd.avatarShape || 'circle'}</p></div>
+                <div><span className="text-gray-500 dark:text-slate-400">Border radius</span><p className="font-medium text-gray-900 dark:text-slate-100">{vd.borderRadius ?? 16}px</p></div>
+              </div>
+
+              {vd.backgroundImage && (
+                <img src={vd.backgroundImage} alt="Template background" className="mb-4 h-24 w-full object-cover rounded border border-gray-200 dark:border-slate-600" />
+              )}
+
+              <div className="mb-5">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-2">Elements ({viewElements.length})</h4>
+                {viewElements.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-slate-400">No custom elements</p>
+                ) : (
+                  <div className="space-y-2">
+                    {viewElements.map((el, i) => (
+                      <div key={i} className="flex items-center justify-between bg-gray-50 dark:bg-slate-900 rounded-lg px-3 py-2 text-sm">
+                        <span className="text-gray-700 dark:text-slate-300 capitalize">{el.type || 'element'} · {el.label || el.key || `#${i + 1}`}</span>
+                        <span className="text-xs text-gray-400 dark:text-slate-500">{el.value || ''}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setViewingTemplate(null)}
+                className="w-full px-4 py-2 border border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-50 dark:bg-slate-900 dark:hover:bg-slate-700 transition-colors"
+              >
+                Close
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Templates Grid */}
       {isLoading ? (
         <div className="flex justify-center items-center py-12">
@@ -619,24 +737,32 @@ const TemplateManagement = () => {
                 <div className="flex items-center justify-between">
                   <div className="flex space-x-2">
                     <button
+                      onClick={() => setViewingTemplate(template)}
+                      title="View template"
+                      className="p-2 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:bg-blue-900/40 rounded-lg transition-colors"
+                    >
+                      <FiEye className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => handleEdit(template)}
+                      title="Edit template"
                       className="p-2 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:bg-emerald-900/40 rounded-lg transition-colors"
                     >
                       <FiEdit className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(template.id || template._id)}
+                      title="Delete template"
                       className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:bg-red-900/40 rounded-lg transition-colors"
                     >
                       <FiTrash2 className="h-4 w-4" />
                     </button>
                   </div>
                   <div className="flex items-center space-x-2">
-                    {template.isActive ? (
-                      <FiEye className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <FiEyeOff className="h-4 w-4 text-gray-400 dark:text-slate-500" />
-                    )}
+                    <span
+                      title={template.isActive ? 'Active' : 'Inactive'}
+                      className={`inline-block w-2.5 h-2.5 rounded-full ${template.isActive ? 'bg-green-500' : 'bg-gray-400 dark:bg-slate-500'}`}
+                    ></span>
                     <input
                       type="checkbox"
                       checked={selectedTemplates.includes(template._id)}

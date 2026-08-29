@@ -129,12 +129,4 @@ export const API_ENDPOINTS = {
       ANALYTICS: (id) => `/api/admin/cards/${id}/analytics`,
     },
   },
-  
-  // Analytics endpoints
-  ANALYTICS: {
-    DASHBOARD: '/api/analytics/dashboard',
-    USER_GROWTH: '/api/analytics/user-growth',
-    CARD_GROWTH: '/api/analytics/card-growth',
-    ENGAGEMENT: '/api/analytics/engagement',
-  },
 }; 

@@ -164,9 +164,36 @@ export const login = createAsyncThunk(
         return rejectWithValue(data.error || data.message || 'Login failed');
       }
 
+      // If server requires two-factor authentication, return a special payload
+      if (data.requiresOTP) {
+        return { twoFactor: true, email, ...data };
+      }
+
       return persistAuthResponse(data);
     } catch (error) {
       return rejectWithValue(error.message || 'Login failed');
+    }
+  }
+);
+
+export const verifyTwoFactor = createAsyncThunk(
+  'auth/verifyTwoFactor',
+  async ({ email, otp }, { rejectWithValue }) => {
+    try {
+      const response = await fetch(authUrl('/verify-2fa'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return rejectWithValue(data.error || 'Two-factor verification failed');
+      }
+
+      return persistAuthResponse(data);
+    } catch (error) {
+      return rejectWithValue(error.message || 'Two-factor verification failed');
     }
   }
 );
@@ -256,6 +283,66 @@ export const updateUserProfile = createAsyncThunk(
       return user;
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to update profile');
+    }
+  }
+);
+
+export const uploadAvatar = createAsyncThunk(
+  'auth/uploadAvatar',
+  async (file, { rejectWithValue }) => {
+    try {
+      const token = getToken();
+      if (!token) {
+        return rejectWithValue('No token found');
+      }
+
+      const form = new FormData();
+      form.append('avatar', file);
+
+      const response = await fetch(authUrl('/profile/avatar'), {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return rejectWithValue(data.error || 'Failed to upload avatar');
+      }
+
+      const user = normalizeUser(data.user);
+      saveAuth({ token, user });
+      return user;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to upload avatar');
+    }
+  }
+);
+
+export const removeAvatar = createAsyncThunk(
+  'auth/removeAvatar',
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = getToken();
+      if (!token) {
+        return rejectWithValue('No token found');
+      }
+
+      const response = await fetch(authUrl('/profile/avatar'), {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        return rejectWithValue(data.error || 'Failed to remove avatar');
+      }
+
+      const user = normalizeUser(data.user);
+      saveAuth({ token, user });
+      return user;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to remove avatar');
     }
   }
 );

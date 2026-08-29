@@ -25,12 +25,12 @@ import EmptyState from '../../components/UI/EmptyState';
 const POLL_INTERVAL = 30000;
 
 const NOTIF_TYPE_CONFIG = {
-  card_loved: { icon: FiHeart, color: 'text-red-500', nav: (n) => n.data?.cardId ? `/cards/${n.data.cardId}` : null },
-  card_shared: { icon: FiShare2, color: 'text-emerald-500', nav: (n) => n.data?.cardId ? `/cards/${n.data.cardId}` : null },
+  card_loved: { icon: FiHeart, color: 'text-red-500', nav: (n) => n.data?.shortLink ? `/c/${n.data.shortLink}` : (n.data?.actionUrl?.startsWith('/c/') ? n.data.actionUrl : null) },
+  card_shared: { icon: FiShare2, color: 'text-emerald-500', nav: (n) => n.data?.shortLink ? `/c/${n.data.shortLink}` : (n.data?.actionUrl?.startsWith('/c/') ? n.data.actionUrl : null) },
   access_request: { icon: FiShield, color: 'text-blue-500', nav: () => '/access-requests' },
   access_approved: { icon: FiCheck, color: 'text-green-500', nav: () => '/access-requests' },
   access_rejected: { icon: FiX, color: 'text-red-500', nav: () => '/access-requests' },
-  card_viewed: { icon: FiEye, color: 'text-purple-500', nav: (n) => n.data?.cardId ? `/cards/${n.data.cardId}` : null },
+  card_viewed: { icon: FiEye, color: 'text-purple-500', nav: (n) => n.data?.shortLink ? `/c/${n.data.shortLink}` : (n.data?.actionUrl?.startsWith('/c/') ? n.data.actionUrl : null) },
   system: { icon: FiAlertCircle, color: 'text-yellow-500', nav: () => null },
   welcome: { icon: FiZap, color: 'text-emerald-500', nav: () => '/dashboard' },
   default: { icon: FiBell, color: 'text-gray-500 dark:text-slate-400', nav: () => null },

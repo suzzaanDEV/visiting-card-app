@@ -21,6 +21,7 @@ const initialState = {
   recentCards: { data: [], loading: false, error: null },
   featuredCards: { data: [], loading: false, error: null },
   recommendations: { data: [], loading: false, error: null },
+  discover: { data: [], loading: false, error: null, personalized: false, source: 'trending', pagination: { page: 1, limit: 12, total: 0, totalPages: 1 } },
   isLoading: false,
   error: null,
 };
@@ -297,6 +298,35 @@ const cardsSlice = createSlice({
     });
     builder.addCase(cardsThunks.fetchSuggestions.rejected, (state) => {
       state.suggestions = [];
+    });
+
+    // --- Personalized Discovery Feed ---
+    builder.addCase(cardsThunks.fetchDiscover.pending, (state) => {
+      state.discover.loading = true;
+      state.discover.error = null;
+    });
+    builder.addCase(cardsThunks.fetchDiscover.fulfilled, (state, action) => {
+      state.discover.loading = false;
+      state.discover.data = action.payload.cards || action.payload.data || [];
+      state.discover.personalized = Boolean(action.payload.personalized);
+      state.discover.source = action.payload.source || 'trending';
+      const pg = action.payload.pagination || {};
+      state.discover.pagination = {
+        page: pg.page || 1,
+        limit: pg.limit || 12,
+        total: pg.total || 0,
+        totalPages: pg.totalPages || 1,
+      };
+      state.pagination = {
+        page: pg.page || 1,
+        limit: pg.limit || 12,
+        total: pg.total || 0,
+        pages: pg.totalPages || 1,
+      };
+    });
+    builder.addCase(cardsThunks.fetchDiscover.rejected, (state, action) => {
+      state.discover.loading = false;
+      state.discover.error = action.payload || 'Failed to load discovery feed';
     });
 
     // --- Fetch Popular Cards ---

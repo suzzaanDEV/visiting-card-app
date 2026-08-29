@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useDispatch } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import {
@@ -10,10 +11,42 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Skeleton from '../../components/ui/Skeleton';
+import BrandLoader from '../../components/ui/BrandLoader';
 import { isPushSupported, requestPermission, subscribeToPush, unsubscribeFromPush, isSubscribed } from '../../utils/pushNotifications';
 import { useTheme } from '../../context/ThemeContext';
+import { uploadAvatar, removeAvatar } from '../../features/auth/authThunks';
+
+// Downscale client-side before upload → far smaller payload, faster round trip.
+const downscaleAvatar = (file, maxSize = 512) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read the file'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Could not decode the image'));
+      img.onload = () => {
+        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(
+          (blob) => (blob
+            ? resolve(new File([blob], `${file.name.replace(/\.\w+$/, '')}-${Date.now()}.jpg`, { type: 'image/jpeg' }))
+            : reject(new Error('Could not encode the image'))),
+          'image/jpeg',
+          0.85
+        );
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
 
 const ProfilePage = () => {
+  const dispatch = useDispatch();
   const [user, setUser] = useState({
     name: '',
     email: '',
@@ -26,10 +59,17 @@ const ProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const previewUrlRef = useRef(null);
   const [activeTab, setActiveTab] = useState('profile');
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [changingPassword, setChangingPassword] = useState(false);
+  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false);
+  const [twoFactorOtp, setTwoFactorOtp] = useState('');
+  const [twoFactorDevOtp, setTwoFactorDevOtp] = useState('');
+  const [verifyingTwoFactor, setVerifyingTwoFactor] = useState(false);
   const [stats, setStats] = useState({
     totalCards: 0,
     totalSaved: 0,
@@ -56,7 +96,7 @@ const ProfilePage = () => {
     showAddress: true,
     profileVisible: true
   });
-  const { theme, toggleTheme } = useTheme();
+  const { theme, setTheme, toggleTheme, isDark } = useTheme();
 
   useEffect(() => {
     fetchUserProfile();
@@ -65,6 +105,10 @@ const ProfilePage = () => {
     fetchPrivacySettings();
     setPushSupported(isPushSupported());
     isSubscribed().then(setPushEnabled);
+  }, []);
+
+  useEffect(() => () => {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
   }, []);
 
   const fetchUserProfile = async () => {
@@ -79,6 +123,7 @@ const ProfilePage = () => {
       if (response.ok) {
         const data = await response.json();
         setUser(data.user || user);
+        setTwoFactorEnabled(data.user?.twoFactorEnabled || false);
       } else {
         toast.error('Failed to load profile');
       }
@@ -263,16 +308,39 @@ const ProfilePage = () => {
       return;
     }
 
+    setAvatarUploading(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const base64 = e.target.result;
-        setUser(prev => ({ ...prev, avatar: base64 }));
-        toast.success('Avatar updated — click Save to apply');
-      };
-      reader.readAsDataURL(file);
-    } catch {
-      toast.error('Failed to process avatar');
+      const optimized = await downscaleAvatar(file);
+      const previewUrl = URL.createObjectURL(optimized);
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = previewUrl;
+      setAvatarPreview(previewUrl);
+
+      const result = await dispatch(uploadAvatar(optimized)).unwrap();
+      setUser(prev => ({ ...prev, avatar: result.avatar || '' }));
+      setAvatarPreview(null);
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+      toast.success('Profile picture updated!');
+    } catch (error) {
+      setAvatarPreview(null);
+      toast.error(typeof error === 'string' ? error : 'Failed to upload profile picture');
+    } finally {
+      setAvatarUploading(false);
+      if (event.target) {
+        event.target.value = '';
+      }
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!user.avatar || avatarUploading) return;
+    try {
+      await dispatch(removeAvatar()).unwrap();
+      setUser(prev => ({ ...prev, avatar: '' }));
+      toast.success('Profile picture removed');
+    } catch (error) {
+      toast.error(typeof error === 'string' ? error : 'Failed to remove profile picture');
     }
   };
 
@@ -320,6 +388,46 @@ const ProfilePage = () => {
     }
   };
 
+  const handleVerifyEnableTwoFactor = async () => {
+    if (!twoFactorOtp) {
+      toast.error('Please enter the verification code');
+      return;
+    }
+    if (twoFactorOtp.length !== 6) {
+      toast.error('Verification code must be 6 digits');
+      return;
+    }
+
+    try {
+      setVerifyingTwoFactor(true);
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/auth/verify-enable-2fa', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ otp: twoFactorOtp })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        setTwoFactorEnabled(true);
+        setShowTwoFactorModal(false);
+        setTwoFactorOtp('');
+        setTwoFactorDevOtp('');
+        toast.success('Two-factor authentication enabled successfully!');
+      } else {
+        toast.error(data.error || 'Failed to verify code');
+      }
+    } catch (error) {
+      console.error('Error verifying 2FA enablement:', error);
+      toast.error('Verification failed. Please try again.');
+    } finally {
+      setVerifyingTwoFactor(false);
+    }
+  };
+
   const tabs = [
     { id: 'profile', name: 'Profile', icon: FaUser },
     { id: 'security', name: 'Security', icon: FaShieldAlt },
@@ -327,15 +435,8 @@ const ProfilePage = () => {
     { id: 'settings', name: 'Settings', icon: FaCog }
   ];
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-brand-background dark:bg-slate-950 flex items-center justify-center py-20">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary mx-auto mb-4"></div>
-          <p className="text-brand-textMuted text-sm font-semibold">Loading profile information...</p>
-        </div>
-      </div>
-    );
+if (loading) {
+    return <BrandLoader full label="Loading profile information…" />;
   }
 
   return (
@@ -364,23 +465,45 @@ const ProfilePage = () => {
                 {/* User Info */}
                 <div className="text-center mb-6">
                   <div className="relative inline-block select-none mb-4">
-                    <div className="w-24 h-24 bg-gradient-to-br from-brand-primary to-brand-secondary rounded-full flex items-center justify-center text-white text-3xl font-bold border-4 border-brand-surface dark:border-slate-800 shadow-md overflow-hidden">
-                      {user.avatar ? (
-                        <img src={user.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                    <div className={`w-24 h-24 bg-gradient-to-br from-brand-primary to-brand-secondary rounded-full flex items-center justify-center text-white text-3xl font-bold border-4 border-brand-surface dark:border-slate-800 shadow-md overflow-hidden ${avatarUploading ? 'opacity-80' : ''}`}>
+                      {(avatarPreview || user.avatar) ? (
+                        <img src={avatarPreview || user.avatar} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
-                        user.name ? user.name.charAt(0).toUpperCase() : 'U'
+                        user.name
+                          ? user.name.split(' ').filter(Boolean).map(n => n[0]).join('').toUpperCase().slice(0, 2)
+                          : 'U'
                       )}
                     </div>
-                    <label className="absolute bottom-0 right-0 w-8 h-8 bg-brand-primary text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-brand-primaryHover transition-colors shadow-md">
+                    {avatarUploading && (
+                      <span className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center">
+                        <span className="animate-spin rounded-full h-8 w-8 border-[3px] border-white border-t-transparent" />
+                      </span>
+                    )}
+                    <label
+                      className={`absolute bottom-0 right-0 w-8 h-8 bg-brand-primary text-white rounded-full flex items-center justify-center cursor-pointer hover:bg-brand-primaryHover transition-colors shadow-md ${avatarUploading ? 'pointer-events-none opacity-60' : ''}`}
+                      title={avatarUploading ? 'Uploading…' : 'Change profile picture'}
+                    >
                       <FaCamera className="text-xs" />
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/png,image/jpeg"
                         onChange={handleAvatarUpload}
                         className="hidden"
+                        disabled={avatarUploading}
                       />
                     </label>
                   </div>
+                  {user.avatar && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      disabled={avatarUploading}
+                      className={`inline-flex items-center gap-1 text-[11px] font-semibold text-brand-danger hover:text-brand-danger/80 transition-colors cursor-pointer ${avatarUploading ? 'pointer-events-none opacity-60' : ''}`}
+                    >
+                      <FaTrash className="text-[10px]" />
+                      {avatarUploading ? 'Uploading…' : 'Remove Photo'}
+                    </button>
+                  )}
                   <h2 className="text-xl font-bold text-brand-text dark:text-white truncate">{user.name || 'Cardly User'}</h2>
                   <p className="text-xs text-brand-textMuted truncate mt-0.5">{user.email}</p>
                 </div>
@@ -570,8 +693,15 @@ const ProfilePage = () => {
                             });
                             if (res.ok) {
                               const data = await res.json();
-                              setTwoFactorEnabled(data.twoFactorEnabled);
-                              toast.success(data.twoFactorEnabled ? '2FA enabled' : '2FA disabled');
+                              if (data.requiresVerification) {
+                                setTwoFactorOtp('');
+                                setTwoFactorDevOtp(data.devOtp || '');
+                                setShowTwoFactorModal(true);
+                                toast.success(data.message || 'Confirmation code sent');
+                              } else {
+                                setTwoFactorEnabled(data.twoFactorEnabled);
+                                toast.success(data.twoFactorEnabled ? '2FA enabled' : '2FA disabled');
+                              }
                             } else { toast.error('Failed to toggle 2FA'); }
                           } catch { toast.error('Failed to toggle 2FA'); }
                         }}>
@@ -732,15 +862,37 @@ const ProfilePage = () => {
                         </div>
                       </div>
 
-                      <div className="border border-brand-border/40 dark:border-slate-800/80 rounded-2xl p-6 bg-brand-background/40 dark:bg-slate-900/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div>
-                          <h3 className="font-bold text-brand-text dark:text-white">Appearance Theme</h3>
-                          <p className="text-xs text-brand-textMuted mt-1">Switch between light and dark mode for your interface.</p>
+                      <div className="border border-brand-border/40 dark:border-slate-800/80 rounded-2xl p-6 bg-brand-background/40 dark:bg-slate-900/40">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                          <div>
+                            <h3 className="font-bold text-brand-text dark:text-white">Appearance Theme</h3>
+                            <p className="text-xs text-brand-textMuted mt-1">Choose light, dark, or follow your device preference.</p>
+                          </div>
+                          <Button variant="secondary" className="flex-shrink-0" onClick={toggleTheme} aria-label="Toggle theme">
+                            {isDark ? <FaSun className="mr-2 text-xs" /> : <FaMoon className="mr-2 text-xs" />}
+                            {theme === 'system' ? 'System Mode' : isDark ? 'Light Mode' : 'Dark Mode'}
+                          </Button>
                         </div>
-                        <Button variant="secondary" className="flex-shrink-0" onClick={toggleTheme}>
-                          {theme === 'dark' ? <FaSun className="mr-2 text-xs" /> : <FaMoon className="mr-2 text-xs" />}
-                          {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-                        </Button>
+                        <div className="mt-4 flex items-center gap-2">
+                          {[
+                            { value: 'light', label: 'Light' },
+                            { value: 'dark', label: 'Dark' },
+                            { value: 'system', label: 'System' }
+                          ].map(option => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => setTheme(option.value)}
+                              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                                theme === option.value
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-brand-border/40 dark:bg-slate-800 text-brand-textMuted dark:text-slate-400 hover:bg-brand-border/60 dark:hover:bg-slate-700'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
                       <div className="border border-brand-border/40 dark:border-slate-800/80 rounded-2xl p-6 bg-brand-background/40 dark:bg-slate-900/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -814,6 +966,61 @@ const ProfilePage = () => {
                 <Button variant="ghost" onClick={() => {
                   setShowPasswordModal(false);
                   setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                }}>
+                  Cancel
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+        {showTwoFactorModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+            onClick={() => setShowTwoFactorModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-brand-surface dark:bg-slate-900 rounded-2xl p-6 w-full max-w-md mx-4 border border-brand-border/40 dark:border-slate-800/80 shadow-xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-brand-text dark:text-white mb-2">Enable Two-Factor Authentication</h3>
+              <p className="text-sm text-brand-textMuted mb-4">
+                A 6-digit confirmation code has been sent to your email. Enter it below to complete enabling 2FA.
+              </p>
+
+              {twoFactorDevOtp && (
+                <div className="mb-4 rounded-xl border border-brand-warning/30 bg-brand-warning/10 dark:bg-amber-950/20 px-4 py-2 text-sm text-brand-warning text-center">
+                  <p className="font-semibold text-xs mb-1">⚠️ Dev OTP Code</p>
+                  <p className="text-xl font-mono tracking-widest font-bold bg-brand-surface dark:bg-slate-900 border border-brand-warning/20 rounded py-1">
+                    {twoFactorDevOtp}
+                  </p>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <Input
+                  label="Verification Code"
+                  type="text"
+                  maxLength={6}
+                  value={twoFactorOtp}
+                  onChange={(e) => setTwoFactorOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="Enter 6-digit code"
+                />
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button variant="primary" onClick={handleVerifyEnableTwoFactor} disabled={verifyingTwoFactor}>
+                  {verifyingTwoFactor ? 'Verifying...' : 'Verify & Enable'}
+                </Button>
+                <Button variant="ghost" onClick={() => {
+                  setShowTwoFactorModal(false);
+                  setTwoFactorOtp('');
+                  setTwoFactorDevOtp('');
                 }}>
                   Cancel
                 </Button>

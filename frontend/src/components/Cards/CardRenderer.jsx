@@ -161,7 +161,7 @@ function isLightColor(hex) {
   return (r * 299 + g * 587 + b * 114) / 1000 > 128;
 }
 
-function InitialsAvatar({ name, accentColor, textColor, isLight, size = 'lg' }) {
+function InitialsAvatar({ name, image, accentColor, textColor, isLight, size = 'lg' }) {
   const sizeClasses = {
     sm: 'w-10 h-10 text-base',
     md: 'w-14 h-14 text-xl',
@@ -169,13 +169,17 @@ function InitialsAvatar({ name, accentColor, textColor, isLight, size = 'lg' }) 
   };
   return (
     <div
-      className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-bold mx-auto`}
+      className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-bold mx-auto ${image ? 'overflow-hidden' : ''}`}
       style={{
-        backgroundColor: isLight ? (accentColor || textColor + '18') : 'rgba(255,255,255,0.2)',
+        backgroundColor: image ? undefined : (isLight ? (accentColor || textColor + '18') : 'rgba(255,255,255,0.2)'),
         color: isLight ? '#ffffff' : textColor
       }}
     >
-      {getInitials(name)}
+      {image ? (
+        <img src={image} alt={name || 'Avatar'} className="w-full h-full object-cover" />
+      ) : (
+        getInitials(name)
+      )}
     </div>
   );
 }
@@ -232,6 +236,7 @@ function StandardLayout({ card, contactItems, socialEntries, textColor, accentCo
       <div className="text-center pt-2 pb-3">
         <InitialsAvatar
           name={card.fullName}
+          image={card.ownerUserId?.avatar || card.avatar}
           accentColor={accentColor}
           textColor={textColor}
           isLight={isLight}
@@ -272,6 +277,7 @@ function ModernLayout({ card, contactItems, socialEntries, textColor, accentColo
       <div className="flex items-center gap-3 mb-3">
         <InitialsAvatar
           name={card.fullName}
+          image={card.ownerUserId?.avatar || card.avatar}
           accentColor={accentColor}
           textColor={textColor}
           isLight={isLight}
@@ -353,6 +359,7 @@ function BoldLayout({ card, contactItems, socialEntries, textColor, accentColor,
       <div className="text-center pt-8 pb-2 relative z-10">
         <InitialsAvatar
           name={card.fullName}
+          image={card.ownerUserId?.avatar || card.avatar}
           accentColor={accentColor}
           textColor={textColor}
           isLight={isLight}
