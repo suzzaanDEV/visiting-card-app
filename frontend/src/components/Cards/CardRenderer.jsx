@@ -50,6 +50,7 @@ const CardRenderer = ({ card, className = '' }) => {
   const accentColor = (d.accentColor || td.accentColor || '#047857');
   const fontFamily = (d.fontFamily || td.fontFamily || card.fontFamily || 'Inter');
   const backgroundImage = d.backgroundImage || td.backgroundImage || '';
+  const isGradient = typeof backgroundColor === 'string' && /gradient\(/i.test(backgroundColor.trim());
   const borderRadius = d.borderRadius || (td.borderRadius ? `${td.borderRadius}px` : '12px');
   const layout = d.layout || td.layout || 'standard';
 
@@ -83,11 +84,13 @@ const CardRenderer = ({ card, className = '' }) => {
     <div
       className={`relative w-full h-full overflow-hidden ${layoutClass} ${className}`}
       style={{
-        backgroundColor,
+        backgroundColor: isGradient ? undefined : backgroundColor,
         color: textColor,
         fontFamily,
         borderRadius,
-        backgroundImage: backgroundImage ? `url(${backgroundImage})` : undefined,
+        backgroundImage: isGradient
+          ? backgroundColor
+          : (backgroundImage ? `url(${backgroundImage})` : undefined),
         backgroundSize: backgroundImage ? 'cover' : undefined,
         backgroundPosition: backgroundImage ? 'center' : undefined
       }}
@@ -96,6 +99,13 @@ const CardRenderer = ({ card, className = '' }) => {
         <div
           className="absolute inset-0"
           style={{ backgroundColor, opacity: 0.85 }}
+        />
+      )}
+      {isGradient && (
+        <div
+          className="absolute inset-0"
+          style={{ backgroundImage: backgroundColor }}
+          aria-hidden="true"
         />
       )}
 

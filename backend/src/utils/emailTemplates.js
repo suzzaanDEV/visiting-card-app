@@ -75,14 +75,14 @@ function baseHtml({ title, preheader, bodyHtml, ctaText, ctaUrl, imageUrl, highl
   <div class="preheader" style="display:none;font-size:1px;color:#f1f5f9;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${escapeHtml(preheader || title || '')}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="body" style="background-color:#f1f5f9;">
     <tr>
-      <td align="center" style="padding: 24px 12px;">
+      <td align="center" style="padding: 24px 12px;" bgcolor="#f1f5f9">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; width: 100%;">
           <tr>
-            <td class="card" style="background-color:#ffffff; border-radius:16px; overflow:hidden; box-shadow: 0 8px 28px rgba(2, 44, 34, 0.08);">
+            <td class="card" style="background-color:#ffffff; border-radius:16px; overflow:hidden; box-shadow: 0 8px 28px rgba(2, 44, 34, 0.08);" bgcolor="#ffffff">
               <!-- Header -->
-              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="header" style="background: linear-gradient(135deg, ${BRAND_COLOR} 0%, ${accent} 100%);">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="header" style="background-color:${BRAND_COLOR}; background-image:linear-gradient(135deg, ${BRAND_COLOR} 0%, ${accent} 100%);">
                 <tr>
-                  <td class="brand-row" style="padding: 28px 32px;">
+                  <td class="brand-row" style="padding: 28px 32px;" bgcolor="transparent">
                     <table role="presentation" cellpadding="0" cellspacing="0">
                       <tr>
                         <td>

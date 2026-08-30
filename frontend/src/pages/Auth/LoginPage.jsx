@@ -205,7 +205,7 @@ const LoginPage = () => {
                     disabled={isResending || timeLeft > 240} // Allow resend after 1 minute
                     className="w-full text-center text-sm font-semibold text-brand-primary hover:text-brand-primaryHover transition-colors disabled:text-brand-textMuted disabled:cursor-not-allowed"
                   >
-                    {isResending ? 'Sending...' : timeLeft <= 240 ? 'Resend Code' : `Resend available in ${formatTime(240 - timeLeft)}`}
+                    {isResending ? 'Sending...' : timeLeft <= 240 ? 'Resend Code' : `Resend available in ${formatTime(Math.max(0, timeLeft - 240))}`}
                   </button>
                   <button
                     type="button"
