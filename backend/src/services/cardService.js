@@ -1057,7 +1057,7 @@ class CardService {
   }
 
   // Admin methods
-  async getAllCards({ page = 1, limit = 20, search, category, sortBy = 'createdAt', sortOrder = 'desc' }) {
+  async getAllCards({ page = 1, limit = 20, search, category, sortBy = 'createdAt', sortOrder = 'desc', status } = {}) {
     try {
       const skip = (page - 1) * limit;
       const query = {};
@@ -1071,6 +1071,14 @@ class CardService {
 
       if (category) {
         query.templateId = category;
+      }
+
+      if (status === 'active') {
+        query.isActive = true;
+      } else if (status === 'inactive') {
+        query.isActive = false;
+      } else if (status === 'featured') {
+        query.featured = true;
       }
 
       const sortOptions = {};

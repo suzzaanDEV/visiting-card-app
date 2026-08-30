@@ -12,6 +12,7 @@ const POLL_INTERVAL = 30000;
 
 const NotificationDropdown = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { items: notifications, unreadCount, loading } = useSelector((s) => s.notifications);
@@ -48,6 +49,11 @@ const NotificationDropdown = () => {
     return `${Math.floor(diff / 86400)}d ago`;
   };
 
+  const runAction = (key, fn) => {
+    setActionLoading(key);
+    Promise.resolve(fn()).finally(() => setActionLoading(null));
+  };
+
   if (!isAuthenticated) return null;
 
   return (
@@ -80,10 +86,15 @@ const NotificationDropdown = () => {
                 <div className="flex items-center space-x-2">
                   {unreadCount > 0 && (
                     <button
-                      onClick={() => dispatch(markAllNotificationsRead())}
-                      className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors"
+                      onClick={() => runAction('mark-all', () => dispatch(markAllNotificationsRead()))}
+                      disabled={actionLoading === 'mark-all'}
+                      className="text-sm text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      Mark all read
+                      {actionLoading === 'mark-all' ? (
+                        <span className="inline-block animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                      ) : (
+                        'Mark all read'
+                      )}
                     </button>
                   )}
                   <button
@@ -133,17 +144,27 @@ const NotificationDropdown = () => {
                                 {n.type === 'access_request' && n.data?.requestId && (
                                   <div className="flex space-x-2 mt-2" onClick={(e) => e.stopPropagation()}>
                                     <button
-                                      onClick={() => dispatch(approveAccessRequest({ requestId: n.data.requestId }))}
-                                      className="flex items-center space-x-1 bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 transition-colors"
+                                      onClick={() => runAction(`approve:${n.data.requestId}`, () => dispatch(approveAccessRequest({ requestId: n.data.requestId })))}
+                                      disabled={actionLoading === `approve:${n.data.requestId}`}
+                                      className="flex items-center space-x-1 bg-green-600 text-white px-2 py-1 rounded text-xs hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                      <FaCheck className="w-2.5 h-2.5" />
+                                      {actionLoading === `approve:${n.data.requestId}` ? (
+                                        <span className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+                                      ) : (
+                                        <FaCheck className="w-2.5 h-2.5" />
+                                      )}
                                       <span>Accept</span>
                                     </button>
                                     <button
-                                      onClick={() => dispatch(rejectAccessRequest({ requestId: n.data.requestId }))}
-                                      className="flex items-center space-x-1 bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition-colors"
+                                      onClick={() => runAction(`reject:${n.data.requestId}`, () => dispatch(rejectAccessRequest({ requestId: n.data.requestId })))}
+                                      disabled={actionLoading === `reject:${n.data.requestId}`}
+                                      className="flex items-center space-x-1 bg-red-600 text-white px-2 py-1 rounded text-xs hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
-                                      <FaTimes className="w-2.5 h-2.5" />
+                                      {actionLoading === `reject:${n.data.requestId}` ? (
+                                        <span className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+                                      ) : (
+                                        <FaTimes className="w-2.5 h-2.5" />
+                                      )}
                                       <span>Reject</span>
                                     </button>
                                   </div>
@@ -152,19 +173,29 @@ const NotificationDropdown = () => {
                               <div className="flex items-center space-x-1 ml-2" onClick={(e) => e.stopPropagation()}>
                                 {!n.isRead && (
                                   <button
-                                    onClick={() => dispatch(markNotificationRead(n._id))}
-                                    className="p-1 text-gray-400 hover:text-emerald-600 transition-colors"
+                                    onClick={() => runAction(`read:${n._id}`, () => dispatch(markNotificationRead(n._id)))}
+                                    disabled={actionLoading === `read:${n._id}`}
+                                    className="p-1 text-gray-400 hover:text-emerald-600 transition-colors disabled:opacity-50"
                                     title="Mark as read"
                                   >
-                                    <FaEye className="w-3 h-3" />
+                                    {actionLoading === `read:${n._id}` ? (
+                                      <span className="block animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent" />
+                                    ) : (
+                                      <FaEye className="w-3 h-3" />
+                                    )}
                                   </button>
                                 )}
                                 <button
-                                  onClick={() => dispatch(deleteNotification(n._id))}
-                                  className="p-1 text-gray-400 hover:text-red-600 transition-colors"
+                                  onClick={() => runAction(`delete:${n._id}`, () => dispatch(deleteNotification(n._id)))}
+                                  disabled={actionLoading === `delete:${n._id}`}
+                                  className="p-1 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50"
                                   title="Delete"
                                 >
-                                  <FaTrash className="w-3 h-3" />
+                                  {actionLoading === `delete:${n._id}` ? (
+                                    <span className="block animate-spin rounded-full h-3 w-3 border-2 border-current border-t-transparent" />
+                                  ) : (
+                                    <FaTrash className="w-3 h-3" />
+                                  )}
                                 </button>
                               </div>
                             </div>

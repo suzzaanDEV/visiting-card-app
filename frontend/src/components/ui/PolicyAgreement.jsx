@@ -145,7 +145,11 @@ const PolicyAgreement = () => {
                     disabled={accepting[p.slug]}
                     className="shrink-0 inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors"
                   >
-                    <FiCheckCircle className="w-4 h-4" />
+                    {accepting[p.slug] ? (
+                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    ) : (
+                      <FiCheckCircle className="w-4 h-4" />
+                    )}
                     {accepting[p.slug] ? 'Saving...' : 'Accept'}
                   </button>
                 </div>

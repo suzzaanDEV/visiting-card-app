@@ -16,7 +16,7 @@ if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
   });
 }
 
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, replyTo }) {
   const isEmailEnabled = process.env.EMAIL_ENABLED === 'true';
 
   if (!isEmailEnabled) {
@@ -33,7 +33,8 @@ async function sendEmail({ to, subject, html, text }) {
     to,
     subject,
     text,
-    html
+    html,
+    ...(replyTo ? { replyTo } : {})
   };
 
   const info = await transporter.sendMail(mailOptions);

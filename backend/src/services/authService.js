@@ -9,7 +9,7 @@ const logger = require('../utils/logger');
 const imageService = require('./imageService');
 const { sendEmail } = require('../utils/emailService');
 const { generateOtp, generateResetToken, hashValue } = require('../utils/tokenUtils');
-const { renderGeneric, renderOtp, render2fa } = require('../utils/emailTemplates');
+const { renderGeneric, renderOtp, render2fa, renderWelcome } = require('../utils/emailTemplates');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const ACCESS_TOKEN_EXPIRES = process.env.JWT_ACCESS_EXPIRES_IN || '7d';
@@ -582,6 +582,18 @@ class AuthService {
     try {
       if (!identifier || !otp) throw new Error('Identifier and OTP are required');
 
+      const sendWelcome = async (u) => {
+        try {
+          await sendEmail({
+            to: u.email,
+            subject: 'Welcome to Cardly',
+            html: renderWelcome({ name: u.name || u.username })
+          });
+        } catch (err) {
+          logger.warn(`Welcome email failed for ${u.email}: ${err.message}`);
+        }
+      };
+
       let user;
       // If identifier looks like a MongoDB ObjectId, try to find a live user first, then pending registration
       const isObjectId = typeof identifier === 'string' && /^[0-9a-fA-F]{24}$/.test(identifier);
@@ -608,6 +620,8 @@ class AuthService {
             await newUser.save();
             // remove pending
             await PendingRegistration.findByIdAndDelete(pending._id);
+
+            await sendWelcome(newUser);
 
             // issue tokens
             const tokens = this.generateTokens(newUser);
@@ -650,6 +664,8 @@ class AuthService {
       user.emailVerificationOtpHash = undefined;
       user.emailVerificationOtpExpires = undefined;
       await user.save();
+
+      await sendWelcome(user);
 
       // After verification, issue tokens so the user can be logged in immediately
       const tokens = this.generateTokens(user);

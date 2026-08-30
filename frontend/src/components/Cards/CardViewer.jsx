@@ -34,6 +34,9 @@ const CardViewer = ({ card, isLoved = false }) => {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [relatedCards, setRelatedCards] = useState([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
+  const [isLoving, setIsLoving] = useState(false);
+  const [isSavingLibrary, setIsSavingLibrary] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
 
   const isCardInLibrary = savedCards?.some(savedCard => savedCard.cardId?._id === card._id);
 
@@ -140,12 +143,14 @@ const CardViewer = ({ card, isLoved = false }) => {
     }
 
     try {
+      setIsLoving(true);
       setIsAnimating(true);
       await dispatch(toggleCardLove(card._id)).unwrap();
       toast.success(isLoved ? 'Removed from loves' : 'Added to loves');
     } catch {
       toast.error('Failed to update love status');
     } finally {
+      setIsLoving(false);
       setIsAnimating(false);
     }
   };
@@ -183,11 +188,14 @@ const CardViewer = ({ card, isLoved = false }) => {
     }
 
     try {
+      setIsSavingLibrary(true);
       await dispatch(saveCardToLibrary({ cardId: card._id })).unwrap();
       toast.success('Card saved to library!');
     } catch (error) {
       console.error('Save card error:', error);
       toast.error('Failed to save card');
+    } finally {
+      setIsSavingLibrary(false);
     }
   };
 
@@ -332,6 +340,7 @@ const CardViewer = ({ card, isLoved = false }) => {
     }
 
     try {
+      setIsRequesting(true);
       const response = await fetch(`${API_BASE_URL}/cards/${card._id}/request-access`, {
         method: 'POST',
         headers: {
@@ -355,6 +364,8 @@ const CardViewer = ({ card, isLoved = false }) => {
     } catch (error) {
       console.error('Request access error:', error);
       toast.error('Failed to request access');
+    } finally {
+      setIsRequesting(false);
     }
   };
 
@@ -627,17 +638,21 @@ const CardViewer = ({ card, isLoved = false }) => {
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
                     onClick={handleLove}
-                    disabled={!isAuthenticated || !hasAccess()}
+                    disabled={!isAuthenticated || !hasAccess() || isLoving}
                     className={`relative flex items-center justify-center gap-2.5 py-4 px-4 rounded-2xl font-semibold text-sm transition-all overflow-hidden ${isLoved
                       ? 'bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-lg shadow-rose-500/30'
                       : 'bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 border border-gray-100 dark:border-slate-700 hover:border-rose-200 dark:hover:border-rose-800 hover:bg-rose-50 dark:hover:bg-rose-950/30'
                       } ${!isAuthenticated || !hasAccess() ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
-                    {isLoved && (
+                    {isLoved && !isLoving && (
                       <span className="absolute inset-0 bg-white/10 animate-ping rounded-2xl" />
                     )}
-                    <FaHeart className={`h-5 w-5 ${isLoved ? 'relative z-10' : ''}`} />
-                    <span className="relative z-10">{isLoved ? 'Loved' : 'Love'}</span>
+                    {isLoving ? (
+                      <span className="relative z-10 animate-spin rounded-full h-5 w-5 border-2 border-current border-t-transparent" />
+                    ) : (
+                      <FaHeart className={`h-5 w-5 ${isLoved ? 'relative z-10' : ''}`} />
+                    )}
+                    <span className="relative z-10">{isLoving ? 'Loving...' : (isLoved ? 'Loved' : 'Love')}</span>
                   </motion.button>
 
                   {/* Share Button */}
@@ -656,14 +671,18 @@ const CardViewer = ({ card, isLoved = false }) => {
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
                     onClick={handleSaveCard}
-                    disabled={!isAuthenticated || isCardInLibrary || !hasAccess()}
+                    disabled={!isAuthenticated || isCardInLibrary || !hasAccess() || isSavingLibrary}
                     className={`flex items-center justify-center gap-2.5 py-4 px-4 rounded-2xl font-semibold text-sm transition-all ${isCardInLibrary
                       ? 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25'
                       : 'bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40'
                       } ${!isAuthenticated || !hasAccess() ? 'opacity-40 cursor-not-allowed' : ''}`}
                   >
-                    <FaBookmark className="h-5 w-5" />
-                    <span>{isCardInLibrary ? 'Saved' : 'Save'}</span>
+                    {isSavingLibrary ? (
+                      <span className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
+                    ) : (
+                      <FaBookmark className="h-5 w-5" />
+                    )}
+                    <span>{isSavingLibrary ? 'Saving...' : (isCardInLibrary ? 'Saved' : 'Save')}</span>
                   </motion.button>
 
                   {/* Download */}
@@ -1028,10 +1047,15 @@ const CardViewer = ({ card, isLoved = false }) => {
                 </button>
                 <button
                   onClick={handleRequestAccess}
-                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl hover:from-emerald-700 hover:to-green-700 transition-all flex items-center justify-center gap-2 font-semibold text-sm shadow-lg shadow-emerald-600/20"
+                  disabled={isRequesting}
+                  className="flex-1 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl hover:from-emerald-700 hover:to-green-700 transition-all flex items-center justify-center gap-2 font-semibold text-sm shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <FiSend className="w-4 h-4" />
-                  Send Request
+                  {isRequesting ? (
+                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                  ) : (
+                    <FiSend className="w-4 h-4" />
+                  )}
+                  {isRequesting ? 'Sending...' : 'Send Request'}
                 </button>
               </div>
             </motion.div>

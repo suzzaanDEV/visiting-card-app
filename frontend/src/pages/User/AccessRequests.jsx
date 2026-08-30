@@ -29,6 +29,7 @@ const AccessRequests = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [responseMessage, setResponseMessage] = useState('');
+  const [responding, setResponding] = useState(null);
 
   useEffect(() => {
     fetchAccessRequests();
@@ -37,6 +38,7 @@ const AccessRequests = () => {
   const fetchAccessRequests = async () => {
     try {
       setLoading(true);
+      setResponding('refresh');
       const token = getToken();
       
       if (!token) {
@@ -62,11 +64,13 @@ const AccessRequests = () => {
       toast.error('Failed to load access requests');
     } finally {
       setLoading(false);
+      setResponding(null);
     }
   };
 
   const handleApproveRequest = async (requestId) => {
     try {
+      setResponding('approve');
       const token = getToken();
       const response = await fetch(`${API_BASE_URL}/cards/access-requests/${requestId}/approve`, {
         method: 'POST',
@@ -89,11 +93,14 @@ const AccessRequests = () => {
     } catch (error) {
       console.error('Error approving request:', error);
       toast.error('Failed to approve request');
+    } finally {
+      setResponding(null);
     }
   };
 
   const handleRejectRequest = async (requestId) => {
     try {
+      setResponding('reject');
       const token = getToken();
       const response = await fetch(`${API_BASE_URL}/cards/access-requests/${requestId}/reject`, {
         method: 'POST',
@@ -116,6 +123,8 @@ const AccessRequests = () => {
     } catch (error) {
       console.error('Error rejecting request:', error);
       toast.error('Failed to reject request');
+    } finally {
+      setResponding(null);
     }
   };
 
@@ -277,9 +286,10 @@ const AccessRequests = () => {
             </div>
             <button
               onClick={fetchAccessRequests}
-              className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
+              disabled={responding === 'refresh'}
+              className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <FiRefreshCw className="w-4 h-4" />
+              <FiRefreshCw className={`w-4 h-4 ${responding === 'refresh' ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
             </button>
           </div>
@@ -436,22 +446,33 @@ const AccessRequests = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={() => setShowModal(false)}
-                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors"
+                    disabled={Boolean(responding)}
+                    className="flex-1 px-4 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={() => handleRejectRequest(selectedRequest._id)}
-                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2"
+                    disabled={Boolean(responding)}
+                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <FiX className="w-4 h-4" />
+                    {responding === 'reject' ? (
+                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    ) : (
+                      <FiX className="w-4 h-4" />
+                    )}
                     Reject
                   </button>
                   <button
                     onClick={() => handleApproveRequest(selectedRequest._id)}
-                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
+                    disabled={Boolean(responding)}
+                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <FiCheck className="w-4 h-4" />
+                    {responding === 'approve' ? (
+                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    ) : (
+                      <FiCheck className="w-4 h-4" />
+                    )}
                     Approve
                   </button>
                 </div>

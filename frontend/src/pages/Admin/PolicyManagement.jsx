@@ -21,6 +21,8 @@ export default function PolicyManagement() {
   const [showEditor, setShowEditor] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ slug: '', title: '', content: '', summary: '', version: '1.0', isRequired: false });
+  const [submitting, setSubmitting] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
 
   useEffect(() => { dispatch(fetchPolicies()); }, [dispatch]);
 
@@ -44,6 +46,7 @@ export default function PolicyManagement() {
 
   const handleSave = async () => {
     if (!form.slug || !form.title || !form.content) return toast.error('Slug, title, and content are required');
+    setSubmitting(true);
     try {
       if (editing) {
         await dispatch(updatePolicy({ slug: editing.slug, ...form })).unwrap();
@@ -55,19 +58,24 @@ export default function PolicyManagement() {
       setShowEditor(false);
       dispatch(fetchPolicies());
     } catch (err) { toast.error(err); }
+    setSubmitting(false);
   };
 
   const handlePublish = async (slug) => {
+    setActionLoading(`publish:${slug}`);
     try {
       await dispatch(publishPolicy(slug)).unwrap();
       toast.success('Policy published');
       dispatch(fetchPolicies());
     } catch (err) { toast.error(err || 'Failed to publish'); }
+    setActionLoading(null);
   };
 
   const handleDelete = async (slug) => {
     if (!confirm('Delete this policy?')) return;
+    setActionLoading(`delete:${slug}`);
     try { await dispatch(deletePolicy(slug)).unwrap(); toast.success('Deleted'); } catch (err) { toast.error(err); }
+    setActionLoading(null);
   };
 
   return (
@@ -131,7 +139,10 @@ export default function PolicyManagement() {
             <label htmlFor="isRequired" className="text-sm text-slate-700 dark:text-slate-300">Require user acceptance</label>
           </div>
           <div className="flex gap-3">
-            <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+            <button onClick={handleSave} disabled={submitting} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition disabled:opacity-50 flex items-center gap-2">
+              {submitting && (
+                <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+              )}
               {editing ? 'Update' : 'Create'}
             </button>
             <button onClick={() => setShowEditor(false)} className="px-4 py-2 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-500 transition">Cancel</button>
@@ -161,15 +172,15 @@ export default function PolicyManagement() {
               <span className="text-xs text-slate-500">{policy.acceptedCount || 0} acceptances</span>
               <div className="flex gap-2">
                 {!policy.isPublished && (
-                  <button onClick={() => handlePublish(policy.slug)} className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded" title="Publish">
-                    <FiGlobe className="w-4 h-4" />
+                  <button onClick={() => handlePublish(policy.slug)} disabled={actionLoading === `publish:${policy.slug}`} className="p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded disabled:opacity-50" title="Publish">
+                    {actionLoading === `publish:${policy.slug}` ? <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" /> : <FiGlobe className="w-4 h-4" />}
                   </button>
                 )}
                 <button onClick={() => handleEdit(policy)} className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded" title="Edit">
                   <FiEdit2 className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(policy.slug)} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded" title="Delete">
-                  <FiTrash2 className="w-4 h-4" />
+                <button onClick={() => handleDelete(policy.slug)} disabled={actionLoading === `delete:${policy.slug}`} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-50" title="Delete">
+                  {actionLoading === `delete:${policy.slug}` ? <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" /> : <FiTrash2 className="w-4 h-4" />}
                 </button>
               </div>
             </div>

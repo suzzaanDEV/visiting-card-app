@@ -22,6 +22,9 @@ const UserManagement = () => {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [showUserModal, setShowUserModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -69,6 +72,8 @@ const UserManagement = () => {
   };
 
   const handleUserAction = async (userId, action, data = {}) => {
+    const loadingKey = `${userId}:${action}`;
+    setActionLoading(loadingKey);
     try {
       const token = localStorage.getItem('adminToken');
       
@@ -119,6 +124,8 @@ const UserManagement = () => {
     } catch (error) {
       console.error(`Error ${action}ing user:`, error);
       toast.error(`Failed to ${action} user`);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -128,6 +135,7 @@ const UserManagement = () => {
       return;
     }
 
+    setBulkLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
       
@@ -146,7 +154,15 @@ const UserManagement = () => {
     } catch (error) {
       console.error(`Error bulk ${action}ing users:`, error);
       toast.error(`Failed to bulk ${action} users`);
+    } finally {
+      setBulkLoading(false);
     }
+  };
+
+  const refreshUsers = async () => {
+    setRefreshing(true);
+    await fetchUsers();
+    setRefreshing(false);
   };
 
   const UserCard = ({ user }) => {
@@ -214,20 +230,26 @@ const UserManagement = () => {
             </button>
             <button
               onClick={() => handleUserAction(user._id, user.isActive ? 'ban' : 'unban')}
-              className={`p-2 rounded-lg transition-colors ${
+              disabled={actionLoading === `${user._id}:${user.isActive ? 'ban' : 'unban'}`}
+              className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 user.isActive 
                   ? 'text-red-600 dark:text-red-400 hover:text-red-700 dark:text-red-300 hover:bg-red-100 dark:bg-red-900/40' 
                   : 'text-green-600 dark:text-green-400 hover:text-green-700 dark:text-green-300 hover:bg-green-100 dark:bg-green-900/40'
               }`}
               title={user.isActive ? 'Ban User' : 'Unban User'}
             >
-              {user.isActive ? <FiUserX className="h-4 w-4" /> : <FiUserCheck className="h-4 w-4" />}
+              {actionLoading === `${user._id}:${user.isActive ? 'ban' : 'unban'}` ? (
+                <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+              ) : user.isActive ? <FiUserX className="h-4 w-4" /> : <FiUserCheck className="h-4 w-4" />}
             </button>
             <button
               onClick={() => handleUserAction(user._id, 'delete')}
-              className="p-2 text-gray-600 dark:text-slate-400 hover:text-red-600 dark:text-red-400 hover:bg-red-100 dark:bg-red-900/40 rounded-lg transition-colors"
+              disabled={actionLoading === `${user._id}:delete`}
+              className="p-2 text-gray-600 dark:text-slate-400 hover:text-red-600 dark:text-red-400 hover:bg-red-100 dark:bg-red-900/40 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <FiTrash2 className="h-4 w-4" />
+              {actionLoading === `${user._id}:delete` ? (
+                <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+              ) : <FiTrash2 className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -337,19 +359,25 @@ const UserManagement = () => {
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 onClick={() => handleUserAction(user._id, 'update', { isActive: !user.isActive })}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                disabled={actionLoading === `${user._id}:update`}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   user.isActive
                     ? 'bg-red-600 text-white hover:bg-red-700'
                     : 'bg-green-600 text-white hover:bg-green-700'
                 }`}
               >
-                {user.isActive ? 'Deactivate' : 'Activate'}
+                {actionLoading === `${user._id}:update` ? (
+                  <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                ) : user.isActive ? 'Deactivate' : 'Activate'}
               </button>
               <button
                 onClick={() => handleUserAction(user._id, 'delete')}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                disabled={actionLoading === `${user._id}:delete`}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Delete User
+                {actionLoading === `${user._id}:delete` ? (
+                  <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                ) : 'Delete User'}
               </button>
             </div>
           </div>
@@ -382,9 +410,12 @@ const UserManagement = () => {
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => handleBulkAction('ban')}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                disabled={bulkLoading}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Ban Selected ({selectedUsers.length})
+                {bulkLoading ? (
+                  <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                ) : `Ban Selected (${selectedUsers.length})`}
               </button>
               <button
                 onClick={() => setSelectedUsers([])}
@@ -396,10 +427,13 @@ const UserManagement = () => {
           )}
           
           <button
-            onClick={fetchUsers}
-            className="p-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            onClick={refreshUsers}
+            disabled={refreshing}
+            className="p-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FiRefreshCw className="h-5 w-5" />
+            {refreshing ? (
+              <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent inline-block" />
+            ) : <FiRefreshCw className="h-5 w-5" />}
           </button>
         </div>
       </div>

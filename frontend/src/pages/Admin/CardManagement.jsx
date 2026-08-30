@@ -13,7 +13,7 @@ const CardManagement = () => {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('active');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -21,6 +21,9 @@ const CardManagement = () => {
   const [selectedCards, setSelectedCards] = useState([]);
   const [showCardModal, setShowCardModal] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchCards();
@@ -68,6 +71,8 @@ const CardManagement = () => {
   };
 
   const handleCardAction = async (cardId, action, data = {}) => {
+    const loadingKey = `${cardId}:${action}`;
+    setActionLoading(loadingKey);
     try {
       const token = localStorage.getItem('adminToken');
       
@@ -104,7 +109,12 @@ const CardManagement = () => {
       });
 
       if (response.ok) {
-        toast.success(`Card ${action}ed successfully`);
+        const verbMap = { delete: 'deleted', feature: 'featured', update: 'updated' };
+        toast.success(`Card ${verbMap[action] || `${action}ed`} successfully`);
+        if (action === 'delete') {
+          setCards((prev) => prev.filter((c) => c._id !== cardId));
+          setSelectedCards((prev) => prev.filter((id) => id !== cardId));
+        }
         fetchCards();
       } else {
         const errorData = await response.json();
@@ -113,6 +123,8 @@ const CardManagement = () => {
     } catch (error) {
       console.error(`Error ${action}ing card:`, error);
       toast.error(`Failed to ${action} card`);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -122,6 +134,7 @@ const CardManagement = () => {
       return;
     }
 
+    setBulkLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
       
@@ -140,7 +153,15 @@ const CardManagement = () => {
     } catch (error) {
       console.error(`Error bulk ${action}ing cards:`, error);
       toast.error(`Failed to bulk ${action} cards`);
+    } finally {
+      setBulkLoading(false);
     }
+  };
+
+  const refreshCards = async () => {
+    setRefreshing(true);
+    await fetchCards();
+    setRefreshing(false);
   };
 
   const CardItem = ({ card }) => {
@@ -226,21 +247,27 @@ const CardManagement = () => {
             </button>
             <button
               onClick={() => handleCardAction(card._id, 'feature', { featured: !card.featured })}
-              className={`p-2 rounded-lg transition-colors ${
+              disabled={actionLoading === `${card._id}:feature`}
+              className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                 card.featured 
                   ? 'text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 hover:bg-yellow-100 dark:bg-yellow-900/40' 
                   : 'text-gray-600 dark:text-slate-400 hover:text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:bg-yellow-900/40'
               }`}
               title={card.featured ? 'Unfeature' : 'Feature'}
             >
-              <FiStar className="h-4 w-4" />
+              {actionLoading === `${card._id}:feature` ? (
+                <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+              ) : <FiStar className="h-4 w-4" />}
             </button>
             <button
               onClick={() => handleCardAction(card._id, 'delete')}
-              className="p-2 text-gray-600 dark:text-slate-400 hover:text-red-600 dark:text-red-400 hover:bg-red-100 dark:bg-red-900/40 rounded-lg transition-colors"
+              disabled={actionLoading === `${card._id}:delete`}
+              className="p-2 text-gray-600 dark:text-slate-400 hover:text-red-600 dark:text-red-400 hover:bg-red-100 dark:bg-red-900/40 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title="Delete Card"
             >
-              <FiTrash2 className="h-4 w-4" />
+              {actionLoading === `${card._id}:delete` ? (
+                <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+              ) : <FiTrash2 className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -418,19 +445,25 @@ const CardManagement = () => {
             <div className="mt-6 flex justify-end space-x-3">
               <button
                 onClick={() => handleCardAction(card._id, 'feature', { featured: !card.featured })}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                disabled={actionLoading === `${card._id}:feature`}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   card.featured
                     ? 'bg-gray-600 text-white hover:bg-gray-700'
                     : 'bg-yellow-600 text-white hover:bg-yellow-700'
                 }`}
               >
-                {card.featured ? 'Unfeature' : 'Feature'}
+                {actionLoading === `${card._id}:feature` ? (
+                  <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                ) : card.featured ? 'Unfeature' : 'Feature'}
               </button>
               <button
                 onClick={() => handleCardAction(card._id, 'delete')}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                disabled={actionLoading === `${card._id}:delete`}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Delete Card
+                {actionLoading === `${card._id}:delete` ? (
+                  <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                ) : 'Delete Card'}
               </button>
             </div>
           </div>
@@ -463,15 +496,21 @@ const CardManagement = () => {
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => handleBulkAction('feature')}
-                className="px-4 py-2 bg-yellow-600 text-white rounded-lg font-medium hover:bg-yellow-700 transition-colors"
+                disabled={bulkLoading}
+                className="px-4 py-2 bg-yellow-600 text-white rounded-lg font-medium hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Feature Selected ({selectedCards.length})
+                {bulkLoading ? (
+                  <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                ) : `Feature Selected (${selectedCards.length})`}
               </button>
               <button
                 onClick={() => handleBulkAction('delete')}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors"
+                disabled={bulkLoading}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Delete Selected ({selectedCards.length})
+                {bulkLoading ? (
+                  <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                ) : `Delete Selected (${selectedCards.length})`}
               </button>
               <button
                 onClick={() => setSelectedCards([])}
@@ -483,10 +522,13 @@ const CardManagement = () => {
           )}
           
           <button
-            onClick={fetchCards}
-            className="p-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            onClick={refreshCards}
+            disabled={refreshing}
+            className="p-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FiRefreshCw className="h-5 w-5" />
+            {refreshing ? (
+              <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent inline-block" />
+            ) : <FiRefreshCw className="h-5 w-5" />}
           </button>
         </div>
       </div>

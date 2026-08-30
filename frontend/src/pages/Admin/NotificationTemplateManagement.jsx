@@ -30,6 +30,8 @@ const NotificationTemplateManagement = () => {
   const [typeFilter, setTypeFilter] = useState('');
   const [previewTemplate, setPreviewTemplate] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { dispatch(fetchNotificationTemplates()); }, [dispatch]);
 
@@ -52,6 +54,7 @@ const NotificationTemplateManagement = () => {
   };
 
   const handleSubmit = async () => {
+    setSubmitting(true);
     try {
       const payload = {
         ...form,
@@ -67,14 +70,17 @@ const NotificationTemplateManagement = () => {
       setShowForm(false);
       dispatch(fetchNotificationTemplates());
     } catch (e) { toast.error(e || 'Failed to save template'); }
+    setSubmitting(false);
   };
 
   const handleDelete = async (id) => {
+    setDeleting(true);
     try {
       await dispatch(deleteNotificationTemplate(id)).unwrap();
       toast.success('Template deleted');
       setShowDeleteConfirm(null);
     } catch (e) { toast.error(e || 'Failed to delete'); }
+    setDeleting(false);
   };
 
   const renderPreview = (t) => {
@@ -213,8 +219,11 @@ const NotificationTemplateManagement = () => {
                 </div>
                 <div className="flex items-center justify-end space-x-3 px-6 py-4 border-t border-gray-200 dark:border-slate-700">
                   <button onClick={() => setShowForm(false)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100">Cancel</button>
-                  <button onClick={handleSubmit} disabled={!form.name || !form.body} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50">
-                    {editingId ? 'Update' : 'Create'}
+                  <button onClick={handleSubmit} disabled={!form.name || !form.body || submitting} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center space-x-2">
+                    {submitting && (
+                      <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                    )}
+                    <span>{editingId ? 'Update' : 'Create'}</span>
                   </button>
                 </div>
               </motion.div>
@@ -275,7 +284,12 @@ const NotificationTemplateManagement = () => {
                 <p className="text-sm text-gray-600 dark:text-slate-400 mb-6">This action cannot be undone.</p>
                 <div className="flex items-center justify-center space-x-3">
                   <button onClick={() => setShowDeleteConfirm(null)} className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-100 border border-gray-300 dark:border-slate-600 rounded-lg">Cancel</button>
-                  <button onClick={() => handleDelete(showDeleteConfirm)} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">Delete</button>
+                  <button onClick={() => handleDelete(showDeleteConfirm)} disabled={deleting} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center space-x-2">
+                    {deleting && (
+                      <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                    )}
+                    <span>Delete</span>
+                  </button>
                 </div>
               </motion.div>
             </motion.div>

@@ -11,6 +11,8 @@ export default function CategoryManagement() {
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', slug: '', description: '', icon: '', color: '#6366f1', sortOrder: 0, isFeatured: false });
+  const [submitting, setSubmitting] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
 
   useEffect(() => { dispatch(fetchCategoriesAdmin()); }, [dispatch]);
 
@@ -18,6 +20,7 @@ export default function CategoryManagement() {
 
   const handleSave = async () => {
     if (!form.name || !form.slug) return toast.error('Name and slug required');
+    setSubmitting(true);
     try {
       const method = editing ? 'PUT' : 'POST';
       const url = editing ? `/api/categories/admin/${editing._id}` : '/api/categories/admin';
@@ -32,15 +35,18 @@ export default function CategoryManagement() {
       setForm({ name: '', slug: '', description: '', icon: '', color: '#6366f1', sortOrder: 0, isFeatured: false });
       dispatch(fetchCategoriesAdmin());
     } catch (err) { toast.error(err.message); }
+    setSubmitting(false);
   };
 
   const handleDelete = async (id) => {
     if (!confirm('Delete category?')) return;
+    setActionLoading(id);
     try {
       await fetch(`/api/categories/admin/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${getToken()}` } });
       toast.success('Deleted');
       dispatch(fetchCategoriesAdmin());
     } catch { toast.error('Failed'); }
+    setActionLoading(null);
   };
 
   const handleEdit = (cat) => {
@@ -105,7 +111,7 @@ export default function CategoryManagement() {
             </div>
           </div>
           <div className="flex gap-3">
-            <button onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">{editing ? 'Update' : 'Create'}</button>
+            <button onClick={handleSave} disabled={submitting} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2 disabled:opacity-50">{submitting && <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />}{editing ? 'Update' : 'Create'}</button>
             <button onClick={() => { setShowForm(false); setEditing(null); }} className="px-4 py-2 bg-slate-200 dark:bg-slate-600 text-slate-700 dark:text-slate-300 rounded-lg">Cancel</button>
           </div>
         </div>
@@ -131,7 +137,7 @@ export default function CategoryManagement() {
               <span className="text-xs text-slate-500">{cat.cardCount || 0} cards</span>
               <div className="flex gap-2">
                 <button onClick={() => handleEdit(cat)} className="p-1.5 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded"><FiEdit2 className="w-4 h-4" /></button>
-                <button onClick={() => handleDelete(cat._id)} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"><FiTrash2 className="w-4 h-4" /></button>
+                <button onClick={() => handleDelete(cat._id)} disabled={actionLoading === cat._id} className="p-1.5 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded disabled:opacity-50">{actionLoading === cat._id ? <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" /> : <FiTrash2 className="w-4 h-4" />}</button>
               </div>
             </div>
           </div>

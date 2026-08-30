@@ -23,6 +23,7 @@ export default function CRMPage() {
   const [replyText, setReplyText] = useState('');
   const [filters, setFilters] = useState({ status: '', category: '', search: '', page: 1 });
   const [stats, setStats] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
 
   useEffect(() => {
     dispatch(fetchContactMessages(filters));
@@ -31,12 +32,14 @@ export default function CRMPage() {
 
   const handleReply = async () => {
     if (!replyText.trim()) return toast.error('Reply message required');
+    setActionLoading('reply');
     try {
       await dispatch(replyToContact({ id: selected._id, replyMessage: replyText })).unwrap();
       toast.success('Reply sent');
       setReplyText('');
       dispatch(fetchContactMessages(filters));
     } catch (err) { toast.error(err); }
+    setActionLoading(null);
   };
 
   const handleFilter = (key, value) => setFilters(f => ({ ...f, [key]: value, page: 1 }));
@@ -145,21 +148,31 @@ export default function CRMPage() {
                   className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white text-sm" />
               </div>
               <div className="flex gap-2 mt-3">
-                <button onClick={handleReply} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm">
-                  <FiCornerUpLeft className="w-4 h-4" /> Send Reply
+                <button onClick={handleReply} disabled={actionLoading !== null} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  {actionLoading === 'reply' ? (
+                    <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                  ) : <FiCornerUpLeft className="w-4 h-4" />} Send Reply
                 </button>
                 <button onClick={async () => {
+                  setActionLoading('archive');
                   try { await dispatch(archiveContact(selected._id)).unwrap(); toast.success('Archived'); setSelected(null); dispatch(fetchContactMessages(filters)); }
                   catch { toast.error('Failed to archive'); }
-                }} className="flex items-center gap-2 px-4 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition text-sm">
-                  <FiArchive className="w-4 h-4" /> Archive
+                  setActionLoading(null);
+                }} disabled={actionLoading !== null} className="flex items-center gap-2 px-4 py-2 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  {actionLoading === 'archive' ? (
+                    <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                  ) : <FiArchive className="w-4 h-4" />} Archive
                 </button>
                 <button onClick={async () => {
                   if (!confirm('Delete this message?')) return;
+                  setActionLoading('delete');
                   try { await dispatch(deleteContact(selected._id)).unwrap(); toast.success('Deleted'); setSelected(null); dispatch(fetchContactMessages(filters)); }
                   catch { toast.error('Failed to delete'); }
-                }} className="flex items-center gap-2 px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition text-sm">
-                  <FiTrash2 className="w-4 h-4" /> Delete
+                  setActionLoading(null);
+                }} disabled={actionLoading !== null} className="flex items-center gap-2 px-4 py-2 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  {actionLoading === 'delete' ? (
+                    <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                  ) : <FiTrash2 className="w-4 h-4" />} Delete
                 </button>
               </div>
             </div>

@@ -50,6 +50,7 @@ const BroadcastManagement = () => {
   const [detailsData, setDetailsData] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     dispatch(fetchBroadcasts({ page, limit: 10, status: statusFilter }));
@@ -96,6 +97,7 @@ const BroadcastManagement = () => {
   const updateChannels = (patch) => setForm((f) => ({ ...f, channels: { ...f.channels, ...patch } }));
 
   const handleSubmit = async () => {
+    setSubmitting(true);
     try {
       const payload = {
         title: form.title, message: form.message, richContent: form.richContent,
@@ -118,6 +120,8 @@ const BroadcastManagement = () => {
       dispatch(fetchBroadcasts({ page, limit: 10, status: statusFilter }));
     } catch (e) {
       toast.error(e || 'Failed to save broadcast');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -143,10 +147,12 @@ const BroadcastManagement = () => {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this broadcast?')) return;
+    setActionLoading(`delete:${id}`);
     try {
       await dispatch(deleteBroadcast(id)).unwrap();
       toast.success('Broadcast deleted');
     } catch (e) { toast.error(e || 'Failed to delete'); }
+    setActionLoading(null);
   };
 
   const handleShowDetails = async (id) => {
@@ -286,12 +292,12 @@ const BroadcastManagement = () => {
                           )}
                           {b.status === 'scheduled' && (
                             <button onClick={() => handleCancel(b._id)} disabled={actionLoading === b._id} className="p-1.5 text-gray-400 hover:text-yellow-600 dark:hover:text-yellow-400 rounded disabled:opacity-50" title="Cancel">
-                              <FiClock className="w-4 h-4" />
+                              {actionLoading === b._id ? <FiLoader className="w-4 h-4 animate-spin" /> : <FiClock className="w-4 h-4" />}
                             </button>
                           )}
                           {['draft', 'cancelled', 'failed'].includes(b.status) && (
-                            <button onClick={() => handleDelete(b._id)} className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded" title="Delete">
-                              <FiTrash2 className="w-4 h-4" />
+                            <button onClick={() => handleDelete(b._id)} disabled={actionLoading === `delete:${b._id}`} className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 rounded disabled:opacity-50" title="Delete">
+                              {actionLoading === `delete:${b._id}` ? <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" /> : <FiTrash2 className="w-4 h-4" />}
                             </button>
                           )}
                         </div>
@@ -516,8 +522,11 @@ const BroadcastManagement = () => {
                     {formStep < 5 ? (
                       <button onClick={() => setFormStep((s) => Math.min(5, s + 1))} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors">Next</button>
                     ) : (
-                      <button onClick={handleSubmit} disabled={!form.title || !form.message} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50">
-                        {editingId ? 'Update' : 'Create'} Broadcast
+                      <button onClick={handleSubmit} disabled={!form.title || !form.message || submitting} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center space-x-2">
+                        {submitting && (
+                          <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                        )}
+                        <span>{editingId ? 'Update' : 'Create'} Broadcast</span>
                       </button>
                     )}
                   </div>

@@ -9,6 +9,7 @@ const AdminNotifications = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [error, setError] = useState(null);
+  const [actionLoading, setActionLoading] = useState(null);
 
   const authHeaders = () => {
     const token = localStorage.getItem('adminToken');
@@ -47,6 +48,7 @@ const AdminNotifications = () => {
   }, [fetchNotifications, filter]);
 
   const markAsRead = async (notification) => {
+    setActionLoading(notification._id);
     try {
       await fetch(`${API_BASE_URL}/admin/notifications/${notification._id}/read`, {
         method: 'PUT',
@@ -54,6 +56,7 @@ const AdminNotifications = () => {
       });
       setNotifications(prev => prev.map(n => n._id === notification._id ? { ...n, isRead: true } : n));
     } catch { /* ignore */ }
+    setActionLoading(null);
   };
 
   const filterTabs = [
@@ -90,7 +93,8 @@ const AdminNotifications = () => {
           </div>
           <button
             onClick={() => fetchNotifications(pagination.page, filter)}
-            className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+            disabled={loading}
+            className="p-2 rounded-lg border border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             title="Refresh"
           >
             <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -141,9 +145,12 @@ const AdminNotifications = () => {
                     {!notification.isRead && (
                       <button
                         onClick={() => markAsRead(notification)}
-                        className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors"
+                        disabled={actionLoading === notification._id}
+                        className="flex-shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <FiCheck className="w-3 h-3" /> Mark read
+                        {actionLoading === notification._id ? (
+                          <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                        ) : <FiCheck className="w-3 h-3" />} Mark read
                       </button>
                     )}
                   </div>

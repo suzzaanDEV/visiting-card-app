@@ -104,6 +104,7 @@ const SearchPage = () => {
   const [relatedCards, setRelatedCards] = useState([]);
   const [relatedLoading, setRelatedLoading] = useState(false);
   const [advancedMode, setAdvancedMode] = useState(false);
+  const [cardAction, setCardAction] = useState(null);
   const [advFilters, setAdvFilters] = useState({
     jobTitle: '', company: '', skills: '', industry: '', dateRange: 'all',
   });
@@ -270,6 +271,8 @@ const SearchPage = () => {
 
   const handleLove = async (cardId) => {
     if (!isAuthenticated) { toast.error('Please log in to love cards'); return; }
+    const key = `love:${cardId}`;
+    setCardAction(key);
     try {
       const res = await fetch(`${API_BASE_URL}/cards/${cardId}/love`, {
         method: 'POST',
@@ -288,11 +291,15 @@ const SearchPage = () => {
         const data = await res.json().catch(() => ({}));
         toast.error(data.error || 'Failed to update');
       }
-    } catch { toast.error('Failed to update love status'); }
+    } catch { toast.error('Failed to update love status'); } finally {
+      setCardAction(null);
+    }
   };
 
   const handleSave = async (cardId) => {
     if (!isAuthenticated) { toast.error('Please log in to save cards'); return; }
+    const key = `save:${cardId}`;
+    setCardAction(key);
     try {
       const res = await fetch(`${API_BASE_URL}/library`, {
         method: 'POST',
@@ -308,7 +315,9 @@ const SearchPage = () => {
         const data = await res.json().catch(() => ({}));
         toast.error(data.error || 'Failed to save');
       }
-    } catch { toast.error('Failed to save card'); }
+    } catch { toast.error('Failed to save card'); } finally {
+      setCardAction(null);
+    }
   };
 
   const handlePageChange = (page) => {
@@ -518,6 +527,7 @@ const SearchPage = () => {
                         {/* Apply Advanced */}
                         <Button
                           onClick={() => performSearch({ advanced: true, page: 1 })}
+                          isLoading={loading}
                           className="w-full"
                           size="sm"
                         >
@@ -711,17 +721,23 @@ const SearchPage = () => {
                             <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                               <button
                                 onClick={() => handleLove(card._id)}
-                                className="p-1.5 text-brand-textMuted dark:text-slate-500 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                                disabled={Boolean(cardAction)}
+                                className="p-1.5 text-brand-textMuted dark:text-slate-500 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-50"
                                 title={isAuthenticated ? (card.isLoved ? 'Unlike' : 'Like') : 'Log in to like'}
                               >
-                                {card.isLoved ? <FaHeart className="h-4 w-4 text-red-500" /> : <FaRegHeart className="h-4 w-4" />}
+                                {cardAction === `love:${card._id}` ? (
+                                  <span className="block animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+                                ) : card.isLoved ? <FaHeart className="h-4 w-4 text-red-500" /> : <FaRegHeart className="h-4 w-4" />}
                               </button>
                               <button
                                 onClick={() => handleSave(card._id)}
-                                className="p-1.5 text-brand-textMuted dark:text-slate-500 hover:text-brand-primary transition-colors rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                                disabled={Boolean(cardAction)}
+                                className="p-1.5 text-brand-textMuted dark:text-slate-500 hover:text-brand-primary transition-colors rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 disabled:opacity-50"
                                 title={isAuthenticated ? (card.isSaved ? 'Unsave' : 'Save') : 'Log in to save'}
                               >
-                                {card.isSaved ? <FaBookmark className="h-4 w-4 text-brand-primary" /> : <FaRegBookmark className="h-4 w-4" />}
+                                {cardAction === `save:${card._id}` ? (
+                                  <span className="block animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
+                                ) : card.isSaved ? <FaBookmark className="h-4 w-4 text-brand-primary" /> : <FaRegBookmark className="h-4 w-4" />}
                               </button>
                             </div>
                           </div>

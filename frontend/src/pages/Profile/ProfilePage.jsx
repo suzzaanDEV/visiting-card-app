@@ -70,6 +70,8 @@ const ProfilePage = () => {
   const [twoFactorOtp, setTwoFactorOtp] = useState('');
   const [twoFactorDevOtp, setTwoFactorDevOtp] = useState('');
   const [verifyingTwoFactor, setVerifyingTwoFactor] = useState(false);
+  const [togglingTwoFactor, setTogglingTwoFactor] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   const [stats, setStats] = useState({
     totalCards: 0,
     totalSaved: 0,
@@ -428,6 +430,48 @@ const ProfilePage = () => {
     }
   };
 
+  const handleToggleTwoFactor = async () => {
+    if (togglingTwoFactor) return;
+    setTogglingTwoFactor(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/auth/profile/2fa/toggle', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.requiresVerification) {
+          setTwoFactorOtp('');
+          setTwoFactorDevOtp(data.devOtp || '');
+          setShowTwoFactorModal(true);
+          toast.success(data.message || 'Confirmation code sent');
+        } else {
+          setTwoFactorEnabled(data.twoFactorEnabled);
+          toast.success(data.twoFactorEnabled ? '2FA enabled' : '2FA disabled');
+        }
+      } else { toast.error('Failed to toggle 2FA'); }
+    } catch { toast.error('Failed to toggle 2FA'); } finally {
+      setTogglingTwoFactor(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) return;
+    setDeletingAccount(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/auth/account', { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+      if (res.ok) {
+        localStorage.removeItem('token');
+        toast.success('Account deleted');
+        window.location.href = '/';
+      } else { toast.error('Failed to delete account'); }
+    } catch { toast.error('Failed to delete account'); } finally {
+      setDeletingAccount(false);
+    }
+  };
+
   const tabs = [
     { id: 'profile', name: 'Profile', icon: FaUser },
     { id: 'security', name: 'Security', icon: FaShieldAlt },
@@ -566,6 +610,7 @@ if (loading) {
                           else setIsEditing(true);
                         }}
                         variant={isEditing ? 'primary' : 'outline'}
+                        isLoading={saving}
                       >
                         {isEditing ? 'Save Changes' : 'Edit Profile'}
                       </Button>
@@ -652,7 +697,7 @@ if (loading) {
 
                       {isEditing && (
                         <div className="flex gap-3 pt-2">
-                          <Button onClick={handleSave} variant="primary" disabled={saving}>
+                          <Button onClick={handleSave} variant="primary" isLoading={saving}>
                             {saving ? 'Saving...' : 'Save Configuration'}
                           </Button>
                           <Button onClick={() => { setIsEditing(false); setFieldErrors({}); }} variant="ghost">
@@ -684,27 +729,7 @@ if (loading) {
                           <h3 className="font-bold text-brand-text dark:text-white">Two-Factor Authentication (2FA)</h3>
                           <p className="text-xs text-brand-textMuted mt-1">Ensure multi-factor verification is enforced on email requests.</p>
                         </div>
-                        <Button variant="secondary" className="flex-shrink-0" onClick={async () => {
-                          try {
-                            const token = localStorage.getItem('token');
-                            const res = await fetch('/api/auth/profile/2fa/toggle', {
-                              method: 'POST',
-                              headers: { 'Authorization': `Bearer ${token}` }
-                            });
-                            if (res.ok) {
-                              const data = await res.json();
-                              if (data.requiresVerification) {
-                                setTwoFactorOtp('');
-                                setTwoFactorDevOtp(data.devOtp || '');
-                                setShowTwoFactorModal(true);
-                                toast.success(data.message || 'Confirmation code sent');
-                              } else {
-                                setTwoFactorEnabled(data.twoFactorEnabled);
-                                toast.success(data.twoFactorEnabled ? '2FA enabled' : '2FA disabled');
-                              }
-                            } else { toast.error('Failed to toggle 2FA'); }
-                          } catch { toast.error('Failed to toggle 2FA'); }
-                        }}>
+                        <Button variant="secondary" className="flex-shrink-0" onClick={handleToggleTwoFactor} isLoading={togglingTwoFactor}>
                           <FaShieldAlt className="mr-2 text-xs" />
                           {twoFactorEnabled ? 'Disable 2FA' : 'Enable 2FA Validation'}
                         </Button>
@@ -715,20 +740,9 @@ if (loading) {
                           <h3 className="font-bold text-brand-danger">Permanently Terminate Account</h3>
                           <p className="text-xs text-red-700/80 dark:text-red-400/80 mt-1">Once requested, all visiting cards, statistics, and metadata are destroyed.</p>
                         </div>
-                        <Button variant="danger" className="flex-shrink-0" onClick={async () => {
-                          if (!confirm('Are you sure you want to delete your account? This cannot be undone.')) return;
-                          try {
-                            const token = localStorage.getItem('token');
-                            const res = await fetch('/api/auth/account', { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
-                            if (res.ok) {
-                              localStorage.removeItem('token');
-                              toast.success('Account deleted');
-                              window.location.href = '/';
-                            } else { toast.error('Failed to delete account'); }
-                          } catch { toast.error('Failed to delete account'); }
-                        }}>
+                        <Button variant="danger" className="flex-shrink-0" onClick={handleDeleteAccount} isLoading={deletingAccount}>
                           <FaTrash className="mr-2 text-xs" />
-                          Delete Cardly Account
+                          {deletingAccount ? 'Deleting...' : 'Delete Cardly Account'}
                         </Button>
                       </div>
                     </div>
@@ -960,7 +974,7 @@ if (loading) {
                 />
               </div>
               <div className="flex gap-3 mt-6">
-                <Button variant="primary" onClick={handleChangePassword} disabled={changingPassword}>
+                <Button variant="primary" onClick={handleChangePassword} isLoading={changingPassword}>
                   {changingPassword ? 'Updating...' : 'Update Password'}
                 </Button>
                 <Button variant="ghost" onClick={() => {
@@ -1014,7 +1028,7 @@ if (loading) {
               </div>
 
               <div className="flex gap-3 mt-6">
-                <Button variant="primary" onClick={handleVerifyEnableTwoFactor} disabled={verifyingTwoFactor}>
+                <Button variant="primary" onClick={handleVerifyEnableTwoFactor} isLoading={verifyingTwoFactor}>
                   {verifyingTwoFactor ? 'Verifying...' : 'Verify & Enable'}
                 </Button>
                 <Button variant="ghost" onClick={() => {

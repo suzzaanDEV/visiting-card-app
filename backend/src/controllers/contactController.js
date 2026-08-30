@@ -1,7 +1,8 @@
-const nodemailer = require('nodemailer');
 const logger = require('../utils/logger');
 const ContactMessage = require('../models/contactMessageModel');
 const crmService = require('../services/crmService');
+const { sendEmail } = require('../utils/emailService');
+const { renderContactNotification } = require('../utils/emailTemplates');
 
 exports.submitContact = async (req, res, next) => {
   try {
@@ -23,37 +24,23 @@ exports.submitContact = async (req, res, next) => {
       userAgent: req.get('User-Agent')
     });
 
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
-    });
-
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    if (process.env.EMAIL_ENABLED === 'true') {
       try {
-        await transporter.sendMail({
-          from: `"Cardly Contact" <${process.env.SMTP_USER}>`,
+        const emailResult = await sendEmail({
           to: process.env.ADMIN_EMAIL || 'admin@cardly.com',
           replyTo: email,
           subject: `[Cardly Contact] ${subject || 'New Message'}`,
-          html: `
-            <h2>New Contact Form Submission</h2>
-            <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Category:</strong> ${category || 'general'}</p>
-            <p><strong>Subject:</strong> ${subject || 'N/A'}</p>
-            <p><strong>Message:</strong></p>
-            <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-top:10px">
-              ${message.replace(/\n/g, '<br>')}
-            </div>
-            <hr style="margin:20px 0">
-            <p style="color:#666;font-size:12px">Sent from Cardly Contact Form at ${new Date().toISOString()}</p>
-          `
+          html: renderContactNotification({
+            name,
+            email,
+            category: category || 'general',
+            subject: subject || 'N/A',
+            message
+          })
         });
+        if (emailResult?.simulated) {
+          logger.warn('Contact notification email simulated (EMAIL_ENABLED=false)');
+        }
       } catch (emailErr) {
         logger.warn(`Email send failed (message saved to DB): ${emailErr.message}`);
       }

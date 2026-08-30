@@ -15,6 +15,8 @@ const TemplateBuilder = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('all');
   const [viewMode, setViewMode] = useState('grid');
+  const [submitting, setSubmitting] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -84,6 +86,7 @@ const TemplateBuilder = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     try {
       const url = editingTemplate 
         ? `${API_BASE_URL}/admin/templates/${editingTemplate.id}`
@@ -108,12 +111,15 @@ const TemplateBuilder = () => {
       }
     } catch (error) {
       console.error('Error saving template:', error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleDelete = async (templateId) => {
     if (!window.confirm('Are you sure you want to delete this template?')) return;
     
+    setActionLoading(`delete:${templateId}`);
     try {
       const response = await fetch(`${API_BASE_URL}/admin/templates/${templateId}`, {
         method: 'DELETE',
@@ -127,6 +133,8 @@ const TemplateBuilder = () => {
       }
     } catch (error) {
       console.error('Error deleting template:', error);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -147,6 +155,7 @@ const TemplateBuilder = () => {
   };
 
   const handleToggleFeatured = async (templateId, currentStatus) => {
+    setActionLoading(`feature:${templateId}`);
     try {
       const response = await fetch(`${API_BASE_URL}/admin/templates/${templateId}/featured`, {
         method: 'PUT',
@@ -162,6 +171,8 @@ const TemplateBuilder = () => {
       }
     } catch (error) {
       console.error('Error toggling featured status:', error);
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -404,20 +415,26 @@ const TemplateBuilder = () => {
                   
                   <button
                     onClick={() => handleToggleFeatured(template.id, template.isFeatured)}
-                    className={`flex items-center justify-center px-3 py-2 rounded-lg transition-colors text-sm ${
+                    disabled={actionLoading === `feature:${template.id}`}
+                    className={`flex items-center justify-center px-3 py-2 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed ${
                       template.isFeatured
                         ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 hover:bg-yellow-200'
                         : 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-600'
                     }`}
                   >
-                    {template.isFeatured ? <FaStar className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
+                    {actionLoading === `feature:${template.id}` ? (
+                      <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                    ) : template.isFeatured ? <FaStar className="h-4 w-4" /> : <FaEye className="h-4 w-4" />}
                   </button>
                   
                   <button
                     onClick={() => handleDelete(template.id)}
-                    className="flex items-center justify-center px-3 py-2 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 transition-colors text-sm"
+                    disabled={actionLoading === `delete:${template.id}`}
+                    className="flex items-center justify-center px-3 py-2 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <FiTrash2 className="h-4 w-4" />
+                    {actionLoading === `delete:${template.id}` ? (
+                      <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                    ) : <FiTrash2 className="h-4 w-4" />}
                   </button>
                 </div>
               </div>
@@ -755,9 +772,12 @@ const TemplateBuilder = () => {
                   
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center"
+                    disabled={submitting}
+                    className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center disabled:opacity-50"
                   >
-                    <FiSave className="mr-2" />
+                    {submitting ? (
+                      <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent mr-2" />
+                    ) : <FiSave className="mr-2" />}
                     {editingTemplate ? 'Update Template' : 'Create Template'}
                   </button>
                 </div>

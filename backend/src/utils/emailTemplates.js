@@ -184,9 +184,67 @@ function renderGeneric({ title, message, ctaText, ctaUrl, highlightColor }) {
     return baseHtml({ title, preheader, bodyHtml, ctaText, ctaUrl, highlightColor });
 }
 
+// Admin 2FA login OTP — admin-oriented wording.
+function renderAdminCode({ otp, name = 'Admin', minutes = 5 }) {
+    const title = 'Cardly Admin Login Verification';
+    const preheader = `Your Cardly admin login code is ${otp}. It expires in ${minutes} minutes.`;
+    const bodyHtml = `<p class="body-copy" style="font-size:15px;line-height:1.65;color:#334155;margin:0 0 16px 0;">Hi ${escapeHtml(name)},</p>
+    <p class="body-copy" style="font-size:15px;line-height:1.65;color:#334155;margin:0 0 16px 0;">An attempt was made to sign in to your Cardly admin account. Enter the code below to confirm it’s really you — it expires in <strong>${minutes} minutes</strong>.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td align="center" style="padding: 16px 0 20px 0;">
+          <span style="display:inline-block; background:#f0fdf4; border:1px dashed #10b981; border-radius:12px; color:#047857; font-size:30px; font-weight:800; letter-spacing:10px; padding:16px 24px;">${escapeHtml(otp)}</span>
+        </td>
+      </tr>
+    </table>
+    <p class="muted-copy" style="font-size:13px;line-height:1.6;color:#64748b;margin:0 0 4px 0;">If this wasn’t you, contact your Cardly administrator immediately.</p>`;
+    return baseHtml({ title, preheader, bodyHtml, ctaText: 'Open Cardly Admin', ctaUrl: process.env.FRONTEND_URL || 'https://cardly.app' });
+}
+
+// Contact form submission → admin notification.
+function renderContactNotification({ name, email, category, subject, message }) {
+    const title = subject || 'New contact message';
+    const preheader = `New contact form submission from ${name}.`;
+    const fieldRow = (label, value) => `<tr>
+        <td style="padding:6px 12px 6px 0; vertical-align:top;">
+          <span class="muted-copy" style="font-size:12px;line-height:1.6;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">${escapeHtml(label)}</span>
+        </td>
+        <td style="padding:6px 0; font-size:14px; line-height:1.6; color:#334155;">${escapeHtml(value || 'N/A')}</td>
+      </tr>`;
+    const bodyHtml = `<p class="body-copy" style="font-size:15px;line-height:1.65;color:#334155;margin:0 0 16px 0;">A new message was submitted through the Cardly contact form.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+      ${fieldRow('Name', name)}
+      ${fieldRow('Email', email)}
+      ${fieldRow('Category', category)}
+      ${fieldRow('Subject', subject)}
+    </table>
+    <p class="body-copy" style="font-size:15px;line-height:1.65;color:#334155;margin:0 0 8px 0;font-weight:700;">Message</p>
+    <div style="background:#f1f5f9; border-left:4px solid ${BRAND_COLOR}; padding:14px 16px; border-radius:8px; font-size:14px; line-height:1.6; color:#334155; margin:0 0 16px 0;">${escapeHtml(message).replace(/\n/g, '<br/>')}</div>`;
+    return baseHtml({ title, preheader, bodyHtml });
+}
+
+// Welcome email sent after successful email verification.
+function renderWelcome({ name = 'there' }) {
+    const title = 'Welcome to Cardly';
+    const preheader = `Hi ${name}, your Cardly account is ready to go.`;
+    const bodyHtml = `<p class="body-copy" style="font-size:15px;line-height:1.65;color:#334155;margin:0 0 16px 0;">Hi ${escapeHtml(name)},</p>
+    <p class="body-copy" style="font-size:15px;line-height:1.65;color:#334155;margin:0 0 16px 0;">Your email has been verified and your Cardly account is ready to use. Here’s what you can do next:</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:16px;">
+      <tr><td style="padding:4px 0; font-size:14px; line-height:1.6; color:#334155;">✅ Create your digital business card</td></tr>
+      <tr><td style="padding:4px 0; font-size:14px; line-height:1.6; color:#334155;">🔗 Generate a QR code and short link for it</td></tr>
+      <tr><td style="padding:4px 0; font-size:14px; line-height:1.6; color:#334155;">🌍 Share your card with anyone, anywhere</td></tr>
+      <tr><td style="padding:4px 0; font-size:14px; line-height:1.6; color:#334155;">📊 Track views, loves, and shares in real time</td></tr>
+    </table>
+    <p class="body-copy" style="font-size:15px;line-height:1.65;color:#334155;margin:0 0 16px 0;">We’re glad you’re here — let’s make introductions effortless.</p>`;
+    return baseHtml({ title, preheader, bodyHtml, ctaText: 'Create your card', ctaUrl: process.env.FRONTEND_URL || 'https://cardly.app' });
+}
+
 module.exports = {
     renderOtp,
     render2fa,
     renderBroadcast,
-    renderGeneric
+    renderGeneric,
+    renderAdminCode,
+    renderContactNotification,
+    renderWelcome
 };

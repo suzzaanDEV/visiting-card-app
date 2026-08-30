@@ -239,7 +239,7 @@ const QRCodeDisplay = ({ card, isOpen, onClose }) => {
                     ref={previewWrapRef}
                     className="relative w-full min-h-[300px] sm:min-h-[360px] lg:min-h-[440px] flex-1 flex items-center justify-center"
                   >
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
                       <div
                         ref={premiumCardRef}
                         style={{ width: PREVIEW_W, height: PREVIEW_H, transform: `scale(${cardScale})`, transformOrigin: 'center center' }}
@@ -364,7 +364,11 @@ const QRCodeDisplay = ({ card, isOpen, onClose }) => {
                       disabled={isSavingContact}
                       className="w-full flex items-center justify-center gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/50 py-3 px-4 rounded-xl hover:bg-amber-100 dark:hover:bg-amber-900/40 transition-colors font-semibold text-sm disabled:opacity-50"
                     >
-                      <FaMobile className="w-4 h-4" />
+                      {isSavingContact ? (
+                        <span className="animate-spin rounded-full h-4 w-4 border-2 border-amber-600 dark:border-amber-300 border-t-transparent" />
+                      ) : (
+                        <FaMobile className="w-4 h-4" />
+                      )}
                       {isSavingContact ? 'Saving...' : 'Save to Contacts'}
                     </button>
                   </div>

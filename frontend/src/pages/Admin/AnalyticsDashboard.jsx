@@ -29,6 +29,7 @@ const AnalyticsDashboard = () => {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [analytics, setAnalytics] = useState({
     overview: {
       totalUsers: 0,
@@ -334,13 +335,18 @@ const AnalyticsDashboard = () => {
           </select>
 
           <button
-            onClick={() => {
-              fetchAnalytics();
+            onClick={async () => {
+              setRefreshing(true);
+              await fetchAnalytics();
+              setRefreshing(false);
               toast.success('Analytics refreshed');
             }}
-            className="p-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            disabled={refreshing}
+            className="p-2 text-gray-600 dark:text-slate-400 hover:text-gray-800 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FiRefreshCw className="h-5 w-5" />
+            {refreshing ? (
+              <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent inline-block" />
+            ) : <FiRefreshCw className="h-5 w-5" />}
           </button>
 
           <button

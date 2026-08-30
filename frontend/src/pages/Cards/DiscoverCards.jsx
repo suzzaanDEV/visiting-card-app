@@ -226,8 +226,8 @@ const DiscoverCards = () => {
                   className="!gap-0"
                 />
               </div>
-              <Button type="submit" className="px-6 h-12 shadow-sm font-bold">
-                Search
+              <Button type="submit" isLoading={isLoading} className="px-6 h-12 shadow-sm font-bold">
+                {isLoading ? 'Searching...' : 'Search'}
               </Button>
             </form>
 

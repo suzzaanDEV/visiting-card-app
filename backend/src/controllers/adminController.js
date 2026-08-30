@@ -327,7 +327,7 @@ exports.deleteUser = async (req, res, next) => {
 // Get all cards (admin only)
 exports.getAllCards = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, search, category, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    const { page = 1, limit = 20, search, category, sortBy = 'createdAt', sortOrder = 'desc', status } = req.query;
     
     const cards = await cardService.getAllCards({
       page: parseInt(page),
@@ -335,7 +335,8 @@ exports.getAllCards = async (req, res, next) => {
       search,
       category,
       sortBy,
-      sortOrder
+      sortOrder,
+      status
     });
     
     res.status(200).json(cards);

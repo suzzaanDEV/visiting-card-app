@@ -42,6 +42,8 @@ const Notifications = () => {
   const { items: notifications, unreadCount, loading, stats } = useSelector((s) => s.notifications);
   const [filter, setFilter] = useState('all');
   const [pushStatus, setPushStatus] = useState('unsupported');
+  const [actionLoading, setActionLoading] = useState(null);
+  const [enablingPush, setEnablingPush] = useState(false);
 
   const load = useCallback(() => {
     dispatch(fetchNotifications({ page: 1, limit: 50 }));
@@ -64,19 +66,24 @@ const Notifications = () => {
   }, [dispatch]);
 
   const handleEnablePush = async () => {
-    const perm = await requestPermission();
-    setPushStatus(perm);
-    dispatch(setPushPermission(perm));
-    if (perm === 'granted') {
-      const result = await subscribeToPush();
-      if (result.success) {
-        dispatch(setPushSubscribed(true));
-        toast.success('Push notifications enabled');
-      } else {
-        toast.error('Failed to enable push notifications');
+    setEnablingPush(true);
+    try {
+      const perm = await requestPermission();
+      setPushStatus(perm);
+      dispatch(setPushPermission(perm));
+      if (perm === 'granted') {
+        const result = await subscribeToPush();
+        if (result.success) {
+          dispatch(setPushSubscribed(true));
+          toast.success('Push notifications enabled');
+        } else {
+          toast.error('Failed to enable push notifications');
+        }
+      } else if (perm === 'denied') {
+        toast.error('Notifications blocked by browser');
       }
-    } else if (perm === 'denied') {
-      toast.error('Notifications blocked by browser');
+    } finally {
+      setEnablingPush(false);
     }
   };
 
@@ -120,9 +127,27 @@ const Notifications = () => {
     system: notifications.filter((n) => ['system', 'welcome', undefined].includes(n.type)).length,
   };
 
-  const handleMarkRead = (id) => { dispatch(markNotificationRead(id)); };
-  const handleMarkAllRead = () => { dispatch(markAllNotificationsRead()); toast.success('All notifications marked as read'); };
-  const handleDelete = (id) => { dispatch(deleteNotification(id)); };
+  const handleMarkRead = (id) => {
+    setActionLoading(`read:${id}`);
+    dispatch(markNotificationRead(id)).finally(() => setActionLoading(null));
+  };
+  const handleMarkAllRead = () => {
+    setActionLoading('mark-all');
+    dispatch(markAllNotificationsRead()).finally(() => setActionLoading(null));
+    toast.success('All notifications marked as read');
+  };
+  const handleDelete = (id) => {
+    setActionLoading(`delete:${id}`);
+    dispatch(deleteNotification(id)).finally(() => setActionLoading(null));
+  };
+  const handleAccept = (requestId) => {
+    setActionLoading(`approve:${requestId}`);
+    dispatch(approveAccessRequest({ requestId })).finally(() => setActionLoading(null));
+  };
+  const handleReject = (requestId) => {
+    setActionLoading(`reject:${requestId}`);
+    dispatch(rejectAccessRequest({ requestId })).finally(() => setActionLoading(null));
+  };
 
   const handleNotificationClick = (n) => {
     if (!n.isRead) dispatch(markNotificationRead(n._id));
@@ -143,8 +168,13 @@ const Notifications = () => {
             </div>
             <div className="flex items-center space-x-3 flex-wrap">
               {isPushSupported() && pushStatus !== 'granted' && (
-                <button onClick={handleEnablePush} className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm">
-                  <FiBell className="w-4 h-4" /><span>Enable Push</span>
+                <button onClick={handleEnablePush} disabled={enablingPush} className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  {enablingPush ? (
+                    <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
+                  ) : (
+                    <FiBell className="w-4 h-4" />
+                  )}
+                  <span>{enablingPush ? 'Enabling...' : 'Enable Push'}</span>
                 </button>
               )}
               {isPushSupported() && pushStatus === 'granted' && (
@@ -153,12 +183,17 @@ const Notifications = () => {
                 </span>
               )}
               {unreadCount > 0 && (
-                <button onClick={handleMarkAllRead} className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm">
-                  <FiEye className="w-4 h-4" /><span>Mark all read</span>
+                <button onClick={handleMarkAllRead} disabled={actionLoading === 'mark-all'} className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  {actionLoading === 'mark-all' ? (
+                    <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-white border-t-transparent" />
+                  ) : (
+                    <FiEye className="w-4 h-4" />
+                  )}
+                  <span>{actionLoading === 'mark-all' ? 'Marking...' : 'Mark all read'}</span>
                 </button>
               )}
-              <button onClick={load} className="flex items-center space-x-2 bg-slate-200 dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm">
-                <FiRefreshCw className="w-4 h-4" /><span>Refresh</span>
+              <button onClick={load} disabled={loading} className="flex items-center space-x-2 bg-slate-200 dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-4 py-2 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span>Refresh</span>
               </button>
             </div>
           </div>
@@ -266,23 +301,41 @@ const Notifications = () => {
                             </div>
                             {n.type === 'access_request' && n.data?.requestId && (
                               <div className="flex space-x-2 mt-3" onClick={(e) => e.stopPropagation()}>
-                                <button onClick={() => dispatch(approveAccessRequest({ requestId: n.data.requestId }))} className="flex items-center space-x-1 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors">
-                                  <FiCheck className="w-3 h-3" /><span>Accept</span>
+                                <button onClick={() => handleAccept(n.data.requestId)} disabled={actionLoading === `approve:${n.data.requestId}` || actionLoading === `reject:${n.data.requestId}`} className="flex items-center space-x-1 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                  {actionLoading === `approve:${n.data.requestId}` ? (
+                                    <span className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+                                  ) : (
+                                    <FiCheck className="w-3 h-3" />
+                                  )}
+                                  <span>Accept</span>
                                 </button>
-                                <button onClick={() => dispatch(rejectAccessRequest({ requestId: n.data.requestId }))} className="flex items-center space-x-1 bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-700 transition-colors">
-                                  <FiX className="w-3 h-3" /><span>Reject</span>
+                                <button onClick={() => handleReject(n.data.requestId)} disabled={actionLoading === `approve:${n.data.requestId}` || actionLoading === `reject:${n.data.requestId}`} className="flex items-center space-x-1 bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                  {actionLoading === `reject:${n.data.requestId}` ? (
+                                    <span className="animate-spin rounded-full h-3 w-3 border-2 border-white border-t-transparent" />
+                                  ) : (
+                                    <FiX className="w-3 h-3" />
+                                  )}
+                                  <span>Reject</span>
                                 </button>
                               </div>
                             )}
                           </div>
                           <div className="flex items-center space-x-1 ml-2" onClick={(e) => e.stopPropagation()}>
                             {!n.isRead && (
-                              <button onClick={() => handleMarkRead(n._id)} className="p-1.5 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors rounded" title="Mark as read">
-                                <FiEye className="w-3.5 h-3.5" />
+                              <button onClick={() => handleMarkRead(n._id)} disabled={actionLoading === `read:${n._id}`} className="p-1.5 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors rounded disabled:opacity-50" title="Mark as read">
+                                {actionLoading === `read:${n._id}` ? (
+                                  <span className="block animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                                ) : (
+                                  <FiEye className="w-3.5 h-3.5" />
+                                )}
                               </button>
                             )}
-                            <button onClick={() => handleDelete(n._id)} className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors rounded" title="Delete">
-                              <FiTrash className="w-3.5 h-3.5" />
+                            <button onClick={() => handleDelete(n._id)} disabled={actionLoading === `delete:${n._id}`} className="p-1.5 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors rounded disabled:opacity-50" title="Delete">
+                              {actionLoading === `delete:${n._id}` ? (
+                                <span className="block animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                              ) : (
+                                <FiTrash className="w-3.5 h-3.5" />
+                              )}
                             </button>
                           </div>
                         </div>

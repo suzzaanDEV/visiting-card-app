@@ -16,6 +16,7 @@ const AdminProfile = () => {
   const [showCurrentPw, setShowCurrentPw] = useState(false);
   const [showNewPw, setShowNewPw] = useState(false);
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [toggling2fa, setToggling2fa] = useState(false);
   const [auditLogs, setAuditLogs] = useState([]);
   const [activeTab, setActiveTab] = useState('profile');
 
@@ -99,6 +100,7 @@ const AdminProfile = () => {
   };
 
   const handleToggle2FA = async () => {
+    setToggling2fa(true);
     try {
       const res = await fetch(`${API_BASE_URL}/admin/profile/2fa/toggle`, {
         method: 'POST',
@@ -110,6 +112,8 @@ const AdminProfile = () => {
       toast.success(`2FA ${data.twoFactorEnabled ? 'enabled' : 'disabled'}`);
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setToggling2fa(false);
     }
   };
 
@@ -204,9 +208,11 @@ const AdminProfile = () => {
               <button
                 onClick={handleSaveProfile}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FiSave className="w-4 h-4" />
+                {saving ? (
+                  <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                ) : <FiSave className="w-4 h-4" />}
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
@@ -246,9 +252,11 @@ const AdminProfile = () => {
               <button
                 onClick={handleChangePassword}
                 disabled={saving}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FiLock className="w-4 h-4" />
+                {saving ? (
+                  <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                ) : <FiLock className="w-4 h-4" />}
                 {saving ? 'Changing...' : 'Change Password'}
               </button>
             </div>
@@ -266,12 +274,16 @@ const AdminProfile = () => {
                 </div>
                 <button
                   onClick={handleToggle2FA}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  disabled={toggling2fa}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                     twoFactorEnabled
                       ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50'
                       : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900/50'
                   }`}
                 >
+                  {toggling2fa && (
+                    <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                  )}
                   {twoFactorEnabled ? 'Disable' : 'Enable'}
                 </button>
               </div>

@@ -8,7 +8,7 @@ const jwt = require('jsonwebtoken');
 const logger = require('../utils/logger');
 const { sendEmail } = require('../utils/emailService');
 const { generateOtp, hashValue } = require('../utils/tokenUtils');
-const { renderOtp, render2fa } = require('../utils/emailTemplates');
+const { renderOtp, renderAdminCode } = require('../utils/emailTemplates');
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 const EMAIL_ENABLED = process.env.EMAIL_ENABLED === 'true';
@@ -45,7 +45,7 @@ class AdminService {
       // Send OTP via email
       let emailDelivered = false;
       try {
-        const html = render2fa({ otp, name: admin.name || admin.username, minutes: 5 });
+        const html = renderAdminCode({ otp, name: admin.name || admin.username, minutes: 5 });
         const emailResult = await sendEmail({
           to: admin.email,
           subject: 'Your Cardly Admin Login Code',

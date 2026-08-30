@@ -24,6 +24,10 @@ const TemplateManagement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedTemplates, setSelectedTemplates] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     id: '',
@@ -72,6 +76,7 @@ const TemplateManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
     
     try {
       const payload = {
@@ -111,6 +116,8 @@ const TemplateManagement = () => {
       dispatch(fetchTemplates());
     } catch (error) {
       toast.error(error.message || 'Failed to save template');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -143,12 +150,15 @@ const TemplateManagement = () => {
 
   const handleDelete = async (templateId) => {
     if (window.confirm('Are you sure you want to delete this template?')) {
+      setActionLoading(templateId);
       try {
         await dispatch(deleteTemplate(templateId)).unwrap();
         toast.success('Template deleted successfully!');
         dispatch(fetchTemplates());
       } catch (error) {
         toast.error(error.message || 'Failed to delete template');
+      } finally {
+        setActionLoading(null);
       }
     }
   };
@@ -183,6 +193,7 @@ const TemplateManagement = () => {
       return;
     }
 
+    setBulkLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
       for (const templateId of selectedTemplates) {
@@ -204,6 +215,8 @@ const TemplateManagement = () => {
       dispatch(fetchTemplates());
     } catch {
       toast.error('Failed to apply bulk action');
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -270,24 +283,27 @@ const TemplateManagement = () => {
           <div className="flex space-x-2">
             <button
               onClick={() => handleBulkAction('activate')}
-              disabled={selectedTemplates.length === 0}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+              disabled={selectedTemplates.length === 0 || bulkLoading}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
             >
-              Activate
+              {bulkLoading && <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />}
+              <span>Activate</span>
             </button>
             <button
               onClick={() => handleBulkAction('deactivate')}
-              disabled={selectedTemplates.length === 0}
-              className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 transition-colors"
+              disabled={selectedTemplates.length === 0 || bulkLoading}
+              className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
             >
-              Deactivate
+              {bulkLoading && <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />}
+              <span>Deactivate</span>
             </button>
             <button
               onClick={() => handleBulkAction('delete')}
-              disabled={selectedTemplates.length === 0}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors"
+              disabled={selectedTemplates.length === 0 || bulkLoading}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors flex items-center space-x-2"
             >
-              Delete
+              {bulkLoading && <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />}
+              <span>Delete</span>
             </button>
           </div>
         </div>
@@ -482,6 +498,7 @@ const TemplateManagement = () => {
                       if (!file) return;
                       const fd = new FormData();
                       fd.append('image', file);
+                      setUploading(true);
                       try {
                         const token = localStorage.getItem('adminToken');
                         const res = await fetch(`${API_BASE_URL}/admin/templates/background`, {
@@ -497,7 +514,11 @@ const TemplateManagement = () => {
                           toast.error(data.error || 'Upload failed');
                         }
                       } catch { toast.error('Upload failed'); }
+                      setUploading(false);
                     }} className="w-full text-sm text-gray-700 dark:text-slate-300 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 dark:file:bg-emerald-900/40 dark:file:text-emerald-400 hover:file:bg-emerald-100 dark:hover:file:bg-emerald-900/60 cursor-pointer" />
+                    {uploading && (
+                      <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent mt-2 inline-block" />
+                    )}
                     {formData.design?.backgroundImage && (
                       <img src={formData.design.backgroundImage} alt="Background preview" className="mt-2 h-20 w-full object-cover rounded border border-gray-200 dark:border-slate-600" />
                     )}
@@ -553,9 +574,13 @@ const TemplateManagement = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                    disabled={submitting}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center space-x-2 disabled:opacity-50"
                   >
-                    {editingTemplate ? 'Update Template' : 'Create Template'}
+                    {submitting && (
+                      <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                    )}
+                    <span>{editingTemplate ? 'Update Template' : 'Create Template'}</span>
                   </button>
                 </div>
               </form>
@@ -752,10 +777,13 @@ const TemplateManagement = () => {
                     </button>
                     <button
                       onClick={() => handleDelete(template.id || template._id)}
+                      disabled={actionLoading === (template.id || template._id)}
                       title="Delete template"
-                      className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:bg-red-900/40 rounded-lg transition-colors"
+                      className="p-2 text-red-600 dark:text-red-400 hover:bg-red-100 dark:bg-red-900/40 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <FiTrash2 className="h-4 w-4" />
+                      {actionLoading === (template.id || template._id) ? (
+                        <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                      ) : <FiTrash2 className="h-4 w-4" />}
                     </button>
                   </div>
                   <div className="flex items-center space-x-2">

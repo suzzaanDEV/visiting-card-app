@@ -22,6 +22,8 @@ const VerifyEmail = () => {
   const [otp, setOtp] = useState('');
   const [devOtp, setDevOtp] = useState(location.state?.devOtp || '');
   const [cooldown, setCooldown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     if (location.state?.devOtp) {
@@ -55,7 +57,9 @@ const VerifyEmail = () => {
     }
 
     const payload = pendingId ? { pendingId } : email.trim().toLowerCase();
+    setIsResending(true);
     const result = await dispatch(requestEmailOtp(payload));
+    setIsResending(false);
     if (result.meta.requestStatus === 'fulfilled') {
       const payload = result.payload;
       if (payload.alreadyVerified) {
@@ -105,6 +109,30 @@ const VerifyEmail = () => {
     }
   };
 
+  const handleCancel = async () => {
+    setIsCancelling(true);
+    try {
+      const res = await fetch('/api/auth/cancel-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pendingId }),
+      });
+      if (res.ok) {
+        sessionStorage.removeItem('pendingId');
+        sessionStorage.removeItem('pendingEmail');
+        toast.success('Pending registration cancelled');
+        navigate('/register');
+      } else {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to cancel');
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to cancel registration');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-brand-background dark:bg-slate-950 flex items-center justify-center px-4 py-16 transition-colors duration-200">
       <div className="w-full max-w-md">
@@ -147,6 +175,7 @@ const VerifyEmail = () => {
                 variant="outline"
                 type="button"
                 onClick={handleRequest}
+                isLoading={isResending}
                 disabled={isLoading || cooldown > 0}
                 className="whitespace-nowrap flex-shrink-0"
               >
@@ -156,28 +185,10 @@ const VerifyEmail = () => {
                 <Button
                   variant="ghost"
                   type="button"
-                  onClick={async () => {
-                    try {
-                      const res = await fetch('/api/auth/cancel-registration', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ pendingId }),
-                      });
-                      if (res.ok) {
-                        sessionStorage.removeItem('pendingId');
-                        sessionStorage.removeItem('pendingEmail');
-                        toast.success('Pending registration cancelled');
-                        navigate('/register');
-                      } else {
-                        const data = await res.json();
-                        throw new Error(data.error || 'Failed to cancel');
-                      }
-                    } catch (err) {
-                      toast.error(err.message || 'Failed to cancel registration');
-                    }
-                  }}
+                  onClick={handleCancel}
+                  isLoading={isCancelling}
                 >
-                  Cancel
+                  {isCancelling ? 'Cancelling...' : 'Cancel'}
                 </Button>
               )}
               <span className="text-xs text-brand-textMuted leading-normal">

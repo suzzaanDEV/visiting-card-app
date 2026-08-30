@@ -27,6 +27,8 @@ const AccessRequests = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [responseMessage, setResponseMessage] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchAccessRequests();
@@ -64,6 +66,7 @@ const AccessRequests = () => {
   };
 
   const handleApproveRequest = async (requestId) => {
+    setActionLoading('approve');
     try {
       const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/access-requests/${requestId}/approve`, {
@@ -87,10 +90,13 @@ const AccessRequests = () => {
     } catch (error) {
       console.error('Error approving request:', error);
       toast.error('Failed to approve request');
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleRejectRequest = async (requestId) => {
+    setActionLoading('reject');
     try {
       const token = localStorage.getItem('adminToken');
       const response = await fetch(`/api/admin/access-requests/${requestId}/reject`, {
@@ -114,6 +120,39 @@ const AccessRequests = () => {
     } catch (error) {
       console.error('Error rejecting request:', error);
       toast.error('Failed to reject request');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const refreshRequests = async () => {
+    setRefreshing(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      if (!token) {
+        toast.error('Admin authentication required');
+        return;
+      }
+
+      const response = await fetch('/api/admin/access-requests', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setRequests(data.requests || []);
+      } else {
+        console.error('Failed to fetch access requests:', response.status);
+        toast.error('Failed to load access requests');
+      }
+    } catch (error) {
+      console.error('Error fetching access requests:', error);
+      toast.error('Failed to load access requests');
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -282,10 +321,13 @@ const AccessRequests = () => {
             <p className="text-gray-600 dark:text-slate-400 mt-2">Manage access requests for private cards</p>
           </div>
           <button
-            onClick={fetchAccessRequests}
-            className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors"
+            onClick={refreshRequests}
+            disabled={refreshing}
+            className="flex items-center space-x-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <FiRefreshCw className="w-4 h-4" />
+            {refreshing ? (
+              <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+            ) : <FiRefreshCw className="w-4 h-4" />}
             <span>Refresh</span>
           </button>
         </div>
@@ -448,17 +490,23 @@ const AccessRequests = () => {
                 </button>
                 <button
                   onClick={() => handleRejectRequest(selectedRequest._id)}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2"
+                  disabled={actionLoading !== false}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <FiX className="w-4 h-4" />
-                  Reject
+                  {actionLoading === 'reject' ? (
+                    <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                  ) : <FiX className="w-4 h-4" />}
+                  <span>Reject</span>
                 </button>
                 <button
                   onClick={() => handleApproveRequest(selectedRequest._id)}
-                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2"
+                  disabled={actionLoading !== false}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <FiCheck className="w-4 h-4" />
-                  Approve
+                  {actionLoading === 'approve' ? (
+                    <span className="animate-spin rounded-full h-3.5 w-3.5 border-2 border-current border-t-transparent" />
+                  ) : <FiCheck className="w-4 h-4" />}
+                  <span>Approve</span>
                 </button>
               </div>
             </motion.div>
