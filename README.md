@@ -1,175 +1,104 @@
-# Visiting Card App
+# Cardly — Digital Visiting Card Platform
 
-A modern digital business card platform built with React and Node.js.
+Create and share beautiful digital business cards with QR codes, discover cards by
+search/trending/recommendations, save a personal library, and manage everything from
+an admin panel. Built with a React/Vite frontend and an Express/MongoDB backend.
+
+> University final-year project by **Suzan Ghimire** · MIT licensed
 
 ## Features
 
-- 🎨 Create beautiful digital business cards
-- 🔍 Search and discover cards
-- 📱 Responsive design
-- 🔐 Secure authentication
-- 📊 Analytics dashboard
-- 👥 Admin panel
-- 💾 Save cards to library
-- 🔗 Shareable links and QR codes
+- **Cards:** rich profile fields (name, job, company, contact, skills, services,
+  socials), custom design, template-driven layouts, share links (`/c/<shortLink>`) and
+  QR codes.
+- **Privacy:** public/private cards with approval-based access requests (incl.
+  QR-scan requests), contact-data masking for anonymous viewers.
+- **Discovery:** search (`$text` + custom TF-IDF/BM25/fuzzy + hybrid), discover /
+  popular / recent / trending feeds, content-based recommendations, category &
+  industry filters.
+- **Library:** save loved cards, per-card stats.
+- **Admin:** users, cards, templates (+ builder), categories, policies, CRM inbox,
+  audit log, analytics, broadcasts & notification templates.
+- **Notifications:** in-app + optional web push + email; broadcast scheduler.
+- **Dev ergonomics:** OTP email flows echo `devOtp` in dev; dark/light theme.
 
-## Tech Stack
+## Tech stack
 
-### Frontend
-- React 18
-- Redux Toolkit
-- Vite
-- Tailwind CSS
-- Konva (for card editing)
-- React Router
+| Layer | Stack |
+|---|---|
+| Frontend | React 18 · Vite · Redux Toolkit · Tailwind CSS · react-router v6 |
+| Backend | Node.js (`>=16`) · Express 4 (CommonJS) · Mongoose 7 (MongoDB) · JWT |
+| Extras | qrcode · nodemailer (SMTP) · web-push · multer/sharp · Cloudinary (optional) · winston |
+| Tests | Jest + supertest + mongodb-memory-server (backend) · Vitest + Testing Library (frontend) |
+| Deploy | Docker Compose (+ Caddy TLS) · Terraform/AWS · GitHub Actions (build/test) |
 
-### Backend
-- Node.js
-- Express
-- MongoDB
-- JWT Authentication
-- Cloudinary (for image storage)
-- Winston (logging)
+## Quick start
 
-## Quick Start
+Prereq: Node.js 18+, MongoDB (local `mongod` or `docker compose up mongodb -d`).
 
-### Prerequisites
-- Node.js 18+
-- MongoDB (local or cloud)
-- Cloudinary account
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd visiting-card-app
-   ```
-
-2. Set up backend:
-   ```bash
-   cd backend
-   cp .env.example .env
-   # Edit .env with your configuration
-   npm install
-   ```
-
-3. Set up frontend:
-   ```bash
-   cd frontend
-   cp .env.example .env
-   # Edit .env with your configuration
-   npm install
-   ```
-
-### Running Locally
-
-1. Start MongoDB (if running locally)
-
-2. Start backend:
-   ```bash
-   cd backend
-   npm run dev
-   ```
-   Backend runs on `http://localhost:5050`
-
-3. Start frontend (in a new terminal):
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-   Frontend runs on `http://localhost:5173`
-
-### Environment Variables
-
-See `.env.example` files in both `backend/` and `frontend/` directories for required environment variables.
-
-**Backend (.env):**
-- `DATABASE_URL` - MongoDB connection string
-- `JWT_SECRET` - Secret key for JWT tokens
-- `CLOUDINARY_CLOUD_NAME` - Cloudinary cloud name
-- `CLOUDINARY_API_KEY` - Cloudinary API key
-- `CLOUDINARY_API_SECRET` - Cloudinary API secret
-- `PORT` - Server port (default: 5050)
-- `NODE_ENV` - Environment (development/production)
-
-**Frontend (.env):**
-- `VITE_API_URL` - Backend API URL (e.g., `http://localhost:5050/api`)
-
-## Project Structure
-
-```
-visiting-card-app/
-├── backend/
-│   ├── src/
-│   │   ├── controllers/    # Route controllers
-│   │   ├── models/         # Database models
-│   │   ├── routes/         # API routes
-│   │   ├── services/       # Business logic
-│   │   ├── middleware/     # Express middleware
-│   │   ├── utils/          # Utilities
-│   │   └── app.js          # Express app
-│   ├── config/             # Configuration files
-│   └── .env                # Environment variables
-├── frontend/
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── pages/          # Page components
-│   │   ├── features/       # Redux slices and thunks
-│   │   ├── services/       # API services
-│   │   └── App.jsx         # Main app component
-│   └── .env                # Environment variables
-└── README.md
+```bash
+npm run install-all                 # install root + backend + frontend deps
+cp backend/.env.example backend/.env  # dotenv loads backend/.env (values optional for dev)
+npm run dev                         # backend :5050 + frontend :5173 (Vite proxies /api → :5050)
 ```
 
-## API Endpoints
+Open `http://localhost:5173`. A default admin (`suzan.privatespace@gmail.com` / `admin123`,
+**dev-only**) is seeded at boot. Full setup, env reference, Docker and AWS deployment,
+runbooks, troubleshooting and the complete security notes live in the docs.
 
-### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
-- `POST /api/auth/logout` - Logout user
-- `GET /api/auth/profile` - Get user profile
+## Documentation
 
-### Cards
-- `GET /api/cards` - Get user's cards
-- `POST /api/cards` - Create new card
-- `GET /api/cards/:id` - Get card by ID
-- `PUT /api/cards/:id` - Update card
-- `DELETE /api/cards/:id` - Delete card
+The authoritative context library lives **outside this repository** at
+`~/Documents/Cardly-archive/docs/` (kept out of GitHub by request):
 
-### Search
-- `GET /api/search` - Search cards
+| Doc | Covers |
+|---|---|
+| `docs/architecture/ARCHITECTURE.md` | system design, layers, request lifecycle, config presets |
+| `docs/architecture/WORKFLOWS.md` | auth, card privacy/access, discovery, admin, analytics flows |
+| `docs/api/API.md` | every endpoint (auth levels, params, response shapes) |
+| `docs/database/DATABASE.md` | 18 models, indexes, TTLs, data-integrity notes |
+| `docs/algorithms/ALGORITHMS.md` | search/ranking/recommendation/QR/analytics math |
+| `docs/development/` | conventions, commands, developer gotchas |
+| `docs/troubleshooting/GOTCHAS.md` | operator failure-mode guide |
+| `docs/deployment/DEPLOYMENT.md` | Docker, Terraform/AWS, CI/CD |
+| `docs/security/SECURITY.md` | threat model, hardening, incident runbook |
 
-### Library
-- `GET /api/library` - Get saved cards
-- `POST /api/library` - Save card to library
-- `DELETE /api/library/:id` - Remove card from library
+The same archive also holds the deployment assets (Dockerfiles, `docker/`, `terraform/`,
+CI workflow `deploy.yml`) and the Postman collection.
 
-## Deployment
+## Development
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
+```bash
+# Backend (from visiting-card-app/)
+cd backend && npm test           # unit + integration (mongodb-memory-server)
+cd backend && npm run test:ci    # with coverage thresholds
+
+# Frontend
+cd frontend && npm test          # Vitest
+cd frontend && npm run lint      # ESLint (backend has no lint step)
+cd frontend && npm run build     # production bundle
+```
+
+See `~/Documents/Cardly-archive/docs/development/COMMANDS.md` for the full set of verified commands.
+
+## Repository layout
+
+```
+backend/    Express API (src/{routes,controllers,services,models,middleware,algorithms,utils,seeds})
+frontend/   React SPA (src/{pages,components,features,redux,services,utils,context})
+```
+
+Deployment assets, CI workflow and all documentation were intentionally moved to
+`~/Documents/Cardly-archive/` and are not tracked in this repository (see `.gitignore`).
 
 ## Security
 
-- JWT-based authentication
-- Password hashing with bcrypt
-- Rate limiting
-- CORS protection
-- Input validation
-- Error handling
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
+JWT auth with rotating refresh tokens, bcrypt hashing (12 rounds), sha256 OTPs, rate
+limiting, Helmet/CORS, input sanitization, privacy masking, admin RBAC groundwork, and
+prod config that refuses to boot with weak secrets. **See
+`~/Documents/Cardly-archive/docs/security/SECURITY.md`** for the threat model. Secrets live
+only in gitignored `backend/.env` — never commit them.
 
 ## License
 
-MIT
-
-## Support
-
-For issues or questions, please open an issue on GitHub.
-
+MIT — see the project author for the full text.

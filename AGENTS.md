@@ -1,14 +1,17 @@
 # AGENTS.md — Cardly (visiting-card-app)
 
-Instructions for AI coding agents working in this repository. Deep context lives in
-[`aidlc/`](aidlc/) — read it before non-trivial work:
+Instructions for AI coding agents working in this repository. **Read the context library
+at `~/Documents/Cardly-archive/docs/` before non-trivial work** (moved out of the repo —
+**not tracked in GitHub**; it replaces the old `aidlc/`):
 
-- `aidlc/01-project-overview.md` — what this is, stack, surprising facts
-- `aidlc/02-architecture.md` — backend layers, frontend structure, auth flow
-- `aidlc/03-api-and-data-models.md` — every API route, every Mongoose model
-- `aidlc/04-conventions.md` — code style, module split, testing patterns
-- `aidlc/05-commands-and-ci.md` — commands, env vars, CI/CD, deployment
-- `aidlc/06-gotchas.md` — traps and security-sensitive areas
+- `~/Documents/Cardly-archive/docs/architecture/ARCHITECTURE.md` — system design, layers, request lifecycle, config
+- `~/Documents/Cardly-archive/docs/architecture/WORKFLOWS.md` — auth, card privacy/access, discovery, admin, analytics flows
+- `~/Documents/Cardly-archive/docs/api/API.md` — every API endpoint (mounts, auth, params)
+- `~/Documents/Cardly-archive/docs/database/DATABASE.md` — all 18 Mongoose models, indexes, TTLs
+- `~/Documents/Cardly-archive/docs/algorithms/ALGORITHMS.md` — search/trending/recommendation/QR/analytics algorithms
+- `~/Documents/Cardly-archive/docs/development/CONVENTIONS.md` + `COMMANDS.md` — style, testing, CLI recipes
+- `~/Documents/Cardly-archive/docs/development/GOTCHAS.md` + `docs/troubleshooting/GOTCHAS.md` — developer & operator traps
+- `~/Documents/Cardly-archive/docs/deployment/DEPLOYMENT.md` + `docs/security/SECURITY.md` — Docker/Terraform/CI, threats
 
 ## Non-negotiable rules
 
@@ -17,41 +20,45 @@ Instructions for AI coding agents working in this repository. Deep context lives
 2. **Run all git commands from inside `visiting-card-app/`.** The parent
    `/Users/mac/Cardly` belongs to a stray home-directory git repo (`/Users/mac/.git`,
    zero commits). Never commit from there.
-3. **The worktree is usually dirty** (~86 uncommitted changes). Check `git status`
-   before assuming HEAD matches disk; stage only files you intended to change.
-4. **Never print, copy, or commit secret values.** `backend/config.env` is committed
-   upstream with real-looking secrets (DATABASE_URL, JWT_SECRET, Cloudinary keys) — do
-   not read them aloud or propagate them.
+3. **The worktree is usually dirty** (dozens of uncommitted changes and intentional
+   deletions from the 2026 cleanup). Check `git status` before assuming HEAD matches
+   disk; stage only files you intended to change.
+4. **Never print, copy, or commit secret values.** Secrets live in `backend/.env`
+   (gitignored) only. The old tracked `backend/config.env` (real-looking secrets) was
+   **deleted** in the cleanup but still exists in git history — never resurrect it.
 5. Never loosen test coverage thresholds or skip tests to make CI pass.
 
 ## Project snapshot
 
-Cardly — digital business card platform (university final-year project by Suzan Ghimire).
+Cardly — digital business card platform (university project by Suzan Ghimire).
 React 18 + Vite + Redux Toolkit + Tailwind frontend; Express 4 (CommonJS) + Mongoose/MongoDB
 backend; Jest/supertest + mongodb-memory-server (backend), Vitest + Testing Library (frontend);
 Docker Compose + Terraform/AWS deployment; CI builds/tests only (no deploy job).
 
 ## Key features
 
-- **Template system:** Database-driven (Template model), admin CRUD + featured marking, user
-  selection via `/api/templates`. Templates have category, tags, preview config, and usage count.
-- **Card fields:** Cards support `category`, `industry`, `profession`, `skills`, `services`,
-  `products` (in addition to standard name/company/contact fields). Discovery page filters
-  by category, industry, and location.
-- **Search algorithm:** Backend offers three modes — `basic` (regex), `fullText` (MongoDB text
-  index), and `advanced` (custom TF-IDF/BM25 in `backend/src/algorithms/`). Hybrid search
-  combines results. Trending uses compound sort (views + loves + recency).
-- **Notification system:** In-app notifications via Notification model, optional push (web push)
-  and email channels. Notification types include access requests, card loves, system alerts.
-- **Broadcast system:** Admin-driven broadcasts (`Broadcast` model) with audience targeting
-  (all/active/inactive/new/verified/segment/specific users), multi-channel delivery
-  (in-app/push/email), scheduling, and delivery stats tracking.
-- **CRM:** Contact messages (`ContactMessage` model) with status management
-  (unread/read/replied/archived/spam), bulk operations, category/priority breakdown,
-  stats dashboard. Routes at `/api/crm`.
-- **Audit logging:** `AuditLog` model with action/entity tracking, severity levels,
-  90-day TTL index. Service at `backend/src/services/auditService.js`, routes at
-  `/api/audit`. Used by admin and policy services.
+- **Template system:** DB-driven (`Template` model), admin CRUD + featured, user selection
+  via `/api/templates`; cards store a `templateId` string reference + `usageCount`.
+- **Card privacy model (regression-prone):** public/private (`isPrivate` + `privacy`
+  enum), QR/access requests via `CardAccessRequest` (7-day expiry), response masking for
+  anonymous viewers. See `docs/architecture/WORKFLOWS.md` §3 and `docs/development/GOTCHAS.md` §5
+   (both under `~/Documents/Cardly-archive/`).
+- **Search:** three modes — `basic` (regex), `fullText` (`card_text_search` text index),
+  `advanced` (custom TF-IDF/BM25/fuzzy in `backend/src/algorithms/`); hybrid default.
+  Trending = weighted engagement + recency. See `~/Documents/Cardly-archive/docs/algorithms/ALGORITHMS.md`.
+- **Notifications/broadcasts/CRM/audit:** Notification + NotificationTemplate + Broadcast
+  (scheduler + delivery stats), ContactMessage CRM, AuditLog (90-day TTL).
+- **Analytics:** event tracking with dedup (views 5 min, others 1 min), aggregation
+  statics on the Analytics model.
+
+## Common repo state (post-cleanup)
+
+- Backend: 15 route files, 15 controllers, 17 services, 18 models, 6 middleware,
+  6 algorithms, 11 utils, seeds `adminSeed` + `templateSeed` (default dotenv → `backend/.env`).
+- Frontend: no dead design system; `components/Search/` and `hooks/` are empty;
+  homepage renders `LandingPage` standalone (own nav/footer), everything else under `Layout`.
+- Both dev servers run from `visiting-card-app/` via `npm run dev` (backend :5050,
+  frontend :5173). Backend restart clears in-memory rate limits (no reset script).
 
 ## Commands
 
@@ -59,31 +66,8 @@ Docker Compose + Terraform/AWS deployment; CI builds/tests only (no deploy job).
 |---|---|
 | Install | `npm run install-all` |
 | Dev servers | `npm run dev` → backend :5050 + frontend :5173 |
-| All tests | `npm test` |
-| Backend tests / coverage | `cd backend && npm test` / `npm run test:coverage` |
-| Frontend tests / lint | `cd frontend && npm test` / `npm run lint` (no backend lint exists) |
-| Seed admin | `npm run seed:admin` (auto-runs at boot unless `SEED_ADMIN_ON_START=false`) |
+| Backend tests | `cd backend && npm test` (coverage: `npm run test:ci`) |
+| Frontend tests / lint | `cd frontend && npm test` / `npm run lint` (backend has **no lint**) |
+| Seed admin/templates | `npm run seed:admin` / `npm run seed:templates` (templates auto-run at boot) |
 
-## Conventions in brief
-
-- Backend: CommonJS, controllers use `exports.fnName = async (req,res,next)=>{}`,
-  layered routes→controllers→services→models.
-- Frontend: ESM/JSX, Redux Toolkit thunks via `createAsyncThunk` handled in
-  `extraReducers`, HTTP via native `fetch` (`services/apiService.js`; axios is unused).
-- Style: 2-space indent, single quotes, semicolons; ESLint flat config frontend-only;
-  no Prettier, no TypeScript, no typecheck step.
-- Tests: backend central dirs `backend/test/{unit,integration}` (integration uses
-  mongodb-memory-server + supertest against `{ app }` from `src/app.js`, OTP surfaced as
-  `devOtp`); frontend colocated `*.test.js` next to utils.
-
-## Top gotchas (full list: aidlc/06-gotchas.md)
-
-- Auth rate limit is **5 req/15min/IP** — restart the backend when testing manually
-  (the old `dev:reset` script was removed; it referenced a non-existent file).
-- `frontend/src/pages/Cards/NewCard.jsx` is a 2,599-line monolith — edit surgically.
-- Duplicate components exist (AnalyticsDashboard variants, LibraryPage variants,
-  CardPreview variants) — confirm which one a route renders before editing.
-- Redis is configured but unused; email disabled by default (`EMAIL_ENABLED=false`);
-  default admin is seeded as admin@gmail.com/admin123 (documented, dev-only).
-- Privacy model (public/private/shared cards, QR temporary access) is regression-prone —
-  verify card visibility flows after touching privacy/auth code.
+Full CLI recipes: `~/Documents/Cardly-archive/docs/development/COMMANDS.md`.

@@ -119,4 +119,16 @@ coverage/
 .pm2/
 
 # Cloudinary
-cloudinary.json 
+cloudinary.json
+
+# Moved to ~/Documents/Cardly-archive/ (not tracked in this repo)
+docs/
+cardly-api.postman_collection.json
+docker/
+docker-compose.yml
+docker-compose.prod.yml
+Dockerfile.backend
+Dockerfile.frontend
+terraform/
+.github/
+aidlc/ 
