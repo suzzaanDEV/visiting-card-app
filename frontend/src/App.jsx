@@ -6,7 +6,7 @@ import ProtectedRoute from './components/Auth/ProtectedRoute';
 import AuthInitializer from './components/Auth/AuthInitializer';
 import AccountBlocked from './components/Auth/AccountBlocked';
 import AdminRoute from './components/Admin/AdminRoute';
-import ErrorBoundary from './components/UI/ErrorBoundary';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/Auth/LoginPage';

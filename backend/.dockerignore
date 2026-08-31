@@ -1,0 +1,11 @@
+# Build context exclusions — keeps the image slim and never bakes secrets in.
+node_modules
+npm-debug.log*
+coverage
+test
+logs
+dist
+.git
+.env
+.env.*
+!.env.example

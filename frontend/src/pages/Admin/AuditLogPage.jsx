@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { fetchAuditLogs, fetchAuditStats } from '../../features/admin/adminThunks';
 import { FiActivity, FiAlertTriangle, FiCheckCircle, FiXCircle, FiFilter, FiRefreshCw } from 'react-icons/fi';
 import AdminLayout from '../../components/Admin/AdminLayout';
-import EmptyState from '../../components/UI/EmptyState';
+import EmptyState from '../../components/ui/EmptyState';
 
 const SEVERITY_ICONS = {
   info: <FiCheckCircle className="w-4 h-4 text-blue-500" />,

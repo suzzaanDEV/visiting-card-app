@@ -19,8 +19,8 @@ import {
 } from '../../features/notifications/notificationsThunks';
 import { setPushPermission, setPushSubscribed } from '../../features/notifications/notificationsSlice';
 import { isPushSupported, requestPermission, subscribeToPush, isSubscribed } from '../../utils/pushNotifications';
-import { ListSkeleton } from '../../components/UI/LoadingSkeleton';
-import EmptyState from '../../components/UI/EmptyState';
+import { ListSkeleton } from '../../components/ui/LoadingSkeleton';
+import EmptyState from '../../components/ui/EmptyState';
 
 const POLL_INTERVAL = 30000;
 

@@ -4,7 +4,7 @@ import { fetchPolicies, createPolicy, updatePolicy, deletePolicy, publishPolicy 
 import { FiPlus, FiEdit2, FiTrash2, FiGlobe, FiFileText, FiCheck, FiX } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import AdminLayout from '../../components/Admin/AdminLayout';
-import EmptyState from '../../components/UI/EmptyState';
+import EmptyState from '../../components/ui/EmptyState';
 
 const POLICY_TYPES = [
   { slug: 'privacy-policy', title: 'Privacy Policy' },

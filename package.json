@@ -16,7 +16,9 @@
     "seed:admin": "cd backend && npm run seed:admin",
     "seed:templates": "cd backend && npm run seed:templates",
     "docker:up": "docker compose up -d --build",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "docker:up:prod": "docker compose -f docker-compose.prod.yml up -d --build",
+    "docker:down:prod": "docker compose -f docker-compose.prod.yml down"
   },
   "keywords": [
     "react",

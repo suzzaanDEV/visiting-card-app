@@ -13,8 +13,8 @@ import {
   fetchBroadcasts, createBroadcast, updateBroadcast, deleteBroadcast,
   sendBroadcast, scheduleBroadcast, cancelBroadcast, fetchBroadcastStats,
 } from '../../features/admin/adminThunks';
-import { TableSkeleton } from '../../components/UI/LoadingSkeleton';
-import EmptyState from '../../components/UI/EmptyState';
+import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
+import EmptyState from '../../components/ui/EmptyState';
 
 const STATUS_COLORS = {
   draft: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
