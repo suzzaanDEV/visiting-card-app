@@ -1,0 +1,90 @@
+# Cardly — production Docker stack (nginx). Run on the server with:
+#
+#   cp .env.docker.example .env   # then fill in real values
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Architecture:
+#   browser ──:80/443──▶ nginx (container) ──▶ frontend static files
+#                                └──/api──▶ backend:5050 ──▶ mongodb:27017
+# Database and backend are NOT exposed to the host (only nginx is public).
+#
+# HTTPS: either terminate TLS on a host-level nginx and let this one listen on
+# an internal port, or enable the 443 block below and mount your certificates
+# (see the commented `secrets` volume). By default this stack serves plain HTTP
+# on :80 only.
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data_prod:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5050
+      DATABASE_URL: mongodb://mongodb:27017/cardly
+      FRONTEND_URL: https://${DOMAIN_NAME:-localhost}
+      ALLOWED_ORIGINS: https://${DOMAIN_NAME:-localhost},http://${DOMAIN_NAME:-localhost}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required in .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      SEED_ADMIN_ON_START: ${SEED_ADMIN_ON_START:-true}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL is required in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required in .env}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-smtp}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-Cardly <noreply@cardly.app>}
+      STORAGE_TYPE: ${STORAGE_TYPE:-cloudinary}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      REDIS_ENABLED: ${REDIS_ENABLED:-false}
+      REDIS_URL: ${REDIS_URL:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:5050/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_URL: /api
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      # - '443:443'
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # For TLS, add `./certs:/etc/nginx/certs:ro` and an ssl server block.
+    depends_on:
+      - frontend
+
+volumes:
+  mongo_data_prod:

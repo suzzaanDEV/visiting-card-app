@@ -1,0 +1,68 @@
+# Cardly — local Docker stack (mirrors the production layout: nginx serves the
+# built frontend and reverse-proxies /api to the backend).
+#
+#   npm run docker:up        (or: docker compose up -d --build)
+#   npm run docker:down      (or: docker compose down)
+#
+# App:   http://localhost:8080
+# API:   http://localhost:5050/api  (and health: http://localhost:5050/health)
+#
+# Backend config comes from backend/.env (SMTP, Cloudinary, JWT, admin...);
+# only the overrides below (database host, urls, port) are replaced for Docker.
+
+services:
+  mongodb:
+    image: mongo:7
+    restart: unless-stopped
+    # Not exposed to the host on purpose — avoids clashing with a local mongod
+    # on 27017. Inspect via `docker compose exec mongodb mongosh cardly`.
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    restart: unless-stopped
+    ports:
+      - '5050:5050'
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: development
+      PORT: 5050
+      DATABASE_URL: mongodb://mongodb:27017/cardly
+      FRONTEND_URL: http://localhost:8080
+      ALLOWED_ORIGINS: http://localhost:8080,http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:3000,http://localhost:80,http://localhost:5001
+      SEED_ADMIN_ON_START: 'true'
+      REDIS_ENABLED: 'false'
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:5050/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        # Same-origin endpoint: the browser calls /api on :8080 and nginx
+        # proxies it to the backend. Keeps the build portable under any URL.
+        VITE_API_URL: /api
+    restart: unless-stopped
+    ports:
+      - '8080:80'
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:
