@@ -4,10 +4,26 @@ const SavedCard = require('../models/savedCardModel');
 const logger = require('../utils/logger');
 
 class UserService {
-  async getAllUsers({ page = 1, limit = 20, search, sortBy = 'createdAt', sortOrder = 'desc' }) {
+  async getAllUsers({ page = 1, limit = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status } = {}) {
     try {
       const skip = (page - 1) * limit;
       const query = {};
+
+      // Soft-deleted users are hidden from every default list; only the
+      // explicit 'deleted' status shows them.
+      if (status === 'deleted') {
+        query.deletedAt = { $ne: null };
+      } else {
+        query.deletedAt = null;
+      }
+
+      if (status === 'active') {
+        query.isActive = true;
+      } else if (status === 'inactive') {
+        query.isActive = false;
+      } else if (status === 'admin') {
+        query.role = 'admin';
+      }
 
       if (search) {
         query.$or = [
@@ -89,6 +105,7 @@ class UserService {
 
       // Soft delete user
       user.isActive = false;
+      user.deletedAt = new Date();
       await user.save();
 
       // Soft delete user's cards

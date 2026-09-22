@@ -257,14 +257,15 @@ exports.toggleTemplateFeatured = async (req, res, next) => {
 // Get all users (admin only)
 exports.getAllUsers = async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    const { page = 1, limit = 20, search, sortBy = 'createdAt', sortOrder = 'desc', status } = req.query;
     
     const users = await userService.getAllUsers({
       page: parseInt(page),
       limit: parseInt(limit),
       search,
       sortBy,
-      sortOrder
+      sortOrder,
+      status
     });
     
     res.status(200).json(users);

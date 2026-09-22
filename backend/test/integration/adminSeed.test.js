@@ -62,4 +62,51 @@ describe('Admin seed and login', () => {
     // In dev mode, devOtp is returned so we can complete login
     expect(res.body.devOtp).toBeDefined();
   });
+
+  test('deleting a user removes them from the admin user list', async () => {
+    const User = require('../../src/models/userModel');
+
+    // Admin login + OTP verification
+    const login = await request(app)
+      .post('/api/admin/login')
+      .send({ email: creds.email, password: creds.password });
+    expect(login.status).toBe(200);
+    const otp = login.body.devOtp;
+    expect(otp).toBeDefined();
+
+    const verify = await request(app)
+      .post('/api/admin/verify-otp')
+      .send({ email: creds.email, otp });
+    expect(verify.status).toBe(200);
+    const token = verify.body.token;
+
+    // Create a normal user
+    const user = await User.create({
+      username: 'deleteme',
+      email: 'deleteme@example.com',
+      name: 'Delete Me',
+      password: 'password123'
+    });
+
+    // The user shows up in the admin list first
+    const before = await request(app)
+      .get('/api/admin/users')
+      .query({ page: 1, limit: 20 })
+      .set('Authorization', `Bearer ${token}`);
+    expect(before.body.users.map((u) => u.email)).toContain('deleteme@example.com');
+
+    // Delete via admin API
+    const del = await request(app)
+      .delete(`/api/admin/users/${user._id}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(del.status).toBe(200);
+
+    // Soft-deleted user no longer appears in the list
+    const after = await request(app)
+      .get('/api/admin/users')
+      .query({ page: 1, limit: 20 })
+      .set('Authorization', `Bearer ${token}`);
+    expect(after.status).toBe(200);
+    expect(after.body.users.map((u) => u.email)).not.toContain('deleteme@example.com');
+  });
 });
