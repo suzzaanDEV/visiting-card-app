@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const Admin = require('../models/adminModel');
 const User = require('../models/userModel');
 const logger = require('../utils/logger');
+const { rateLimitHandler } = require('../utils/rateLimitHelpers');
 const rateLimit = require('express-rate-limit');
 
 // Validate JWT_SECRET on module load
@@ -15,7 +16,12 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'your-super-secret-jwt
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 5, // limit each IP to 5 requests per windowMs
-  message: 'Too many authentication attempts, please try again later'
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler({
+    message: 'Too many authentication attempts. Please try again later.',
+    logKey: 'Admin auth rate limit exceeded'
+  })
 });
 
 const authenticateToken = async (req, res, next) => {

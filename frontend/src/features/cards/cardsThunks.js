@@ -1,6 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { API_BASE_URL } from '../../services/apiService';
 import { getToken } from '../../utils/authStorage';
+import { getRateLimitMessage } from '../../services/rateLimitUtils';
 
 // Fetch user's cards with pagination
 export const fetchUserCards = createAsyncThunk(
@@ -16,8 +17,7 @@ export const fetchUserCards = createAsyncThunk(
 
       if (response.status === 429) {
         // Rate limit exceeded
-        const retryAfter = response.headers.get('retry-after') || '15 minutes';
-        throw new Error(`Rate limit exceeded. Please wait ${retryAfter} before trying again.`);
+        throw new Error(await getRateLimitMessage(response));
       }
 
       if (!response.ok) {

@@ -2,6 +2,7 @@ import { createAsyncThunk } from '@reduxjs/toolkit';
 import { API_BASE_URL } from '../../services/apiService';
 import { fetchCurrentUser, refreshSession } from '../../services/authService';
 import { clearAuth, getToken, normalizeUser, saveAuth } from '../../utils/authStorage';
+import { getRateLimitMessage } from '../../services/rateLimitUtils';
 
 const authUrl = (path) => `${API_BASE_URL}/auth${path}`;
 
@@ -155,8 +156,8 @@ export const login = createAsyncThunk(
       });
 
       if (response.status === 429) {
-        const retryAfter = response.headers.get('retry-after') || '15 minutes';
-        return rejectWithValue(`Rate limit exceeded. Please wait ${retryAfter} before trying again.`);
+        const message = await getRateLimitMessage(response);
+        return rejectWithValue(message);
       }
 
       const data = await response.json();

@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { rateLimitHandler } = require('./utils/rateLimitHelpers');
 const compression = require('compression');
 const morgan = require('morgan');
 const path = require('path');
@@ -82,28 +83,17 @@ app.use(compression({
   }
 }));
 
-// Rate limiting
+// Rate limiting (search endpoints are intentionally NOT rate limited)
 const limiter = rateLimit({
   windowMs: config.rateLimit.windowMs,
   max: config.rateLimit.max,
-  message: {
-    error: config.rateLimit.message,
-    retryAfter: Math.ceil(config.rateLimit.windowMs / 1000 / 60)
-  },
   standardHeaders: true,
   legacyHeaders: false,
-  handler: (req, res) => {
-    logger.security('Rate limit exceeded', {
-      ip: req.ip,
-      userAgent: req.get('User-Agent'),
-      url: req.url
-    });
-    res.status(429).json({
-      error: config.rateLimit.message,
-      retryAfter: Math.ceil(config.rateLimit.windowMs / 1000 / 60),
-      message: 'Rate limit exceeded. Please wait before making more requests.'
-    });
-  }
+  skip: (req) => req.path.startsWith('/api/search'),
+  handler: rateLimitHandler({
+    message: config.rateLimit.message,
+    logKey: 'Global rate limit exceeded'
+  })
 });
 
 app.use(limiter);

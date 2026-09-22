@@ -4,6 +4,7 @@ const router = express.Router();
 const authController = require('../controllers/authController');
 const { authenticate, checkUserActive } = require('../middleware/authMiddleware');
 const { profileUpdateLimiter } = require('../middleware/rateLimiter');
+const { rateLimitHandler } = require('../utils/rateLimitHelpers');
 const { upload, handleMulterError } = require('../utils/multerConfig');
 
 // In production impose a rate limit; in development bypass it for easier testing
@@ -11,18 +12,24 @@ const otpLimiter = process.env.NODE_ENV === 'production'
   ? rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 5,
-    message: { error: 'Too many OTP requests. Please try again later.' },
     standardHeaders: true,
     legacyHeaders: false,
+    handler: rateLimitHandler({
+      message: 'Too many OTP requests. Please try again later.',
+      logKey: 'OTP rate limit exceeded'
+    }),
   })
   : (req, res, next) => next();
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
-  message: { error: 'Too many authentication attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
+  handler: rateLimitHandler({
+    message: 'Too many authentication attempts. Please try again later.',
+    logKey: 'Auth rate limit exceeded'
+  }),
 });
 
 // Public routes
