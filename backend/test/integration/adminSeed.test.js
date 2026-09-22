@@ -14,16 +14,18 @@ afterAll(async () => {
 }, 30000);
 const bcrypt = require('bcryptjs');
 const Admin = require('../../src/models/adminModel');
-const { seedAdmin } = require('../../src/seeds/adminSeed');
+const { seedAdmin, getSeedCredentials } = require('../../src/seeds/adminSeed');
 
 describe('Admin seed and login', () => {
+  const creds = getSeedCredentials();
+
   test('seedAdmin creates default admin when collection empty', async () => {
     await seedAdmin();
-    const admin = await Admin.findOne({ email: 'suzan.privatespace@gmail.com' });
+    const admin = await Admin.findOne({ email: creds.email });
     expect(admin).toBeTruthy();
     expect(admin.name).toBe('System Admin');
     expect(admin.isVerified).toBe(true);
-    const valid = await bcrypt.compare('admin123', admin.password);
+    const valid = await bcrypt.compare(creds.password, admin.password);
     expect(valid).toBe(true);
   });
 
@@ -42,7 +44,7 @@ describe('Admin seed and login', () => {
       await seedAdmin();
       const admins = await Admin.find({});
       expect(admins).toHaveLength(1);
-      expect(admins[0].email).toBe('suzan.privatespace@gmail.com');
+      expect(admins[0].email).toBe(creds.email);
     } finally {
       process.argv = originalArgv;
     }
@@ -53,10 +55,10 @@ describe('Admin seed and login', () => {
     await seedAdmin();
     const res = await request(app)
       .post('/api/admin/login')
-      .send({ email: 'suzan.privatespace@gmail.com', password: 'admin123' });
+      .send({ email: creds.email, password: creds.password });
     expect(res.status).toBe(200);
     expect(res.body.requiresOTP).toBe(true);
-    expect(res.body.adminEmail).toBe('suzan.privatespace@gmail.com');
+    expect(res.body.adminEmail).toBe(creds.email);
     // In dev mode, devOtp is returned so we can complete login
     expect(res.body.devOtp).toBeDefined();
   });
