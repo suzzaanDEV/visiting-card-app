@@ -168,7 +168,7 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300" style={{ scrollBehavior: 'smooth' }}>
       <UnifiedNavigation />
 
       <HeroSection heroCard={heroCard} />
@@ -256,6 +256,15 @@ function HeroSection({ heroCard }) {
                 <span className="flex items-center gap-1.5"><FiCheck className="text-emerald-500" /> Free to create</span>
                 <span className="flex items-center gap-1.5"><FiCheck className="text-emerald-500" /> No app needed</span>
                 <span className="flex items-center gap-1.5"><FiCheck className="text-emerald-500" /> Share anywhere</span>
+              </div>
+            </Reveal>
+
+            <Reveal delay={0.5}>
+              <div className="flex flex-wrap items-center gap-2 mt-6 justify-center lg:justify-start">
+                <a href="#features" className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium transition-colors duration-150 hover:bg-slate-50 dark:hover:bg-slate-800">Features</a>
+                <a href="#templates" className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium transition-colors duration-150 hover:bg-slate-50 dark:hover:bg-slate-800">Templates</a>
+                <a href="#how-it-works" className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium transition-colors duration-150 hover:bg-slate-50 dark:hover:bg-slate-800">How It Works</a>
+                <a href="#discover" className="px-3.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-medium transition-colors duration-150 hover:bg-slate-50 dark:hover:bg-slate-800">Discover</a>
               </div>
             </Reveal>
           </div>

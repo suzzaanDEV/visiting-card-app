@@ -84,6 +84,10 @@ const userSchema = new mongoose.Schema({
     systemAlerts: { type: Boolean, default: true },
     weeklyDigest: { type: Boolean, default: false }
   },
+  broadcastEmailUnsubscribed: {
+    type: Boolean,
+    default: false
+  },
   // Add activity tracking fields
   lastLoginAt: {
     type: Date,

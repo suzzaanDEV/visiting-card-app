@@ -1,5 +1,5 @@
-import React, { Suspense, lazy } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import React, { Suspense, lazy, useEffect } from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
 
 import Layout from './components/Layout/Layout';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
@@ -31,6 +31,16 @@ const PageLoader = () => (
     <BrandLoader label="Loading page…" />
   </div>
 );
+
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+};
 
 const lazyPage = (factory) => lazy(factory);
 
@@ -74,6 +84,7 @@ function App() {
     <AuthInitializer>
       <MaintenanceGuard>
         <div className="App">
+          <ScrollToTop />
           <Routes>
             <Route index element={<LandingPage />} />
             <Route path="/" element={<Layout />}>

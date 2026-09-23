@@ -116,6 +116,11 @@ class TemplateService {
         };
       }
 
+      const existing = await Template.findOne({ id: data.id }).select('_id').lean();
+      if (existing) {
+        throw new Error('A template with this ID already exists. Please use a different ID or name.');
+      }
+
       const template = new Template({
         ...data,
         createdBy: adminId,

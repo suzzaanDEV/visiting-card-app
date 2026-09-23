@@ -178,6 +178,34 @@ function renderBroadcast({ title, message, imageUrl, ctaText, ctaUrl }) {
     return baseHtml({ title, preheader, bodyHtml, ctaText, ctaUrl, imageUrl });
 }
 
+// Tracking-capable broadcast email: open pixel, click-tracked CTA, one-click unsubscribe.
+function trackingOrigin() {
+    return process.env.TRACKING_BASE_URL || process.env.BACKEND_URL || process.env.FRONTEND_URL || 'http://localhost:5050';
+}
+
+function renderBroadcastEmail({ title, message, imageUrl, ctaText, ctaUrl, tracking = {} }) {
+    const { broadcastId, trackingId } = tracking;
+    const origin = trackingOrigin();
+    let trackedCtaUrl = ctaUrl || '';
+    if (broadcastId && trackingId && ctaUrl) {
+        trackedCtaUrl = `${origin}/api/tracking/broadcast/click/${encodeURIComponent(broadcastId)}/${encodeURIComponent(trackingId)}?url=${encodeURIComponent(ctaUrl)}`;
+    }
+
+    const preheader = message?.slice(0, 110) || '';
+    let bodyHtml = `<p class="body-copy" style="font-size:15px;line-height:1.65;color:#334155;margin:0 0 16px 0;">${escapeHtml(message)}</p>`;
+
+    if (broadcastId && trackingId) {
+        bodyHtml += `
+    <div style="display:none;font-size:0;line-height:0;max-height:0;opacity:0;overflow:hidden;">
+      <img src="${origin}/api/tracking/broadcast/px/${encodeURIComponent(broadcastId)}/${encodeURIComponent(trackingId)}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px;" />
+    </div>`;
+        bodyHtml += `
+    <p class="muted-copy" style="font-size:12px;line-height:1.6;color:#64748b;margin:16px 0 0 0;">You’re receiving this because you have a Cardly account. Not interested anymore? <a href="${origin}/api/tracking/broadcast/unsubscribe/${encodeURIComponent(broadcastId)}/${encodeURIComponent(trackingId)}" style="color:#64748b;text-decoration:underline;">Unsubscribe from broadcast emails</a>.</p>`;
+    }
+
+    return baseHtml({ title, preheader, bodyHtml, ctaText, ctaUrl: trackedCtaUrl, imageUrl });
+}
+
 function renderGeneric({ title, message, ctaText, ctaUrl, highlightColor }) {
     const preheader = message?.slice(0, 110) || '';
     const bodyHtml = `<p class="body-copy" style="font-size:15px;line-height:1.65;color:#334155;margin:0 0 16px 0;">${escapeHtml(message)}</p>`;
@@ -243,6 +271,7 @@ module.exports = {
     renderOtp,
     render2fa,
     renderBroadcast,
+    renderBroadcastEmail,
     renderGeneric,
     renderAdminCode,
     renderContactNotification,

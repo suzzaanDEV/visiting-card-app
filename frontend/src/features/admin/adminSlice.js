@@ -60,8 +60,9 @@ const adminSlice = createSlice({
     auditLogs: [],
     auditStats: null,
     categories: [],
-    broadcasts: { data: [], total: 0, page: 1, loading: false, error: null },
-    broadcastStats: null,
+broadcasts: { data: [], total: 0, page: 1, loading: false, error: null },
+  broadcastStats: null,
+  broadcastOverview: null,
     notificationTemplates: [],
     loading: false,
     error: null
@@ -309,6 +310,7 @@ const adminSlice = createSlice({
         if (idx !== -1) state.broadcasts.data[idx] = updated;
       })
       .addCase(adminThunks.fetchBroadcastStats.fulfilled, (state, action) => { state.broadcastStats = action.payload; })
+      .addCase(adminThunks.fetchBroadcastOverview.fulfilled, (state, action) => { state.broadcastOverview = action.payload; })
       // ─── Notification Templates ─────────────────────────────────────────
       .addCase(adminThunks.fetchNotificationTemplates.fulfilled, (state, action) => {
         state.notificationTemplates = action.payload.templates || action.payload.data || action.payload || [];

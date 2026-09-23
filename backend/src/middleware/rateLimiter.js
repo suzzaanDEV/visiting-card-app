@@ -27,15 +27,31 @@ exports.profileUpdateLimiter = rateLimit({
   }),
 });
 
-// Broadcast: 5 req/hour
+// Broadcast management actions (create/schedule/update): 30 req/hour.
+// Creating or scheduling a broadcast dispatches nothing by itself — the
+// aggressive cap is reserved for actual delivery dispatch (broadcastSendLimiter).
 exports.broadcastLimiter = rateLimit({
+  windowMs: 3600000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler({
+    message: 'Too many broadcast actions. Please try again later.',
+    fallbackMs: 3600000,
+    logKey: 'Broadcast action rate limit exceeded'
+  }),
+});
+
+// Broadcast delivery dispatch (send-now): 5 req/hour. This is the action that
+// actually queues delivery to every recipient, so it stays intentionally strict.
+exports.broadcastSendLimiter = rateLimit({
   windowMs: 3600000,
   max: 5,
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler({
-    message: 'Too many broadcasts. Please try again later.',
+    message: 'Too many broadcast sends. Please try again later.',
     fallbackMs: 3600000,
-    logKey: 'Broadcast rate limit exceeded'
+    logKey: 'Broadcast send rate limit exceeded'
   }),
 });

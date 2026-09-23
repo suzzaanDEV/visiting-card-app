@@ -23,7 +23,7 @@ function formatWait(seconds) {
 function rateLimitErrorBody(req, message = 'Too many requests, please try again later.', fallbackMs = 15 * 60 * 1000) {
   const seconds = Math.max(1, Math.ceil(remainingMs(req, fallbackMs) / 1000));
   return {
-    error: `Rate limit exceeded. Please wait ${formatWait(seconds)} before trying again.`,
+    error: `Too many requests. Please wait ${formatWait(seconds)} before trying again.`,
     message,
     retryAfter: seconds,
     retryAfterMinutes: Math.floor(seconds / 60)

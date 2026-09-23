@@ -4,105 +4,125 @@ import { Link, useNavigate } from 'react-router-dom';
 import { login, verifyTwoFactor } from '../../features/auth/authThunks';
 import { clearAuthError, clearTwoFactor } from '../../features/auth/authSlice';
 import { toast } from 'react-hot-toast';
-import { motion } from 'framer-motion';
-import { FaIdCard, FaEye, FaEyeSlash, FaEnvelope, FaLock, FaShieldAlt } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaIdCard } from 'react-icons/fa';
+import {
+  FiMail, FiLock, FiEye, FiEyeOff, FiShield, FiArrowLeft,
+  FiRefreshCw, FiCopy, FiCheck
+} from 'react-icons/fi';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
 import Card from '../../components/ui/Card';
+import OtpInput from '../../components/ui/OtpInput';
+import { isValidEmail } from '../../utils/validation';
+
+const OTP_EXPIRY_SECONDS = 300; // 5 minutes
+const RESEND_COOLDOWN = 30; // seconds
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [otp, setOtp] = useState('');
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
+  const [devOtp, setDevOtp] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(OTP_EXPIRY_SECONDS);
+  const [resendIn, setResendIn] = useState(0);
   const [isResending, setIsResending] = useState(false);
-  
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  
+
   const { isAuthenticated, isLoading, error, user, twoFactor } = useSelector((state) => state.auth);
 
-  // Countdown timer effect
+  // Countdown timer for OTP step
   useEffect(() => {
-    let interval;
-    if (twoFactor && timeLeft > 0) {
-      interval = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0 && twoFactor) {
-      // Timer expired, clear 2FA state
+    if (!twoFactor) return undefined;
+    if (timeLeft <= 0) {
       dispatch(clearTwoFactor());
       setOtp('');
       toast.error('Verification code expired. Please log in again.');
+      return undefined;
     }
+    const interval = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearInterval(interval);
   }, [twoFactor, timeLeft, dispatch]);
 
-  // Reset timer when twoFactor changes
+  // Entering OTP step: reset timers and load the dev OTP
   useEffect(() => {
     if (twoFactor) {
-      setTimeLeft(300);
+      setTimeLeft(OTP_EXPIRY_SECONDS);
+      setResendIn(RESEND_COOLDOWN);
+      setOtp('');
+      setDevOtp(twoFactor.devOtp || '');
+      setCopied(false);
     }
   }, [twoFactor]);
 
+  // Resend cooldown countdown
+  useEffect(() => {
+    if (resendIn <= 0) return undefined;
+    const t = setTimeout(() => setResendIn((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
+
+  // Post-auth redirect + error toasts
   useEffect(() => {
     if (isAuthenticated && user?.isEmailVerified === false && user?.email) {
       navigate('/verify-email', { state: { email: user.email } });
     } else if (isAuthenticated) {
       navigate('/dashboard');
     }
-    
-    // Show error toast if there's an error
+
     if (error) {
       toast.error(error);
       dispatch(clearAuthError());
     }
   }, [isAuthenticated, user, error, dispatch, navigate]);
 
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate inputs
     if (!email || !password) {
       toast.error('Please fill in all required fields');
       return;
     }
-    
-    // Prepare user data
-    const userData = { email, password };
-    dispatch(login(userData));
+    if (!isValidEmail(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    dispatch(login({ email: email.trim(), password }));
   };
 
   const handleOtpSubmit = async (e) => {
     e.preventDefault();
-    if (!otp) {
-      toast.error('Please enter the verification code');
-      return;
-    }
     if (otp.length !== 6) {
-      toast.error('Verification code must be 6 digits');
+      toast.error('Please enter the complete 6-digit code');
       return;
     }
-
     dispatch(verifyTwoFactor({ email: twoFactor.email, otp }));
   };
 
-  const handleResendOtp = async () => {
+  const handleResend = async () => {
+    if (resendIn > 0) return;
+    setIsResending(true);
     try {
-      setIsResending(true);
       const response = await fetch('/api/auth/resend-2fa-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: twoFactor.email })
+        body: JSON.stringify({ email: twoFactor.email }),
       });
       const data = await response.json();
       if (response.ok) {
-        setTimeLeft(300); // Reset timer
-        if (data.devOtp) {
-          dispatch({ type: 'auth/login/fulfilled', payload: { twoFactor: { ...twoFactor, devOtp: data.devOtp } } });
-        }
-        toast.success('New verification code sent');
+        setTimeLeft(OTP_EXPIRY_SECONDS);
+        if (data.devOtp) setDevOtp(data.devOtp);
+        setResendIn(RESEND_COOLDOWN);
+        toast.success(data.message || 'New verification code sent');
       } else {
         toast.error(data.error || 'Failed to resend code');
       }
@@ -113,10 +133,23 @@ const LoginPage = () => {
     }
   };
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  const handleBackToLogin = () => {
+    dispatch(clearTwoFactor());
+    setOtp('');
+    setDevOtp('');
+    setCopied(false);
+    setTimeLeft(OTP_EXPIRY_SECONDS);
+  };
+
+  const handleCopyOtp = async () => {
+    try {
+      await navigator.clipboard.writeText(devOtp);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+      toast.success('Code copied to clipboard');
+    } catch {
+      toast.error('Could not copy — tap the box and type the code');
+    }
   };
 
   return (
@@ -142,158 +175,183 @@ const LoginPage = () => {
           </p>
         </motion.div>
 
-        {/* Login/2FA Card */}
+        {/* Login / 2FA Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
           <Card elevation="lg" className="p-8">
-            {twoFactor ? (
-              <form onSubmit={handleOtpSubmit} className="space-y-6">
-                <div className="text-center">
-                  <div className="w-12 h-12 bg-brand-primary/10 dark:bg-emerald-950/30 rounded-full flex items-center justify-center mx-auto mb-3 text-brand-primary">
-                    <FaShieldAlt className="text-2xl" />
-                  </div>
-                  <h3 className="text-lg font-bold text-brand-text dark:text-white">Two-Factor Verification</h3>
-                  <p className="text-sm text-brand-textMuted mt-1">
-                    Code sent to <span className="text-brand-text font-semibold dark:text-emerald-400">{twoFactor.email}</span>
-                  </p>
-                  <div className="mt-2 text-sm font-medium text-brand-primary dark:text-emerald-400">
-                    Expires in {formatTime(timeLeft)}
-                  </div>
-                </div>
-
-                {twoFactor.devOtp && (
-                  <div className="rounded-xl border border-brand-warning/30 bg-brand-warning/10 dark:bg-amber-950/20 px-4 py-3 text-sm text-brand-warning text-center">
-                    <p className="font-semibold text-xs mb-1">⚠️ Dev OTP Code</p>
-                    <p className="text-2xl font-mono tracking-widest font-bold bg-brand-surface dark:bg-slate-900 border border-brand-warning/20 rounded py-2">
-                      {twoFactor.devOtp}
-                    </p>
-                    <p className="mt-1 text-[10px] text-brand-textMuted dark:text-slate-400">
-                      Shown because email delivery is disabled in development.
-                    </p>
-                  </div>
-                )}
-
-                <Input
-                  label="6-Digit Verification Code"
-                  id="otp"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  icon={FaShieldAlt}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  placeholder="000000"
-                  className="tracking-widest text-center text-xl font-bold"
-                  required
-                />
-
-                <Button
-                  type="submit"
-                  isLoading={isLoading}
-                  className="w-full justify-center"
+            <AnimatePresence mode="wait">
+              {twoFactor ? (
+                /* Step 2: OTP Verification */
+                <motion.form
+                  key="otp"
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -12 }}
+                  transition={{ duration: 0.2 }}
+                  onSubmit={handleOtpSubmit}
+                  className="space-y-5"
                 >
-                  Verify & Sign In
-                </Button>
+                  <div className="text-center">
+                    <div className="w-14 h-14 bg-brand-primary/10 dark:bg-emerald-950/30 rounded-full flex items-center justify-center mx-auto mb-3 ring-1 ring-brand-primary/30">
+                      <FiShield className="text-brand-primary dark:text-emerald-400 text-xl" />
+                    </div>
+                    <h3 className="text-lg font-bold text-brand-text dark:text-white">Two-Factor Verification</h3>
+                    <p className="text-sm text-brand-textMuted mt-1">
+                      Code sent to <span className="text-brand-text font-semibold dark:text-emerald-400 break-all">{twoFactor.email}</span>
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-brand-primary dark:text-emerald-400">
+                      Expires in {formatTime(timeLeft)}
+                    </p>
+                  </div>
 
-                <div className="flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={handleResendOtp}
-                    disabled={isResending || timeLeft > 240} // Allow resend after 1 minute
-                    className="w-full text-center text-sm font-semibold text-brand-primary hover:text-brand-primaryHover transition-colors disabled:text-brand-textMuted disabled:cursor-not-allowed"
+                  <AnimatePresence>
+                    {devOtp && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="flex items-center justify-between gap-3 bg-emerald-500/10 border border-emerald-400/30 rounded-xl px-4 py-3">
+                          <div>
+                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-300 uppercase tracking-wider mb-0.5">
+                              Dev Code
+                            </p>
+                            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-200 tracking-[0.3em] font-mono">{devOtp}</p>
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <button
+                              type="button"
+                              onClick={() => { setOtp(devOtp); }}
+                              className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-600 dark:text-emerald-200 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                            >
+                              Auto-fill
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCopyOtp}
+                              className="flex items-center justify-center gap-1 text-slate-400 hover:text-brand-text dark:hover:text-white text-xs transition-colors cursor-pointer"
+                            >
+                              {copied ? <FiCheck className="h-3.5 w-3.5 text-emerald-500" /> : <FiCopy className="h-3.5 w-3.5" />}
+                              {copied ? 'Copied' : 'Copy'}
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div>
+                    <label className="block text-sm font-medium text-brand-text dark:text-slate-300 mb-3 text-center">
+                      6-Digit Verification Code
+                    </label>
+                    <OtpInput
+                      value={otp}
+                      onChange={setOtp}
+                      autoFocus
+                      disabled={isLoading || isResending}
+                    />
+                    <p className="text-xs text-brand-textMuted text-center mt-3">
+                      {resendIn > 0
+                        ? `You can request a new code in ${resendIn}s`
+                        : 'Code expires in 5 minutes'}
+                    </p>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    isLoading={isLoading}
+                    disabled={otp.length !== 6}
+                    className="w-full justify-center"
                   >
-                    {isResending ? 'Sending...' : timeLeft <= 240 ? 'Resend Code' : `Resend available in ${formatTime(Math.max(0, timeLeft - 240))}`}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      dispatch(clearTwoFactor());
-                      setOtp('');
-                      setTimeLeft(300);
-                    }}
-                    className="w-full text-center text-sm font-semibold text-brand-primary hover:text-brand-primaryHover transition-colors"
-                  >
-                    ← Back to Login
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Email Field */}
-                <Input
-                  label="Email Address"
-                  id="email"
-                  type="email"
-                  icon={FaEnvelope}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  required
-                />
-                
-                {/* Password Field */}
-                <Input
-                  label="Password"
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  icon={FaLock}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                  rightElement={
+                    Verify & Sign In
+                  </Button>
+
+                  <div className="flex items-center gap-3">
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="p-1 rounded text-brand-textMuted hover:text-brand-primary transition-colors cursor-pointer"
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      onClick={handleBackToLogin}
+                      className="flex-1 flex items-center justify-center text-brand-textMuted hover:text-brand-text dark:hover:text-white transition-colors py-2.5 rounded-lg border border-brand-border dark:border-slate-700 cursor-pointer"
                     >
-                      {showPassword ? <FaEyeSlash className="h-5 w-5" /> : <FaEye className="h-5 w-5" />}
+                      <FiArrowLeft className="mr-2 h-4 w-4" />
+                      Back
                     </button>
-                  }
-                />
-                
-                {/* Submit Button */}
-                <Button
-                  type="submit"
-                  isLoading={isLoading}
-                  className="w-full justify-center"
-                >
-                  Sign In
-                </Button>
-              </form>
-            )}
-
-            {/* Divider */}
-            {!twoFactor && (
-              <>
-                <div className="my-6">
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-brand-border dark:border-slate-800"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="px-3 bg-brand-surface dark:bg-slate-800 text-brand-textMuted font-semibold">
-                        Account Access
-                      </span>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleResend}
+                      disabled={resendIn > 0 || isResending}
+                      className="flex-1 flex items-center justify-center gap-2 text-brand-textMuted hover:text-brand-primary dark:hover:text-emerald-400 disabled:text-brand-textMuted/50 disabled:cursor-not-allowed transition-colors py-2.5 rounded-lg border border-brand-border dark:border-slate-700 cursor-pointer"
+                    >
+                      <FiRefreshCw className={`h-4 w-4 ${isResending ? 'animate-spin' : ''}`} />
+                      {isResending ? 'Sending...' : resendIn > 0 ? `Resend in ${resendIn}s` : 'Resend code'}
+                    </button>
                   </div>
-                </div>
+                </motion.form>
+              ) : (
+                /* Step 1: Credentials */
+                <motion.form
+                  key="credentials"
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 12 }}
+                  transition={{ duration: 0.2 }}
+                  onSubmit={handleSubmit}
+                  className="space-y-6"
+                >
+                  <Input
+                    label="Email Address"
+                    id="email"
+                    type="email"
+                    icon={FiMail}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    required
+                  />
 
-                {/* Link to Forgot Password */}
-                <div className="text-center">
-                  <Link 
-                    to="/forgot-password" 
-                    className="text-sm text-brand-primary hover:text-brand-primaryHover font-medium transition-colors"
+                  <Input
+                    label="Password"
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    icon={FiLock}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    required
+                    rightElement={
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="p-1 rounded text-brand-textMuted hover:text-brand-primary transition-colors cursor-pointer"
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <FiEyeOff className="h-5 w-5" /> : <FiEye className="h-5 w-5" />}
+                      </button>
+                    }
+                  />
+
+                  <Button
+                    type="submit"
+                    isLoading={isLoading}
+                    className="w-full justify-center"
                   >
-                    Forgot Password?
-                  </Link>
-                </div>
-              </>
-            )}
+                    Sign In
+                  </Button>
+
+                  <div className="text-center">
+                    <Link
+                      to="/forgot-password"
+                      className="text-sm text-brand-primary hover:text-brand-primaryHover font-medium transition-colors"
+                    >
+                      Forgot Password?
+                    </Link>
+                  </div>
+                </motion.form>
+              )}
+            </AnimatePresence>
           </Card>
         </motion.div>
 

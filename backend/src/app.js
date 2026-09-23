@@ -30,6 +30,7 @@ const crmRoutes = require('./routes/crmRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const broadcastRoutes = require('./routes/broadcastRoutes');
 const notificationTemplateRoutes = require('./routes/notificationTemplateRoutes');
+const trackingRoutes = require('./routes/trackingRoutes');
 
 // Import middleware
 const errorMiddleware = require('./middleware/errorMiddleware');
@@ -113,6 +114,9 @@ app.use(express.urlencoded({
 // Input sanitization middleware (after body parsing, before routes)
 const sanitize = require('./middleware/sanitize');
 app.use(sanitize);
+
+// Public engagement tracking routes (stay reachable during maintenance so emails keep working)
+app.use('/api/tracking', trackingRoutes);
 
 // Maintenance mode gate (admin routes + health + policy pages stay reachable)
 const maintenanceMiddleware = require('./middleware/maintenanceMiddleware');
@@ -418,17 +422,14 @@ if (process.env.NODE_ENV !== 'test') {
     });
   }, 24 * 60 * 60 * 1000);
 
-  // Broadcast scheduler — check for due scheduled broadcasts every minute
+  // Broadcast scheduler — poll every 30s (immediate first run so due broadcasts aren't delayed)
   const broadcastService = require('./services/broadcastService');
-  setInterval(async () => {
-    try {
-      const Broadcast = require('./models/broadcastModel');
-      const due = await Broadcast.find({ status: 'scheduled', scheduledAt: { $lte: new Date() } });
-      for (const b of due) {
-        broadcastService.sendBroadcast(b._id).catch(err => logger.error(`Broadcast send failed: ${err.message}`));
-      }
-    } catch (err) { /* ignore */ }
-  }, 60000);
+  const pollBroadcasts = () => {
+    broadcastService.pollDueBroadcasts()
+      .catch(err => logger.warn(`Broadcast poll failed: ${err.message}`));
+  };
+  pollBroadcasts();
+  setInterval(pollBroadcasts, 30000);
 }
 
 module.exports = { app, startServer, gracefulShutdown };

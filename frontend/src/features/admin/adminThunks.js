@@ -515,10 +515,11 @@ export const fetchCategoriesAdmin = createAsyncThunk('admin/fetchCategories', as
 // ─── Broadcasts ───────────────────────────────────────────────────────────────
 export const fetchBroadcasts = createAsyncThunk(
   'admin/fetchBroadcasts',
-  async ({ page = 1, limit = 20, status = '' } = {}, { rejectWithValue }) => {
+  async ({ page = 1, limit = 20, status = '', q = '', sort = 'newest' } = {}, { rejectWithValue }) => {
     try {
-      const params = new URLSearchParams({ page, limit });
+      const params = new URLSearchParams({ page, limit, sort });
       if (status) params.append('status', status);
+      if (q) params.append('q', q);
       const res = await adminFetch(`/admin/broadcasts?${params}`, {
       });
       if (!res.ok) throw new Error('Failed to fetch broadcasts');
@@ -613,11 +614,40 @@ export const cancelBroadcast = createAsyncThunk(
 
 export const fetchBroadcastStats = createAsyncThunk(
   'admin/fetchBroadcastStats',
-  async (id, { rejectWithValue }) => {
+  async ({ id, status = '', page = 1, limit = 20 } = {}, { rejectWithValue }) => {
     try {
-      const res = await adminFetch(`/admin/broadcasts/${id}/delivery`, {
+      const params = new URLSearchParams({ page, limit });
+      if (status) params.append('status', status);
+      const res = await adminFetch(`/admin/broadcasts/${id}/delivery?${params}`, {
       });
       if (!res.ok) throw new Error('Failed to fetch broadcast delivery stats');
+      return await res.json();
+    } catch (error) { return rejectWithValue(error.message); }
+  }
+);
+
+export const fetchBroadcastOverview = createAsyncThunk(
+  'admin/fetchBroadcastOverview',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await adminFetch('/admin/broadcasts/stats', {
+      });
+      if (!res.ok) throw new Error('Failed to fetch broadcast overview');
+      return await res.json();
+    } catch (error) { return rejectWithValue(error.message); }
+  }
+);
+
+export const previewBroadcast = createAsyncThunk(
+  'admin/previewBroadcast',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const res = await adminFetch('/admin/broadcasts/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Failed to render preview'); }
       return await res.json();
     } catch (error) { return rejectWithValue(error.message); }
   }

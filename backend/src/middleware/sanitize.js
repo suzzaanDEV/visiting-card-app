@@ -1,15 +1,20 @@
+// Fields that legitimately carry rich HTML (admin broadcast email composer).
+// These are NOT served on Cardly pages — they render inside email clients (no XSS surface).
+const ALLOW_HTML_HINTS = ['emailHtml', 'emailHtmlBody', 'richContent'];
+
 const stripHtml = (str) => {
   if (typeof str !== 'string') return str;
   return str.replace(/<[^>]*>/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').trim();
 };
 
-const sanitizeValue = (val) => {
+const sanitizeValue = (val, allowHtml = false) => {
+  if (allowHtml) return val;
   if (typeof val === 'string') return stripHtml(val);
-  if (Array.isArray(val)) return val.map(sanitizeValue);
+  if (Array.isArray(val)) return val.map((item) => sanitizeValue(item, allowHtml));
   if (val && typeof val === 'object' && !(val instanceof Date) && !Buffer.isBuffer(val)) {
     const clean = {};
     for (const [k, v] of Object.entries(val)) {
-      clean[k] = sanitizeValue(v);
+      clean[k] = sanitizeValue(v, ALLOW_HTML_HINTS.includes(k));
     }
     return clean;
   }
