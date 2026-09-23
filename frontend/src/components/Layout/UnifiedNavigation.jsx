@@ -14,13 +14,14 @@ import { useTheme } from '../../context/ThemeContext';
 import Dropdown from '../ui/Dropdown';
 import { API_BASE_URL } from '../../services/apiService';
 
-// Landing page section anchors (used when on the homepage)
+// Landing page section anchors (used when on the homepage). Use `to` instead of
+// `hash` for entries that must navigate to a real page rather than scroll.
 const SECTION_LINKS = [
   { label: 'Features', hash: '#features' },
   { label: 'Templates', hash: '#templates' },
   { label: 'How It Works', hash: '#how-it-works' },
   { label: 'Discover', hash: '#discover' },
-  { label: 'Contact', hash: '#contact' },
+  { label: 'Contact', to: '/contact' },
 ];
 
 const UnifiedNavigation = () => {
@@ -103,7 +104,15 @@ const UnifiedNavigation = () => {
             <div className="flex items-center gap-1">
               {isHome ? (
                 <>
-                  {SECTION_LINKS.map(link => (
+                  {SECTION_LINKS.map(link => link.to ? (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150 ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}
+                    >
+                      {link.label}
+                    </Link>
+                  ) : (
                     <a
                       key={link.hash}
                       href={link.hash}
@@ -133,6 +142,16 @@ const UnifiedNavigation = () => {
                     }
                   `}>
                     <FiSearch className="inline mr-1 h-3.5 w-3.5 -mt-0.5" />Search
+                  </NavLink>
+
+                  <NavLink to="/contact" className={({ isActive }) => `
+                    px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150
+                    ${isActive
+                      ? hero ? 'bg-white/15 text-white' : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      : `${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`
+                    }
+                  `}>
+                    Contact
                   </NavLink>
                 </>
               )}
@@ -275,7 +294,16 @@ const UnifiedNavigation = () => {
         {mobileMenuOpen && (
           <div className="bg-white dark:bg-slate-900 border-b border-gray-200 dark:border-slate-800 shadow-lg">
             <div className="px-4 py-3 space-y-1">
-              {isHome && SECTION_LINKS.map(link => (
+              {isHome && SECTION_LINKS.map(link => link.to ? (
+                <Link
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}
+                >
+                  {link.label}
+                </Link>
+              ) : (
                 <a
                   key={link.hash}
                   href={link.hash}
@@ -292,6 +320,9 @@ const UnifiedNavigation = () => {
                   </Link>
                   <Link to="/search" onClick={() => setMobileMenuOpen(false)} className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}>
                     Search
+                  </Link>
+                  <Link to="/contact" onClick={() => setMobileMenuOpen(false)} className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}>
+                    Contact
                   </Link>
                 </>
               )}
