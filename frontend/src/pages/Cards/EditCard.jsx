@@ -132,7 +132,7 @@ const EditCard = () => {
       setSkills(Array.isArray(card.skills) ? card.skills : []);
       setServices(Array.isArray(card.services) ? card.services : []);
       setProducts(Array.isArray(card.products) ? card.products : []);
-      setSelectedTemplate(card.templateId || 'default');
+      setSelectedTemplate(card.templateId || '');
     }
   }, [currentCard]);
 
@@ -171,9 +171,37 @@ const EditCard = () => {
 
   const handleTemplateSelect = (template) => {
     setSelectedTemplate(template.id);
+    const td = (template.design) || {};
+    setFormData(prev => ({
+      ...prev,
+      templateId: template.id,
+      backgroundColor: td.backgroundColor || prev.backgroundColor || '#10B981',
+      textColor: td.textColor || prev.textColor || '#ffffff',
+      fontFamily: td.fontFamily || prev.fontFamily || 'Arial'
+    }));
     if (errors.templateId) {
       setErrors(prev => ({ ...prev, templateId: '' }));
     }
+  };
+
+  const selectedTemplateObj = templates.find(t => (t.id || t._id) === selectedTemplate) || null;
+
+  // Build the cardDesign used by both the live preview and the saved card so the
+  // selected template's visual design is actually applied. Values the user sets via
+  // the Visual Configurations selects win over the template for the shared fields
+  // (backgroundColor/textColor/fontFamily); template accent/layout/borderRadius apply
+  // unless the form overrides them.
+  const buildCardDesign = () => {
+    const td = (selectedTemplateObj && selectedTemplateObj.design) || {};
+    return {
+      backgroundColor: formData.backgroundColor || td.backgroundColor || '#10B981',
+      textColor: formData.textColor || td.textColor || '#ffffff',
+      accentColor: td.accentColor || formData.accentColor || '#047857',
+      fontFamily: formData.fontFamily || td.fontFamily || 'Inter',
+      backgroundImage: td.backgroundImage || formData.backgroundImage || '',
+      borderRadius: td.borderRadius != null ? `${td.borderRadius}px` : (formData.borderRadius || '12px'),
+      layout: td.layout || formData.layout || 'standard'
+    };
   };
 
   const validateForm = () => {
@@ -185,7 +213,7 @@ const EditCard = () => {
     if (!formData.fullName.trim()) {
       newErrors.fullName = 'Full name is required';
     }
-    if (!selectedTemplate) {
+    if (!selectedTemplateObj) {
       newErrors.templateId = 'Please select a template';
     }
     if (formData.email && !isValidEmail(formData.email)) {
@@ -217,7 +245,8 @@ const EditCard = () => {
           skills,
           services,
           products,
-          templateId: selectedTemplate,
+          templateId: selectedTemplateObj ? selectedTemplateObj.id : '',
+          cardDesign: buildCardDesign(),
           privacy: formData.privacy,
           isPublic: formData.privacy === 'public'
         }
@@ -672,15 +701,7 @@ const EditCard = () => {
                       ...formData,
                       tags: [...skills, ...services, ...products],
                       socialLinks: {},
-                      cardDesign: {
-                        backgroundColor: formData.backgroundColor || '#10B981',
-                        textColor: formData.textColor || '#ffffff',
-                        accentColor: '#047857',
-                        fontFamily: formData.fontFamily || 'Inter',
-                        backgroundImage: '',
-                        borderRadius: '12px',
-                        layout: 'standard'
-                      }
+                      cardDesign: buildCardDesign()
                     }}
                     mode="editor"
                     className="w-full h-full"

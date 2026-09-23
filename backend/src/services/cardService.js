@@ -67,6 +67,37 @@ class CardService {
     try {
       const shortLink = customShortLink || await shortLinkGenerator.generate();
 
+      // Resolve the selected template so the card inherits its visual design when the
+      // client does not provide an explicit cardDesign (AddCard sends only a templateId).
+      let resolvedTemplate = null;
+      if (templateId) {
+        try {
+          resolvedTemplate = await Template.findOne({ id: templateId, isActive: true });
+          if (!resolvedTemplate && mongoose.Types.ObjectId.isValid(templateId)) {
+            resolvedTemplate = await Template.findById(templateId);
+          }
+        } catch (templateError) {
+          logger.warn(`Template lookup failed for templateId ${templateId} during createCard: ${templateError.message}`);
+        }
+      }
+      const design = (resolvedTemplate && resolvedTemplate.design) || {};
+      const useTemplateDesign = Boolean(resolvedTemplate) && !cardDesignInput;
+
+      const cardBg = useTemplateDesign ? (design.backgroundColor || backgroundColor || '#ffffff') : (backgroundColor || '#ffffff');
+      const cardText = useTemplateDesign ? (design.textColor || textColor || '#000000') : (textColor || '#000000');
+      const cardFont = useTemplateDesign ? (design.fontFamily || fontFamily || 'Arial') : (fontFamily || 'Arial');
+      const cardDesignFinal = cardDesignInput || {
+        backgroundColor: cardBg,
+        textColor: cardText,
+        accentColor: useTemplateDesign ? (design.accentColor || '#047857') : '#047857',
+        fontFamily: useTemplateDesign ? (design.fontFamily || 'Inter') : (fontFamily || 'Inter'),
+        backgroundImage: useTemplateDesign ? (design.backgroundImage || '') : '',
+        borderRadius: useTemplateDesign
+          ? (design.borderRadius != null ? `${design.borderRadius}px` : '12px')
+          : '12px',
+        layout: useTemplateDesign ? (design.layout || 'standard') : 'standard'
+      };
+
       const card = new Card({
         ownerUserId: userId,
         title,
@@ -88,24 +119,16 @@ class CardService {
         tagline,
         companyTagline,
         socialLinks: socialLinks || {},
-        backgroundColor: backgroundColor || '#ffffff',
-        textColor: textColor || '#000000',
-        fontFamily: fontFamily || 'Arial',
-        cardDesign: cardDesignInput || {
-          backgroundColor: backgroundColor || '#ffffff',
-          textColor: textColor || '#000000',
-          accentColor: '#047857',
-          fontFamily: fontFamily || 'Inter',
-          backgroundImage: '',
-          borderRadius: '12px',
-          layout: 'standard'
-        },
+        backgroundColor: cardBg,
+        textColor: cardText,
+        fontFamily: cardFont,
+        cardDesign: cardDesignFinal,
         shortLink,
         isPublic: privacy === 'public',
         isPrivate: privacy === 'private',
         privacy,
-        templateId,
-        templateName,
+        templateId: templateId || null,
+        templateName: resolvedTemplate ? resolvedTemplate.name : (templateName || ''),
         // Normalize category: accept slug, id, or name and store as slug
         category: await (async () => {
           try {

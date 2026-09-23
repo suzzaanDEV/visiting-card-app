@@ -77,7 +77,7 @@ const AddCard = () => {
     textColor: '#ffffff',
     fontFamily: 'Arial',
     privacy: 'public',
-    templateId: 'default',
+    templateId: '',
     category: '',
     industry: '',
     profession: '',
@@ -135,7 +135,7 @@ const AddCard = () => {
     if (!formData.title.trim()) {
       newErrors.title = 'Card title is required';
     }
-    if (!formData.templateId) {
+    if (!templates.some(t => (t.id || t._id) === formData.templateId)) {
       newErrors.templateId = 'Please select a template';
     }
     if (formData.email && !isValidEmail(formData.email)) {
@@ -436,39 +436,9 @@ const AddCard = () => {
                           {tmpl.isPremium && <span className="text-[9px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full mt-1 inline-block">Premium</span>}
                         </div>
                       </label>
-                    )) : [
-                      { id: 'default', name: 'Classic Design', desc: 'Symmetric professional template' },
-                      { id: 'modern', name: 'Modern Style', desc: 'Asymmetric stylish template' },
-                      { id: 'minimal', name: 'Minimalist', desc: 'Simple elegant details template' },
-                      { id: 'creative', name: 'Creative Accent', desc: 'Bold gradients artist template' }
-                    ].map((item) => (
-                      <label
-                        key={item.id}
-                        className={`relative p-3.5 border rounded-xl cursor-pointer transition-all flex items-start gap-3 select-none ${
-                          formData.templateId === item.id 
-                            ? 'border-brand-primary bg-brand-primary/5 dark:bg-brand-primary/10' 
-                            : 'border-brand-border dark:border-slate-700 bg-brand-surface dark:bg-slate-850 hover:border-brand-primary/45'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="templateId"
-                          value={item.id}
-                          checked={formData.templateId === item.id}
-                          onChange={handleInputChange}
-                          className="sr-only"
-                        />
-                        <div className={`w-4 h-4 border rounded-full mt-0.5 flex items-center justify-center flex-shrink-0 ${
-                          formData.templateId === item.id ? 'border-brand-primary bg-brand-primary text-white' : 'border-brand-border'
-                        }`}>
-                          {formData.templateId === item.id && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-bold text-xs text-brand-text dark:text-white truncate">{item.name}</p>
-                          <p className="text-[10px] text-brand-textMuted mt-0.5 leading-normal">{item.desc}</p>
-                        </div>
-                      </label>
-                    ))}
+                    )) : (
+                      <p className="text-xs text-brand-textMuted col-span-full py-2">No templates available. Please try again later.</p>
+                    )}
                   </div>
                 </div>
 

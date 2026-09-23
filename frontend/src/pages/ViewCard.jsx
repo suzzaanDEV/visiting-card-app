@@ -34,8 +34,21 @@ const ViewCard = () => {
   useEffect(() => {
     if (currentCard) {
       const cardData = currentCard.card || currentCard;
+      const linkedCardDesign = (currentCard.cardDesign && currentCard.cardDesign.backgroundColor)
+        ? {
+            backgroundColor: currentCard.cardDesign.backgroundColor,
+            textColor: currentCard.cardDesign.textColor,
+            fontFamily: currentCard.cardDesign.fontFamily,
+            accentColor: currentCard.cardDesign.accentColor || '#047857',
+            borderRadius: currentCard.cardDesign.borderRadius || '12px',
+            layout: currentCard.cardDesign.layout || 'standard'
+          }
+        : null;
+      const hasEmbeddedDesign = cardData.cardDesign && (cardData.cardDesign.backgroundColor || Object.keys(cardData.cardDesign).length > 0);
       setCard({
         ...cardData,
+        ...(currentCard.template ? { template: currentCard.template } : {}),
+        ...(hasEmbeddedDesign ? {} : (linkedCardDesign ? { cardDesign: linkedCardDesign } : {})),
         access: currentCard.access || cardData.access,
       });
     }
