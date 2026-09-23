@@ -882,11 +882,6 @@ const SearchPage = () => {
                               {[card.jobTitle, card.company].filter(Boolean).join(' at ')}
                             </p>
                           )}
-                          {card.similarityScore != null && card.similarityScore > 0 && (
-                            <span className="inline-block mt-1.5 px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">
-                              {Math.min(100, Math.round(card.similarityScore))}% match
-                            </span>
-                          )}
                         </div>
                         <div className="p-4 mt-auto">
                           <a

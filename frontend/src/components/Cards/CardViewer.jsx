@@ -958,12 +958,6 @@ const CardViewer = ({ card, isLoved = false }) => {
                           </p>
                         </div>
                       </div>
-                      {rc.similarityScore != null && rc.similarityScore > 0 && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold uppercase">
-                          <FiStar className="w-3 h-3" />
-                          {Math.min(100, Math.round(rc.similarityScore))}% similar
-                        </span>
-                      )}
                     </Link>
                   ))}
                 </div>

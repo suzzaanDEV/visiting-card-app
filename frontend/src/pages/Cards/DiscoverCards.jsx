@@ -344,14 +344,8 @@ const DiscoverCards = () => {
         <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
           <div className="flex items-center gap-3">
             <h2 className="text-xl font-bold text-brand-text dark:text-white">
-              {discover.personalized ? 'Recommended for you' : 'Professionals found'}
+              Professionals found
             </h2>
-            {discover.personalized && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 text-xs font-bold uppercase tracking-wide">
-                <FiStar className="h-3 w-3" />
-                Personalized
-              </span>
-            )}
           </div>
           <span className="text-xs font-semibold text-brand-textMuted uppercase">
             {filteredCards.length} results · Page {currentPage} of {totalPages}

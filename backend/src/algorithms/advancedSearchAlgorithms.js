@@ -150,11 +150,7 @@ class AdvancedSearchAlgorithms {
             tfidfScore: 1,
             'owner.username': 1,
             'owner.email': 1,
-            'owner.name': 1,
-            _titleWords: 0,
-            _nameWords: 0,
-            _jobWords: 0,
-            _companyWords: 0
+            'owner.name': 1
           }
         }
       ];
@@ -363,12 +359,7 @@ class AdvancedSearchAlgorithms {
             bm25Score: 1,
             'owner.username': 1,
             'owner.email': 1,
-            'owner.name': 1,
-            _titleWords: 0,
-            _nameWords: 0,
-            _titleLen: 0,
-            _nameLen: 0,
-            docLength: 0
+            'owner.name': 1
           }
         }
       ];
@@ -669,9 +660,7 @@ class AdvancedSearchAlgorithms {
             fuzzyScore: 1,
             'owner.username': 1,
             'owner.email': 1,
-            'owner.name': 1,
-            _titleWords: 0,
-            _nameWords: 0
+            'owner.name': 1
           }
         }
       ];
