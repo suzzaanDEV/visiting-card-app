@@ -126,6 +126,9 @@ class TemplateService {
       logger.info(`Template created: ${template.name}`);
       return template;
     } catch (error) {
+      if (error.code === 11000 || (error.message && error.message.includes('E11000'))) {
+        throw new Error('A template with this ID already exists. Please use a different ID or name.');
+      }
       logger.error(`Create template error: ${error.message}`);
       throw error;
     }

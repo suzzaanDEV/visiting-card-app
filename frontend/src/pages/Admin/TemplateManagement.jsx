@@ -79,8 +79,15 @@ const TemplateManagement = () => {
     setSubmitting(true);
     
     try {
+      const slugify = (str) => (str || '')
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '')
+        .replace(/-+/g, '-');
+
       const payload = {
-        id: formData.id || formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+        id: slugify(formData.id) || slugify(formData.name) || `template-${Date.now()}`,
         name: formData.name,
         description: formData.description,
         category: formData.category,
@@ -231,7 +238,7 @@ const TemplateManagement = () => {
 
   const filteredTemplates = Array.isArray(templates) ? templates.filter(template => {
     const matchesSearch = template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         template.description.toLowerCase().includes(searchTerm.toLowerCase());
+                         (template.description || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = !selectedCategory || template.category === selectedCategory;
     return matchesSearch && matchesCategory;
   }) : [];
@@ -344,14 +351,13 @@ const TemplateManagement = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                      Template ID *
+                      Template ID
                     </label>
                     <input
                       type="text"
                       name="id"
                       value={formData.id}
                       onChange={handleInputChange}
-                      required
                       disabled={!!editingTemplate}
                       placeholder="auto-generated from name"
                       className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:opacity-50"
@@ -396,13 +402,14 @@ const TemplateManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">
-                    Description
+                    Description *
                   </label>
                   <textarea
                     name="description"
                     value={formData.description}
                     onChange={handleInputChange}
                     rows="2"
+                    required
                     className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   />
                 </div>
@@ -419,6 +426,9 @@ const TemplateManagement = () => {
                         <option value="modern">Modern</option>
                         <option value="minimal">Minimal</option>
                         <option value="bold">Bold</option>
+                        <option value="creative">Creative</option>
+                        <option value="premium">Premium</option>
+                        <option value="showcase">Showcase</option>
                       </select>
                     </div>
                     <div>
