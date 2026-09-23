@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { motion } from 'framer-motion';
 import { updateCard, fetchCard, fetchCardTemplates } from '../../features/cards/cardsThunks';
 import { setCurrentCard } from '../../features/cards/cardsSlice';
-import TemplateSelector from '../../components/TemplateSelector';
 import CardRenderer from '../../components/Cards/CardRenderer';
 import BrandLoader from '../../components/ui/BrandLoader';
 import Card from '../../components/ui/Card';
@@ -546,11 +545,40 @@ const EditCard = () => {
                     <p className="text-xs text-brand-danger mb-3">{errors.templateId}</p>
                   )}
 
-                  <TemplateSelector
-                    templates={templates || []}
-                    selectedTemplateId={selectedTemplate}
-                    onTemplateSelect={handleTemplateSelect}
-                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(templates && templates.length > 0 ? templates : []).map((tmpl) => (
+                      <label
+                        key={tmpl.id || tmpl._id}
+                        className={`relative p-3.5 border rounded-xl cursor-pointer transition-all flex items-start gap-3 select-none ${
+                          selectedTemplate === (tmpl.id || tmpl._id)
+                            ? 'border-brand-primary bg-brand-primary/5 dark:bg-brand-primary/10'
+                            : 'border-brand-border dark:border-slate-700 bg-brand-surface dark:bg-slate-850 hover:border-brand-primary/45'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="templateId"
+                          value={tmpl.id || tmpl._id}
+                          checked={selectedTemplate === (tmpl.id || tmpl._id)}
+                          onChange={() => handleTemplateSelect(tmpl)}
+                          className="sr-only"
+                        />
+                        <div className={`w-4 h-4 border rounded-full mt-0.5 flex items-center justify-center flex-shrink-0 ${
+                          selectedTemplate === (tmpl.id || tmpl._id) ? 'border-brand-primary bg-brand-primary text-white' : 'border-brand-border'
+                        }`}>
+                          {selectedTemplate === (tmpl.id || tmpl._id) && <div className="w-1.5 h-1.5 bg-white rounded-full"></div>}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-xs text-brand-text dark:text-white truncate">{tmpl.name}</p>
+                          <p className="text-[10px] text-brand-textMuted mt-0.5 leading-normal">{tmpl.description || tmpl.category || 'Card template'}</p>
+                          {tmpl.isPremium && <span className="text-[9px] bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full mt-1 inline-block">Premium</span>}
+                        </div>
+                      </label>
+                    ))}
+                    {(!templates || templates.length === 0) && (
+                      <p className="text-xs text-brand-textMuted col-span-full py-2">No templates available. Please try again later.</p>
+                    )}
+                  </div>
                 </Card>
 
                 {/* Privacy */}
