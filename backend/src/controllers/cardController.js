@@ -439,14 +439,21 @@ exports.getCardByShortLink = async (req, res, next) => {
     // same card by the same user/visitor within the dedup window is not a view.
     const { userId } = decodeViewer(req);
     const event = await recordAnalytics(result?.card?._id, 'view', userId, req, DEDUP_VIEW_MS);
-    if (result?.card && event && !event.deduplicated) {
+    if (result?.card && event && !event.deduplicated && typeof result.card.incrementViews === 'function') {
       await result.card.incrementViews();
     }
 
+    // Resolve isLoved while `result.card` is still the Mongoose document:
+    // applyPrivateCardAccess() may replace it with a sanitized plain object,
+    // which has no document methods (isLovedByUser, incrementViews, ...).
+    const isLoved = userId && typeof result?.card?.isLovedByUser === 'function'
+      ? result.card.isLovedByUser(userId)
+      : false;
+
     const payload = await applyPrivateCardAccess(result, userId);
     if (userId && payload.card) {
-      const cardObj = payload.card.toObject ? payload.card.toObject() : payload.card;
-      cardObj.isLoved = await result.card.isLovedByUser(userId);
+      const cardObj = payload.card.toObject ? payload.card.toObject() : { ...payload.card };
+      cardObj.isLoved = isLoved;
       payload.card = cardObj;
     }
 
@@ -483,10 +490,14 @@ exports.getCardById = async (req, res, next) => {
       logger.warn(`Failed to count view for card ${req.params.cardId}: ${incrementError.message}`);
     }
 
+    const isLoved = userId && typeof result?.card?.isLovedByUser === 'function'
+      ? result.card.isLovedByUser(userId)
+      : false;
+
     const payload = await applyPrivateCardAccess(result, userId);
     if (userId && payload.card) {
-      const cardObj = payload.card.toObject ? payload.card.toObject() : payload.card;
-      cardObj.isLoved = await result.card.isLovedByUser(userId);
+      const cardObj = payload.card.toObject ? payload.card.toObject() : { ...payload.card };
+      cardObj.isLoved = isLoved;
       payload.card = cardObj;
     }
 
