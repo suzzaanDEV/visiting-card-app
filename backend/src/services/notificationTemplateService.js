@@ -1,5 +1,18 @@
 const NotificationTemplate = require('../models/notificationTemplateModel');
 const logger = require('../utils/logger');
+const { getRuntimeDefaults } = require('../utils/notificationTemplateVariables');
+
+// Escape a variable key so it cannot be interpreted as a regex pattern.
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const applyVariables = (text, variables) => {
+  let rendered = text || '';
+  for (const [key, value] of Object.entries(variables)) {
+    const regex = new RegExp(`\\{\\{${escapeRegex(key)}\\}\\}`, 'g');
+    rendered = rendered.replace(regex, value != null ? String(value) : '');
+  }
+  return rendered;
+};
 
 class NotificationTemplateService {
   async createTemplate(data, adminId) {
@@ -75,32 +88,15 @@ class NotificationTemplateService {
     const template = await NotificationTemplate.findById(templateId);
     if (!template) throw new Error('Template not found');
 
-    let rendered = template.body;
-    for (const [key, value] of Object.entries(variables)) {
-      const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-      rendered = rendered.replace(regex, value != null ? String(value) : '');
-    }
-
-    let renderedSubject = template.subject || '';
-    if (template.subject) {
-      for (const [key, value] of Object.entries(variables)) {
-        const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-        renderedSubject = renderedSubject.replace(regex, value != null ? String(value) : '');
-      }
-    }
-
-    let renderedTitle = template.title || '';
-    if (template.title) {
-      for (const [key, value] of Object.entries(variables)) {
-        const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-        renderedTitle = renderedTitle.replace(regex, value != null ? String(value) : '');
-      }
-    }
+    // Auto-resolve runtime built-ins ({{currentTimestamp}}, {{currentDate}},
+    // {{appName}}) so they work even when the caller passes an empty object.
+    // Runtime defaults are injected first; caller-supplied values win.
+    const merged = { ...(await getRuntimeDefaults()), ...(variables || {}) };
 
     return {
-      subject: renderedSubject,
-      title: renderedTitle,
-      body: rendered
+      subject: applyVariables(template.subject, merged),
+      title: applyVariables(template.title, merged),
+      body: applyVariables(template.body, merged)
     };
   }
 }

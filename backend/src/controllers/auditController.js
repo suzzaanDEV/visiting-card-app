@@ -1,18 +1,31 @@
 const auditService = require('../services/auditService');
+const AuditLog = require('../models/auditLogModel');
 
 exports.getRecentLogs = async (req, res) => {
   try {
-    const { limit = 50, action, entityType, severity, userId, adminId, startDate, endDate } = req.query;
-    const filters = {};
-    if (action) filters.action = action;
-    if (entityType) filters.entityType = entityType;
-    if (severity) filters.severity = severity;
-    if (userId) filters.userId = userId;
-    if (adminId) filters.adminId = adminId;
-    if (startDate) filters.startDate = startDate;
-    if (endDate) filters.endDate = endDate;
-    const logs = await auditService.getRecent(parseInt(limit), filters);
-    res.json(logs);
+    const {
+      page, limit, search, action, entityType, severity, success,
+      userId, adminId, startDate, endDate,
+    } = req.query;
+    const result = await auditService.getPaginated({
+      page, limit, search, action, entityType, severity, success,
+      userId, adminId, startDate, endDate,
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+exports.getActionList = async (req, res) => {
+  try {
+    const counts = await AuditLog.getActionCounts();
+    const used = new Set(counts.map((c) => c._id));
+    const actions = AuditLog.ACTION_TYPES.map((action) => ({
+      action,
+      count: used.has(action) ? counts.find((c) => c._id === action).count : 0,
+    }));
+    res.json({ actions });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -58,33 +71,44 @@ exports.getTimeline = async (req, res) => {
 
 exports.exportLogs = async (req, res) => {
   try {
-    const { format = 'json', limit = 100, action, entityType, severity, userId, adminId, startDate, endDate } = req.query;
-    const filters = {};
-    if (action) filters.action = action;
-    if (entityType) filters.entityType = entityType;
-    if (severity) filters.severity = severity;
-    if (userId) filters.userId = userId;
-    if (adminId) filters.adminId = adminId;
-    if (startDate) filters.startDate = startDate;
-    if (endDate) filters.endDate = endDate;
-
-    const logs = await auditService.getRecent(parseInt(limit), filters);
+    const { format = 'json', limit = 100, search, action, entityType, severity, success, userId, adminId, startDate, endDate } = req.query;
+    const result = await auditService.getPaginated({
+      limit, search, action, entityType, severity, success, userId, adminId, startDate, endDate,
+    });
+    const logs = result.logs;
 
     if (format === 'csv') {
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="audit-logs-${Date.now()}.csv"`);
-      // Simple CSV serialization
-      const header = 'timestamp,action,entityType,entityId,userId,adminId,severity,success,errorMessage,metadata\n';
+      const header = 'timestamp,action,entityType,entityId,userId,adminId,actorEmail,severity,success,statusCode,method,path,requestId,elapsedMs,errorMessage,ipAddress,metadata\n';
       const rows = logs.map(l => {
         const md = l.metadata ? JSON.stringify(Object.fromEntries(l.metadata)) : '';
-        return `${l.createdAt.toISOString()},${l.action},${l.entityType || ''},${l.entityId || ''},${l.userId || ''},${l.adminId || ''},${l.severity || ''},${l.success},${(l.errorMessage || '').replace(/\n/g, ' ')} ,"${md.replace(/"/g, '""')}"`;
+        const cell = (v) => (v === null || v === undefined ? '' : String(v).replace(/\n/g, ' '));
+        return [
+          l.createdAt ? l.createdAt.toISOString() : '',
+          cell(l.action),
+          cell(l.entityType),
+          l.entityId || '',
+          l.userId || '',
+          l.adminId || '',
+          cell(l.actorEmail),
+          cell(l.severity),
+          l.success,
+          cell(l.statusCode),
+          cell(l.method),
+          cell(l.path),
+          cell(l.requestId),
+          cell(l.elapsedMs),
+          cell(l.errorMessage),
+          cell(l.ipAddress),
+          `"${md.replace(/"/g, '""')}"`
+        ].join(',');
       }).join('\n');
       return res.send(header + rows);
     }
 
-    // Default JSON
     res.setHeader('Content-Type', 'application/json');
-    return res.json({ logs });
+    return res.json({ logs, total: result.total });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

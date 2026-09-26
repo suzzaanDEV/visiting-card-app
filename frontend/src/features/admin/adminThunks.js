@@ -503,6 +503,15 @@ export const fetchAuditStats = createAsyncThunk('admin/fetchAuditStats', async (
   } catch (error) { return rejectWithValue(error.message); }
 });
 
+export const fetchAuditActions = createAsyncThunk('admin/fetchAuditActions', async (_, { rejectWithValue }) => {
+  try {
+    const res = await adminFetch('/audit/actions', { headers: {} });
+    if (!res.ok) throw new Error('Failed to fetch audit actions');
+    const data = await res.json();
+    return data.actions || [];
+  } catch (error) { return rejectWithValue(error.message); }
+});
+
 // Categories
 export const fetchCategoriesAdmin = createAsyncThunk('admin/fetchCategories', async (_, { rejectWithValue }) => {
   try {
@@ -705,6 +714,18 @@ export const deleteNotificationTemplate = createAsyncThunk(
       });
       if (!res.ok) throw new Error('Failed to delete notification template');
       return { id };
+    } catch (error) { return rejectWithValue(error.message); }
+  }
+);
+
+export const fetchNotificationTemplateVariables = createAsyncThunk(
+  'admin/fetchNotificationTemplateVariables',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await adminFetch('/admin/notification-templates/variables', {});
+      if (!res.ok) throw new Error('Failed to fetch available variables');
+      const data = await res.json();
+      return data.variables || [];
     } catch (error) { return rejectWithValue(error.message); }
   }
 );

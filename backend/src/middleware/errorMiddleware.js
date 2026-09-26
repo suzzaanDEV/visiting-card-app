@@ -1,40 +1,40 @@
 const logger = require('../utils/logger');
+const auditService = require('../services/auditService');
 
 module.exports = (err, req, res, next) => {
   logger.error(`Error: ${err.message}`);
   logger.error(`Stack: ${err.stack}`);
-  
+
+  const statusCode = err.status || 500;
+  const send = (body) => {
+    auditService.log({
+      action: 'system.error',
+      entityType: 'system',
+      statusCode,
+      severity: statusCode >= 500 ? 'critical' : 'warning',
+      success: false,
+      errorMessage: err.message
+    }).catch(() => {});
+    return res.status(statusCode).json(body);
+  };
+
   // Handle specific error types
   if (err.name === 'ValidationError') {
-    return res.status(400).json({ 
-      error: 'Validation Error', 
-      details: Object.values(err.errors).map(e => e.message) 
+    return send({
+      error: 'Validation Error',
+      details: Object.values(err.errors).map(e => e.message)
     });
   }
-  
-  if (err.name === 'CastError') {
-    return res.status(400).json({ error: 'Invalid ID format' });
-  }
-  
-  if (err.code === 11000) {
-    return res.status(400).json({ error: 'Duplicate field value' });
-  }
-  
-  res.status(err.status || 500).json({ 
-    error: process.env.NODE_ENV === 'production' ? 'Something went wrong' : err.message 
-  });
-};
 
-// Add detailed error logging
-const logError = (error, req) => {
-  const errorLog = {
-    timestamp: new Date(),
-    error: error.message,
-    stack: error.stack,
-    url: req.url,
-    method: req.method,
-    userAgent: req.headers['user-agent'],
-    ip: req.ip
-  };
-  console.error('Detailed Error Log:', errorLog);
+  if (err.name === 'CastError') {
+    return send({ error: 'Invalid ID format' });
+  }
+
+  if (err.code === 11000) {
+    return send({ error: 'Duplicate field value' });
+  }
+
+  return send({
+    error: process.env.NODE_ENV === 'production' ? 'Something went wrong' : err.message
+  });
 };

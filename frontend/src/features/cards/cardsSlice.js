@@ -220,21 +220,21 @@ const cardsSlice = createSlice({
       state.error = null;
     });
     builder.addCase(cardsThunks.toggleCardLove.fulfilled, (state, action) => {
-      const { cardId, isLoved } = action.payload;
+      const { cardId, loved, loveCount } = action.payload;
       // Update the card in the list if it exists
       const cardIndex = state.cards.findIndex(card => card._id === cardId);
       if (cardIndex !== -1) {
-        state.cards[cardIndex].isLoved = isLoved;
-        state.cards[cardIndex].loveCount = isLoved 
-          ? (state.cards[cardIndex].loveCount || 0) + 1 
-          : Math.max(0, (state.cards[cardIndex].loveCount || 0) - 1);
+        state.cards[cardIndex].isLoved = loved;
+        if (typeof loveCount === 'number') {
+          state.cards[cardIndex].loveCount = loveCount;
+        }
       }
       // Update currentCard if it's the same card
       if (state.currentCard && state.currentCard._id === cardId) {
-        state.currentCard.isLoved = isLoved;
-        state.currentCard.loveCount = isLoved 
-          ? (state.currentCard.loveCount || 0) + 1 
-          : Math.max(0, (state.currentCard.loveCount || 0) - 1);
+        state.currentCard.isLoved = loved;
+        if (typeof loveCount === 'number') {
+          state.currentCard.loveCount = loveCount;
+        }
       }
     });
     builder.addCase(cardsThunks.toggleCardLove.rejected, (state, action) => {

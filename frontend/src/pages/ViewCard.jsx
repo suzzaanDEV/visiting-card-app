@@ -113,7 +113,7 @@ const ViewCard = () => {
     );
   }
 
-  return <CardViewer card={card} />;
+  return <CardViewer card={card} isLoved={Boolean(card?.isLoved)} />;
 };
 
 export default ViewCard;

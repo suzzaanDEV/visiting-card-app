@@ -7,6 +7,7 @@ router.use(authenticateAdmin);
 
 router.get('/', notificationTemplateController.getTemplates);
 router.post('/', notificationTemplateController.createTemplate);
+router.get('/variables', notificationTemplateController.getAvailableVariables);
 router.get('/:id', notificationTemplateController.getTemplateById);
 router.put('/:id', notificationTemplateController.updateTemplate);
 router.delete('/:id', notificationTemplateController.deleteTemplate);

@@ -287,6 +287,7 @@ class CardAccessService {
         throw new Error('Request is not pending');
       }
 
+      const before = { status: request.status, adminId: request.adminId || null };
       request.status = 'approved';
       request.adminId = adminId;
       request.adminNotes = adminNotes;
@@ -297,6 +298,7 @@ class CardAccessService {
       return {
         success: true,
         request,
+        before,
         message: 'Access request approved successfully'
       };
     } catch (error) {
@@ -320,6 +322,7 @@ class CardAccessService {
         throw new Error('Request is not pending');
       }
 
+      const before = { status: request.status, adminId: request.adminId || null };
       request.status = 'rejected';
       request.adminId = adminId;
       request.adminNotes = adminNotes;
@@ -331,6 +334,7 @@ class CardAccessService {
       return {
         success: true,
         request,
+        before,
         message: 'Access request rejected successfully'
       };
     } catch (error) {

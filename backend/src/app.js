@@ -99,6 +99,12 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
+// Per-request audit context (request id, correlation id, method, path, timing)
+// — automatically enriches every AuditLog entry recorded during a request.
+// Mounted before body parsing so even malformed-payload rejects get context.
+const auditContext = require('./middleware/auditContext');
+app.use(auditContext);
+
 // Body parsing middleware
 app.use(express.json({
   limit: '10mb',

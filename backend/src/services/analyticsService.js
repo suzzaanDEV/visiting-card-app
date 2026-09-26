@@ -42,6 +42,7 @@ class AnalyticsService {
         metadata: {
           userAgent: metadata.userAgent,
           ipAddress: metadata.ipAddress,
+          visitorId: metadata.visitorId || null,
           referrer: metadata.referrer,
           deviceType: this.getDeviceType(metadata.userAgent),
           location: metadata.location,
@@ -65,7 +66,7 @@ class AnalyticsService {
     }
   }
 
-  // Find a recent, identical event from the same actor (or IP for anonymous) & card
+  // Find a recent, identical event from the same actor (or visitor/IP for anonymous) & card
   async findDuplicate(cardId, userId, actionType, metadata, windowMs) {
     const windowStart = new Date(Date.now() - windowMs);
     const query = {
@@ -75,6 +76,8 @@ class AnalyticsService {
     };
     if (userId) {
       query.userId = userId;
+    } else if (metadata.visitorId) {
+      query['metadata.visitorId'] = metadata.visitorId;
     } else if (metadata.ipAddress) {
       query['metadata.ipAddress'] = metadata.ipAddress;
     }
@@ -93,22 +96,17 @@ class AnalyticsService {
     return 'desktop';
   }
 
-  // Update card statistics
+  // Update card statistics.
+  // Note: `view`, `love` and `unlove` counters are deliberately NOT mutated here
+  // anymore — they are updated once, at their authoritative call sites, gated by
+  // dedup (see cardController). Mutating them here too caused double-counting
+  // (e.g. a single love bumped loveCount twice). Shares/downloads keep working.
   async updateCardStats(cardId, actionType) {
     try {
       const card = await Card.findById(cardId);
       if (!card) return;
 
       switch (actionType) {
-        case 'view':
-          card.views += 1;
-          break;
-        case 'love':
-          card.loveCount += 1;
-          break;
-        case 'unlove':
-          card.loveCount = Math.max(0, card.loveCount - 1);
-          break;
         case 'share':
           card.shares += 1;
           break;

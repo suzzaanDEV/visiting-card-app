@@ -1,22 +1,25 @@
 const mongoose = require('mongoose');
 
+const ACTION_TYPES = [
+  'user.register', 'user.login', 'user.logout', 'user.update', 'user.delete', 'user.ban', 'user.unban',
+  'admin.login', 'admin.logout', 'admin.update_settings', 'admin.backup', 'admin.restore',
+  'admin.create_template', 'admin.update_template', 'admin.delete_template',
+  'admin.create_category', 'admin.update_category', 'admin.delete_category',
+  'admin.feature_card', 'admin.unfeature_card', 'admin.delete_card',
+  'admin.approve_access', 'admin.reject_access',
+  'card.create', 'card.update', 'card.delete', 'card.love', 'card.share', 'card.view',
+  'card.archive', 'card.restore', 'card.privacy_change',
+  'notification.send', 'notification.mark_read',
+  'policy.create', 'policy.update', 'policy.publish',
+  'auth.password_change', 'auth.password_reset', 'auth.email_verify',
+  'auth.two_factor_enable', 'auth.two_factor_disable',
+  'auth.two_factor_login', 'auth.two_factor_login_failed',
+  'system.error', 'system.backup', 'system.restore'
+];
+
 const auditLogSchema = new mongoose.Schema({
-  action: { type: String, required: true, enum: [
-    'user.register', 'user.login', 'user.logout', 'user.update', 'user.delete', 'user.ban', 'user.unban',
-    'admin.login', 'admin.logout', 'admin.update_settings', 'admin.backup', 'admin.restore',
-    'admin.create_template', 'admin.update_template', 'admin.delete_template',
-    'admin.feature_card', 'admin.unfeature_card', 'admin.delete_card',
-    'admin.approve_access', 'admin.reject_access',
-    'card.create', 'card.update', 'card.delete', 'card.love', 'card.share', 'card.view',
-    'card.archive', 'card.restore', 'card.privacy_change',
-    'notification.send', 'notification.mark_read',
-    'policy.create', 'policy.update', 'policy.publish',
-    'auth.password_change', 'auth.password_reset', 'auth.email_verify',
-    'auth.two_factor_enable', 'auth.two_factor_disable',
-    'auth.two_factor_login', 'auth.two_factor_login_failed',
-    'system.error', 'system.backup', 'system.restore'
-  ]},
-  entityType: { type: String, enum: ['user', 'card', 'admin', 'template', 'policy', 'notification', 'system', null], default: null },
+  action: { type: String, required: true, enum: ACTION_TYPES },
+  entityType: { type: String, enum: ['user', 'card', 'admin', 'category', 'template', 'policy', 'notification', 'system', null], default: null },
   entityId: { type: mongoose.Schema.Types.ObjectId, default: null },
   userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
   adminId: { type: mongoose.Schema.Types.ObjectId, ref: 'Admin', default: null },
@@ -29,7 +32,21 @@ const auditLogSchema = new mongoose.Schema({
   userAgent: { type: String },
   severity: { type: String, enum: ['info', 'warning', 'critical'], default: 'info' },
   success: { type: Boolean, default: true },
-  errorMessage: { type: String }
+  errorMessage: { type: String },
+  // ── Request context (captured automatically by auditContext middleware) ──
+  requestId: { type: String },
+  correlationId: { type: String },
+  method: { type: String },
+  path: { type: String },
+  // Millis from the start of the request until this event was recorded.
+  elapsedMs: { type: Number },
+  statusCode: { type: Number },
+  // Denormalized actor identity (point-in-time, robust to later edits).
+  actorEmail: { type: String },
+  actorName: { type: String },
+  // Before/after snapshot diff for state-changing actions.
+  before: { type: mongoose.Schema.Types.Mixed },
+  after: { type: mongoose.Schema.Types.Mixed }
 }, { timestamps: true });
 
 auditLogSchema.index({ action: 1, createdAt: -1 });
@@ -37,6 +54,7 @@ auditLogSchema.index({ userId: 1, createdAt: -1 });
 auditLogSchema.index({ adminId: 1, createdAt: -1 });
 auditLogSchema.index({ entityType: 1, entityId: 1 });
 auditLogSchema.index({ severity: 1, createdAt: -1 });
+auditLogSchema.index({ requestId: 1 });
 auditLogSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7776000 });
 
 auditLogSchema.statics.log = async function(data) {
@@ -76,5 +94,7 @@ auditLogSchema.statics.getActionCounts = async function(startDate, endDate) {
     { $sort: { count: -1 } }
   ]);
 };
+
+auditLogSchema.statics.ACTION_TYPES = ACTION_TYPES;
 
 module.exports = mongoose.model('AuditLog', auditLogSchema);

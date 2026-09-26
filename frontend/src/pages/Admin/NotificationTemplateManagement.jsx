@@ -3,13 +3,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiPlus, FiEdit2, FiTrash2, FiEye, FiX, FiFileText,
-  FiMail, FiSmartphone, FiMonitor, FiCheck, FiAlertCircle,
+  FiMail, FiSmartphone, FiMonitor, FiCheck, FiAlertCircle, FiZap, FiBookOpen,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import AdminLayout from '../../components/Admin/AdminLayout';
 import {
   fetchNotificationTemplates, createNotificationTemplate,
   updateNotificationTemplate, deleteNotificationTemplate,
+  fetchNotificationTemplateVariables,
 } from '../../features/admin/adminThunks';
 
 const TYPE_CONFIG = {
@@ -23,6 +24,7 @@ const emptyForm = { name: '', type: 'in_app', subject: '', title: '', body: '', 
 const NotificationTemplateManagement = () => {
   const dispatch = useDispatch();
   const templates = useSelector((s) => s.admin.notificationTemplates);
+  const availableVariables = useSelector((s) => s.admin.notificationTemplateVariables);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
@@ -34,8 +36,32 @@ const NotificationTemplateManagement = () => {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => { dispatch(fetchNotificationTemplates()); }, [dispatch]);
+  useEffect(() => { dispatch(fetchNotificationTemplateVariables()); }, [dispatch]);
 
   const updateForm = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  const variablesByCategory = React.useMemo(() => {
+    const groups = {};
+    for (const v of availableVariables) {
+      const cat = v.category || 'General';
+      (groups[cat] = groups[cat] || []).push(v);
+    }
+    return groups;
+  }, [availableVariables]);
+
+  const insertVariable = (key) => {
+    const token = `{{${key}}}`;
+    setForm((f) => {
+      const declared = f.variables ? f.variables.split(',').map((v) => v.trim()).filter(Boolean) : [];
+      const already = declared.includes(key);
+      return {
+        ...f,
+        body: f.body ? f.body + token : token,
+        variables: already ? f.variables : declared.length ? `${declared.join(', ')}, ${key}` : key,
+      };
+    });
+    toast.success(`Inserted {{${key}}}`, { id: 'insert-var' });
+  };
 
   const openForm = (t = null) => {
     if (t) {
@@ -84,9 +110,13 @@ const NotificationTemplateManagement = () => {
   };
 
   const renderPreview = (t) => {
-    const vars = (t.variables || []).reduce((acc, v) => { acc[v] = `{{${v}}}`; return acc; }, {});
+    const sampleFor = (v) => v.example || `[Sample ${v.key}]`;
     let body = t.body || '';
-    Object.entries(vars).forEach(([k, v]) => { body = body.replaceAll(v, `[Sample ${k}]`); });
+    for (const v of availableVariables) {
+      body = body.split(`{{${v.key}}}`).join(sampleFor(v));
+    }
+    // Fallback for variables outside the registry (custom, free-form ones).
+    body = body.replace(/\{\{(\w+)\}\}/g, (m, key) => `[Sample ${key}]`);
     return body;
   };
 
@@ -206,11 +236,55 @@ const NotificationTemplateManagement = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Body *</label>
-                    <textarea value={form.body} onChange={(e) => updateForm({ body: e.target.value })} rows={5} className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-sm" placeholder="Template body. Use {{variable}} for dynamic content." />
+                    <textarea value={form.body} onChange={(e) => updateForm({ body: e.target.value })} rows={5} className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 outline-none font-mono text-sm" placeholder="Template body. Use {{variable}} for dynamic content — pick one from the Variable Library below (click to insert)." />
                   </div>
+
+                  {/* ─── Variable Library ─── */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Variables (comma-separated)</label>
-                    <input type="text" value={form.variables} onChange={(e) => updateForm({ variables: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="userName, cardName, date" />
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="flex items-center space-x-2 text-sm font-medium text-gray-700 dark:text-slate-300">
+                        <FiBookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        <span>Variable Library</span>
+                      </label>
+                      <span className="flex items-center space-x-1 text-[11px] text-gray-500 dark:text-slate-400">
+                        <FiZap className="w-3 h-3 text-amber-500" />
+                        <span className="hidden sm:inline">Click a variable to insert into Body &amp; declare it</span>
+                      </span>
+                    </div>
+                    <div className="rounded-lg border border-gray-200 dark:border-slate-600 bg-gray-50 dark:bg-slate-900 max-h-44 overflow-y-auto p-2 space-y-2">
+                      {Object.keys(variablesByCategory).length === 0 && (
+                        <p className="text-xs text-gray-500 dark:text-slate-400 px-1 py-2">Variable library unavailable — you can still write {'{{customKey}}'} placeholders.</p>
+                      )}
+                      {Object.entries(variablesByCategory).map(([cat, vars]) => (
+                        <div key={cat}>
+                          <p className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-slate-500 px-1 mb-1">{cat}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {vars.map((v) => (
+                              <button
+                                key={v.key}
+                                type="button"
+                                onClick={() => insertVariable(v.key)}
+                                title={`${v.description}${v.example ? `\nExample: ${v.example}` : ''}`}
+                                className="group relative inline-flex items-center space-x-1 text-xs font-mono bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-300 px-2 py-1 rounded-md hover:bg-emerald-600 hover:text-white hover:border-emerald-600 transition-colors"
+                              >
+                                {v.runtime && <FiZap className="w-3 h-3 text-amber-500 group-hover:text-amber-200" />}
+                                <span>{`{{${v.key}}}`}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {availableVariables.length > 0 && (
+                      <p className="text-[11px] text-gray-500 dark:text-slate-400 mt-1">
+                        Tip: hover a chip for its description. The amber <FiZap className="inline w-3 h-3 text-amber-500" /> badge marks runtime variables (such as {'{{currentTimestamp}}'} and {'{{appName}}'}) that the system auto-fills with no caller data.
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Declared Variables (comma-separated)</label>
+                    <input type="text" value={form.variables} onChange={(e) => updateForm({ variables: e.target.value })} className="w-full px-3 py-2 border border-gray-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="recipientName, cardTitle" />
                   </div>
                   <label className="flex items-center space-x-3 cursor-pointer">
                     <input type="checkbox" checked={form.isActive} onChange={(e) => updateForm({ isActive: e.target.checked })} className="rounded text-emerald-600 focus:ring-emerald-500" />

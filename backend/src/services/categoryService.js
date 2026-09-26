@@ -5,16 +5,17 @@ const categoryService = {
     const cat = await Category.create(data);
     try {
       const AuditLog = require('../models/auditLogModel');
-      await AuditLog.log({ action: 'admin.create_template', entityType: 'template', entityId: null, adminId: null, metadata: { category: cat.slug } });
+      await AuditLog.log({ action: 'admin.create_category', entityType: 'category', entityId: cat._id, metadata: { category: cat.slug } });
     } catch (e) { /* ignore */ }
     return cat;
   },
 
   async update(id, data) {
+    const before = await Category.findById(id).lean();
     const updated = await Category.findByIdAndUpdate(id, data, { new: true });
     try {
       const AuditLog = require('../models/auditLogModel');
-      await AuditLog.log({ action: 'admin.update_template', entityType: 'template', entityId: null, adminId: null, metadata: { categoryId: id } });
+      await AuditLog.log({ action: 'admin.update_category', entityType: 'category', entityId: updated?._id ?? id, metadata: { categoryId: id }, before, after: updated?.toObject?.() || updated });
     } catch (e) { /* ignore */ }
     return updated;
   },
@@ -32,10 +33,11 @@ const categoryService = {
   },
 
   async delete(id) {
+    const before = await Category.findById(id).lean();
     const removed = await Category.findByIdAndDelete(id);
     try {
       const AuditLog = require('../models/auditLogModel');
-      await AuditLog.log({ action: 'admin.delete_template', entityType: 'template', entityId: null, adminId: null, metadata: { categoryId: id } });
+      await AuditLog.log({ action: 'admin.delete_category', entityType: 'category', entityId: removed?._id ?? id, metadata: { categoryId: id }, before });
     } catch (e) { /* ignore */ }
     return removed;
   },

@@ -895,17 +895,27 @@ class CardService {
 
     const isLoved = card.isLovedByUser(userId);
 
+    // Each branch is a guarded atomic update, so a user can never end up with
+    // more than one love on the same card — even under rapid double-clicks.
     if (isLoved) {
-      await card.removeLove(userId);
+      await Card.updateOne(
+        { _id: cardId, 'loves.userId': userId },
+        { $pull: { loves: { userId } }, $inc: { loveCount: -1 } }
+      );
       logger.info(`Love removed from card ${cardId} by user ${userId}`);
-      const updated = await Card.findById(cardId);
-      return { loved: false, loveCount: updated.loveCount };
     } else {
-      await card.addLove(userId);
+      await Card.updateOne(
+        { _id: cardId, 'loves.userId': { $ne: userId } },
+        { $push: { loves: { userId } }, $inc: { loveCount: 1 } }
+      );
       logger.info(`Love added to card ${cardId} by user ${userId}`);
-      const updated = await Card.findById(cardId);
-      return { loved: true, loveCount: updated.loveCount };
     }
+
+    const updated = await Card.findById(cardId).select('loveCount');
+    return {
+      loved: !isLoved,
+      loveCount: Math.max(0, (updated && updated.loveCount) || 0)
+    };
   }
 
   async getUserLovedCards(userId) {

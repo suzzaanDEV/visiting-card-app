@@ -293,7 +293,11 @@ const CardItem = ({ card, index, onSave }) => {
     onSave(card._id);
   };
 
+  const [isLoving, setIsLoving] = useState(false);
+
   const handleLove = async () => {
+    if (isLoving) return;
+    setIsLoving(true);
     try {
       const response = await fetch(`/api/cards/${card._id}/love`, {
         method: 'POST',
@@ -303,12 +307,18 @@ const CardItem = ({ card, index, onSave }) => {
       });
       
       if (response.ok) {
-        setIsLoved(!isLoved);
-        toast.success(isLoved ? 'Card unliked!' : 'Card loved!');
+        const data = await response.json().catch(() => ({}));
+        setIsLoved(data.loved !== undefined ? data.loved : !isLoved);
+        if (typeof data.loveCount === 'number') {
+          card.loveCount = data.loveCount;
+        }
+        toast.success(data.loved ? 'Card loved!' : 'Card unliked!');
       }
     } catch (error) {
       console.error('Error loving card:', error);
       toast.error('Failed to love card');
+    } finally {
+      setIsLoving(false);
     }
   };
 

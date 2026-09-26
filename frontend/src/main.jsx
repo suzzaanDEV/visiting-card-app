@@ -24,53 +24,53 @@ root.render(
       <BrowserRouter>
         <ThemeProvider>
           <App />
-          <Toaster 
+          <Toaster
             position="bottom-right"
+            gutter={14}
+            maxVisible={4}
+            containerStyle={{ margin: 20 }}
             toastOptions={{
               duration: 4000,
+              className: 'cardly-toast',
               style: {
-                background: 'var(--color-surface)',
                 color: 'var(--color-text)',
-                border: '1px solid var(--color-border)',
-                borderRadius: '12px',
-                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)',
+                borderRadius: '15px',
                 fontSize: '14px',
                 fontWeight: '500',
-                padding: '16px 20px',
-                minWidth: '300px',
-                marginBottom: '20px',
+                lineHeight: '1.45',
+                padding: '14px 18px',
+                minWidth: '320px',
               },
               success: {
+                duration: 4000,
                 iconTheme: {
                   primary: 'var(--color-success)',
-                  secondary: 'var(--color-surface)',
+                  secondary: '#FFFFFF',
                 },
                 style: {
-                  background: 'var(--color-surface)',
                   color: 'var(--color-success)',
-                  border: '1px solid var(--color-border)',
+                  borderLeft: '4px solid var(--color-success)',
                 },
               },
               error: {
+                duration: 5000,
                 iconTheme: {
                   primary: 'var(--color-danger)',
-                  secondary: 'var(--color-surface)',
+                  secondary: '#FFFFFF',
                 },
                 style: {
-                  background: 'var(--color-surface)',
                   color: 'var(--color-danger)',
-                  border: '1px solid var(--color-border)',
+                  borderLeft: '4px solid var(--color-danger)',
                 },
               },
               loading: {
                 iconTheme: {
                   primary: 'var(--color-primary)',
-                  secondary: 'var(--color-surface)',
+                  secondary: '#FFFFFF',
                 },
                 style: {
-                  background: 'var(--color-surface)',
                   color: 'var(--color-primary)',
-                  border: '1px solid var(--color-border)',
+                  borderLeft: '4px solid var(--color-primary)',
                 },
               },
             }}

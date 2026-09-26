@@ -1,6 +1,6 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import { API_BASE_URL } from '../../services/apiService';
 import { getToken } from '../../utils/authStorage';
+import { getVisitorId } from '../../utils/visitorId';
 import { getRateLimitMessage } from '../../services/rateLimitUtils';
 
 // Fetch user's cards with pagination
@@ -39,8 +39,13 @@ export const fetchPublicCard = createAsyncThunk(
   async (cardId, { rejectWithValue }) => {
     try {
       const token = getToken();
-      const response = await fetch(`${API_BASE_URL}/cards/public/view/${cardId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      const visitorId = getVisitorId();
+      const headers = { ...(visitorId ? { 'x-visitor-id': visitorId } : {}) };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const response = await fetch(`/api/cards/public/view/${cardId}`, {
+        headers,
       });
 
       if (!response.ok) {
@@ -87,12 +92,15 @@ export const fetchCardByShortLink = createAsyncThunk(
     try {
       const token = getToken();
       const headers = {};
-
+      const visitorId = getVisitorId();
+      if (visitorId) {
+        headers['x-visitor-id'] = visitorId;
+      }
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${API_BASE_URL}/cards/c/${shortLink}`, {
+      const response = await fetch(`/api/cards/c/${shortLink}`, {
         headers
       });
 

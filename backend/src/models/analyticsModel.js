@@ -21,6 +21,7 @@ const analyticsSchema = new mongoose.Schema({
   metadata: {
     userAgent: String,
     ipAddress: String,
+    visitorId: String,
     referrer: String,
     deviceType: {
       type: String,

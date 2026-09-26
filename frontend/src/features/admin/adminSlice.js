@@ -59,11 +59,14 @@ const adminSlice = createSlice({
     contactTotalPages: 1,
     auditLogs: [],
     auditStats: null,
+    auditPagination: null,
+    auditActions: [],
     categories: [],
 broadcasts: { data: [], total: 0, page: 1, loading: false, error: null },
   broadcastStats: null,
   broadcastOverview: null,
     notificationTemplates: [],
+    notificationTemplateVariables: [],
     loading: false,
     error: null
   },
@@ -267,8 +270,17 @@ broadcasts: { data: [], total: 0, page: 1, loading: false, error: null },
         state.contactTotalPages = action.payload.totalPages || 1;
       })
       // Audit Logs
-      .addCase(adminThunks.fetchAuditLogs.fulfilled, (state, action) => { state.auditLogs = action.payload; })
+      .addCase(adminThunks.fetchAuditLogs.fulfilled, (state, action) => {
+        const p = action.payload;
+        if (p && Array.isArray(p.logs)) {
+          state.auditLogs = p.logs;
+          state.auditPagination = { total: p.total, page: p.page, limit: p.limit, totalPages: p.totalPages };
+        } else {
+          state.auditLogs = action.payload;
+        }
+      })
       .addCase(adminThunks.fetchAuditStats.fulfilled, (state, action) => { state.auditStats = action.payload; })
+      .addCase(adminThunks.fetchAuditActions.fulfilled, (state, action) => { state.auditActions = action.payload; })
       // Categories
       .addCase(adminThunks.fetchCategoriesAdmin.fulfilled, (state, action) => { state.categories = action.payload; })
       // ─── Broadcasts ─────────────────────────────────────────────────────
@@ -326,6 +338,9 @@ broadcasts: { data: [], total: 0, page: 1, loading: false, error: null },
       })
       .addCase(adminThunks.deleteNotificationTemplate.fulfilled, (state, action) => {
         state.notificationTemplates = state.notificationTemplates.filter((t) => t._id !== action.payload.id);
+      })
+      .addCase(adminThunks.fetchNotificationTemplateVariables.fulfilled, (state, action) => {
+        state.notificationTemplateVariables = action.payload || [];
       });
   }
 });

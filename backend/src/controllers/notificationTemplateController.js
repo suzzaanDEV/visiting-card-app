@@ -1,5 +1,15 @@
 const notificationTemplateService = require('../services/notificationTemplateService');
+const { availableVariables } = require('../utils/notificationTemplateVariables');
 const logger = require('../utils/logger');
+
+exports.getAvailableVariables = async (req, res) => {
+  try {
+    res.json({ variables: availableVariables });
+  } catch (error) {
+    logger.error(`Get available variables error: ${error.message}`);
+    res.status(500).json({ error: error.message });
+  }
+};
 
 exports.createTemplate = async (req, res) => {
   try {

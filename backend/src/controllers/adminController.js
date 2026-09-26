@@ -638,7 +638,20 @@ exports.getSettings = async (req, res, next) => {
 exports.updateSettings = async (req, res, next) => {
   try {
     const settings = req.body;
+    const before = await adminService.getSettings?.() || null;
     const updatedSettings = await adminService.updateSettings(settings);
+    try {
+      const auditService = require('../services/auditService');
+      await auditService.log({
+        action: 'admin.update_settings',
+        entityType: 'system',
+        adminId: req.admin?.adminId,
+        actorEmail: req.admin?.email,
+        before,
+        after: updatedSettings,
+        metadata: { keys: Object.keys(settings) },
+      });
+    } catch (e) { logger.warn('Failed to write settings audit log', e.message); }
     res.status(200).json(updatedSettings);
   } catch (error) {
     logger.error(`Update settings error: ${error.message}`);
@@ -707,6 +720,27 @@ exports.adminApproveAccessRequest = async (req, res, next) => {
       adminId: req.admin.adminId,
       adminNotes
     });
+
+    try {
+      const auditService = require('../services/auditService');
+      await auditService.log({
+        action: 'admin.approve_access',
+        entityType: 'card',
+        entityId: requestId,
+        adminId: req.admin.adminId,
+        actorEmail: req.admin.email,
+        before: result.before,
+        after: { status: 'approved' },
+        severity: 'info',
+        metadata: {
+          requesterEmail: result.request?.requesterId?.email,
+          cardTitle: result.request?.cardId?.title || result.request?.cardId?.fullName,
+          hasNotes: Boolean(adminNotes)
+        }
+      });
+    } catch (auditErr) {
+      logger.warn('Failed to write approve-access audit log', auditErr.message);
+    }
     
     res.status(200).json(result);
   } catch (error) {
@@ -726,6 +760,28 @@ exports.adminRejectAccessRequest = async (req, res, next) => {
       adminNotes,
       reason
     });
+
+    try {
+      const auditService = require('../services/auditService');
+      await auditService.log({
+        action: 'admin.reject_access',
+        entityType: 'card',
+        entityId: requestId,
+        adminId: req.admin.adminId,
+        actorEmail: req.admin.email,
+        before: result.before,
+        after: { status: 'rejected' },
+        severity: 'warning',
+        metadata: {
+          requesterEmail: result.request?.requesterId?.email,
+          cardTitle: result.request?.cardId?.title || result.request?.cardId?.fullName,
+          reason: reason || undefined,
+          hasNotes: Boolean(adminNotes)
+        }
+      });
+    } catch (auditErr) {
+      logger.warn('Failed to write reject-access audit log', auditErr.message);
+    }
     
     res.status(200).json(result);
   } catch (error) {

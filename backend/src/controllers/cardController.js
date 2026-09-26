@@ -10,11 +10,13 @@ const { getOwnerId, isPrivateCard, sanitizePrivateCard } = require('../utils/car
 const DEDUP_VIEW_MS = 5 * 60 * 1000;
 const DEDUP_ACTION_MS = 60 * 1000;
 
-// Best-effort analytics recording — never blocks or breaks the main flow
+// Best-effort analytics recording — never blocks or breaks the main flow.
+// Returns the underlying promise so callers can optionally await the dedup
+// decision (e.g. to gate counter increments on real, non-refresh views).
 const recordAnalytics = (cardId, actionType, userId, req, dedupMs = DEDUP_ACTION_MS) => {
-  if (!cardId) return;
+  if (!cardId) return Promise.resolve(null);
   const userAgent = req?.get?.('user-agent') || req?.headers?.['user-agent'];
-  analyticsService
+  return analyticsService
     .recordEvent({
       cardId,
       userId: userId || null,
@@ -22,11 +24,15 @@ const recordAnalytics = (cardId, actionType, userId, req, dedupMs = DEDUP_ACTION
       metadata: {
         userAgent,
         ipAddress: req?.ip,
+        visitorId: req?.headers?.['x-visitor-id'] || null,
         pageUrl: req?.originalUrl || req?.url
       },
       dedupMs
     })
-    .catch(err => logger.warn(`Analytics record failed (${actionType}): ${err.message}`));
+    .catch(err => {
+      logger.warn(`Analytics record failed (${actionType}): ${err.message}`);
+      return null;
+    });
 };
 
 const decodeViewer = (req) => {
@@ -429,14 +435,20 @@ exports.getCardByShortLink = async (req, res, next) => {
   try {
     const result = await cardService.getCardByShortLink(req.params.shortLink);
 
-    // Increment view count
-    if (result && result.card) {
+    // Increment view count only for real views (dedup-aware): a refresh of the
+    // same card by the same user/visitor within the dedup window is not a view.
+    const { userId } = decodeViewer(req);
+    const event = await recordAnalytics(result?.card?._id, 'view', userId, req, DEDUP_VIEW_MS);
+    if (result?.card && event && !event.deduplicated) {
       await result.card.incrementViews();
     }
 
-    const { userId } = decodeViewer(req);
-    recordAnalytics(result?.card?._id, 'view', userId, req, DEDUP_VIEW_MS);
     const payload = await applyPrivateCardAccess(result, userId);
+    if (userId && payload.card) {
+      const cardObj = payload.card.toObject ? payload.card.toObject() : payload.card;
+      cardObj.isLoved = await result.card.isLovedByUser(userId);
+      payload.card = cardObj;
+    }
 
     if (payload.card && isPrivateCard(payload.card)) {
       res.setHeader('X-Privacy-Notice', 'Contact details require approved access');
@@ -458,19 +470,25 @@ exports.getCardById = async (req, res, next) => {
       return res.status(404).json({ error: 'Card not found' });
     }
 
-    // Increment view count
+    // Increment view count only for real views (dedup-aware): a refresh of the
+    // same card by the same user/visitor within the dedup window is not a view.
+    const { userId } = decodeViewer(req);
+    let event = null;
     try {
-      if (result.card && typeof result.card.incrementViews === 'function') {
+      event = await recordAnalytics(result?.card?._id, 'view', userId, req, DEDUP_VIEW_MS);
+      if (event && !event.deduplicated && typeof result.card.incrementViews === 'function') {
         await result.card.incrementViews();
       }
     } catch (incrementError) {
-      logger.warn(`Failed to increment views for card ${req.params.cardId}: ${incrementError.message}`);
-      // Continue without incrementing views
+      logger.warn(`Failed to count view for card ${req.params.cardId}: ${incrementError.message}`);
     }
 
-    const { userId } = decodeViewer(req);
-    recordAnalytics(result?.card?._id, 'view', userId, req, DEDUP_VIEW_MS);
     const payload = await applyPrivateCardAccess(result, userId);
+    if (userId && payload.card) {
+      const cardObj = payload.card.toObject ? payload.card.toObject() : payload.card;
+      cardObj.isLoved = await result.card.isLovedByUser(userId);
+      payload.card = cardObj;
+    }
 
     if (payload.card && isPrivateCard(payload.card)) {
       res.setHeader('X-Privacy-Notice', 'Contact details require approved access');
@@ -752,7 +770,7 @@ exports.getCardWithEnhancedInfo = async (req, res, next) => {
     if (userId) {
       const enhancedCard = {
         ...result.card.toObject(),
-        isLoved: await cardService.isLovedByUser(cardId, userId),
+        isLoved: await result.card.isLovedByUser(userId),
         isSaved: await savedCardService.isCardSavedByUser(cardId, userId),
         canEdit: getOwnerId(result.card.ownerUserId) === String(userId),
         fullContactInfo: isOwner || hasApprovedAccess || result.card.privacy === 'public',

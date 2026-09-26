@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast';
 import {
   FiHome, FiSearch, FiPlus, FiBookmark, FiUser,
   FiBell, FiSun, FiMoon, FiLogOut,
-  FiSettings, FiChevronDown
+  FiSettings, FiChevronDown, FiShield
 } from 'react-icons/fi';
 import Logo from './Logo';
 import NotificationDropdown from '../Notifications/NotificationDropdown';
@@ -49,6 +49,7 @@ const UnifiedNavigation = () => {
   const profileMenuItems = [
     { label: 'Profile', icon: FiUser, onClick: () => navigate('/profile') },
     { label: 'Notifications', icon: FiBell, onClick: () => navigate('/notifications') },
+    { label: 'Access Requests', icon: FiShield, onClick: () => navigate('/access-requests') },
     { divider: true },
     { label: 'Sign Out', icon: FiLogOut, danger: true, onClick: handleLogout },
   ];
@@ -273,6 +274,9 @@ const UnifiedNavigation = () => {
                   <>
                     <Link to="/profile" onClick={() => setMobileMenuOpen(false)} className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}>
                       Profile
+                    </Link>
+                    <Link to="/access-requests" onClick={() => setMobileMenuOpen(false)} className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${textColor} hover:bg-gray-100 dark:hover:bg-slate-800`}>
+                      Access Requests
                     </Link>
                     <button
                       onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
